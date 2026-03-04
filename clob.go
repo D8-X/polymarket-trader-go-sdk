@@ -268,9 +268,9 @@ func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, 
 	return page.Data, nil
 }
 
-func (c *CLOBClient) GetTrades(ctx context.Context, market, assetID string, creds *L2Credentials) ([]Trade, error) {
+func (c *CLOBClient) GetTrades(ctx context.Context, makerAddress, market, assetID string, creds *L2Credentials) ([]Trade, error) {
 	path := "/trades"
-	query := "?maker_address=" + creds.Address + "&"
+	query := "?maker_address=" + makerAddress + "&"
 	if market != "" {
 		query += "market=" + market + "&"
 	}
