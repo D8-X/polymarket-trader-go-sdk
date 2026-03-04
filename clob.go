@@ -53,6 +53,38 @@ func (c *CLOBClient) PlaceOrder(ctx context.Context, signedOrder *SignedOrder, c
 	return &result, nil
 }
 
+func (c *CLOBClient) PlaceOrders(ctx context.Context, signedOrders []*SignedOrder, creds *L2Credentials) ([]PlaceOrderResponse, error) {
+	body, err := json.Marshal(signedOrders)
+	if err != nil {
+		return nil, fmt.Errorf("place orders: marshal: %w", err)
+	}
+
+	path := "/orders"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("place orders: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	headers, err := SignL2Request(creds, http.MethodPost, path, body)
+	if err != nil {
+		return nil, fmt.Errorf("place orders: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	respBody, err := c.doRequest(req, "POST /orders")
+	if err != nil {
+		return nil, fmt.Errorf("place orders: %w", err)
+	}
+
+	var results []PlaceOrderResponse
+	if err := json.Unmarshal(respBody, &results); err != nil {
+		return nil, fmt.Errorf("place orders: unmarshal response: %w", err)
+	}
+
+	return results, nil
+}
+
 func (c *CLOBClient) GetOrder(ctx context.Context, orderID string, creds *L2Credentials) (*OrderStatus, error) {
 	path := "/data/order/" + orderID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
