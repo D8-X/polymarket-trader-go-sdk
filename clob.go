@@ -290,7 +290,7 @@ func (c *CLOBClient) GetTrades(ctx context.Context, market, assetID string, cred
 	}
 	ApplyL2Headers(req, headers)
 
-	respBody, err := c.doRequest(req, "GET /data/trades")
+	respBody, err := c.doRequest(req, "GET /trades")
 	if err != nil {
 		return nil, fmt.Errorf("get trades: %w", err)
 	}
