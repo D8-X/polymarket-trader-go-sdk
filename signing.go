@@ -12,7 +12,7 @@ import (
 func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(ob.privateKeyHex))
 	if err != nil {
-		return "", fmt.Errorf("parse private key: %w", err)
+		return "", fmt.Errorf("sign order: invalid private key: %w", err)
 	}
 
 	domainTypeHash := ethutil.Keccak256([]byte(eip712DomainType))
@@ -55,7 +55,7 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 
 	sig, err := crypto.Sign(digest, pk)
 	if err != nil {
-		return "", fmt.Errorf("sign digest: %w", err)
+		return "", fmt.Errorf("sign order: sign EIP-712 digest: %w", err)
 	}
 	if sig[64] < 27 {
 		sig[64] += 27

@@ -38,7 +38,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 
 	saltBig, err := rand.Int(rand.Reader, big.NewInt(SaltUpperBound))
 	if err != nil {
-		return nil, fmt.Errorf("generating salt: %w", err)
+		return nil, fmt.Errorf("prepare order: generate salt: %w", err)
 	}
 	salt := saltBig.Int64()
 
@@ -79,7 +79,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 
 	sig, err := ob.signOrder(order)
 	if err != nil {
-		return nil, fmt.Errorf("sign order: %w", err)
+		return nil, fmt.Errorf("prepare order: %w", err)
 	}
 	order.Signature = sig
 

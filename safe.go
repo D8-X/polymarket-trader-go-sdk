@@ -29,36 +29,41 @@ func DerivePolymarketProxy(eoaAddress string) string {
 }
 
 func LookupSafeAddress(ctx context.Context, eoaAddress string) (string, error) {
-	url := fmt.Sprintf("%s/owners/%s/safes/", SafeAPIBaseURL, eoaAddress)
+	endpoint := fmt.Sprintf("/owners/%s/safes/", eoaAddress)
+	url := SafeAPIBaseURL + endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf("lookup safe: build request: %w", err)
 	}
 
 	client := &http.Client{Timeout: DefaultTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("safe api request: %w", err)
+		return "", fmt.Errorf("lookup safe: http request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("read response: %w", err)
+		return "", fmt.Errorf("lookup safe: read body: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("safe api returned %d: %s", resp.StatusCode, string(body))
+		return "", &APIError{
+			StatusCode: resp.StatusCode,
+			Endpoint:   "GET " + endpoint,
+			Body:       string(body),
+		}
 	}
 
 	var result struct {
 		Safes []string `json:"safes"`
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
-		return "", fmt.Errorf("unmarshal safes: %w", err)
+		return "", fmt.Errorf("lookup safe: unmarshal response: %w", err)
 	}
 	if len(result.Safes) == 0 {
-		return "", fmt.Errorf("no Gnosis Safe found for %s", eoaAddress)
+		return "", fmt.Errorf("lookup safe: no Gnosis Safe found for address %s", eoaAddress)
 	}
 	return result.Safes[0], nil
 }
