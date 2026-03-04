@@ -234,73 +234,103 @@ func (c *CLOBClient) CancelMarketOrders(ctx context.Context, market, assetID str
 }
 
 func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, creds *L2Credentials) ([]OrderStatus, error) {
-	path := "/orders"
-	query := "?"
-	if market != "" {
-		query += "market=" + market + "&"
-	}
-	if assetID != "" {
-		query += "asset_id=" + assetID + "&"
-	}
-	fullPath := path + query[:len(query)-1] // trim trailing & or ?
+	var all []OrderStatus
+	cursor := ""
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get open orders: build request: %w", err)
+	for {
+		path := "/orders"
+		query := "?"
+		if market != "" {
+			query += "market=" + market + "&"
+		}
+		if assetID != "" {
+			query += "asset_id=" + assetID + "&"
+		}
+		if cursor != "" {
+			query += "next_cursor=" + cursor + "&"
+		}
+		fullPath := path + query[:len(query)-1]
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get open orders: build request: %w", err)
+		}
+
+		headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get open orders: %w", err)
+		}
+		ApplyL2Headers(req, headers)
+
+		respBody, err := c.doRequest(req, "GET /orders")
+		if err != nil {
+			return nil, fmt.Errorf("get open orders: %w", err)
+		}
+
+		var page PaginatedResponse[OrderStatus]
+		if err := json.Unmarshal(respBody, &page); err != nil {
+			return nil, fmt.Errorf("get open orders: unmarshal response: %w", err)
+		}
+
+		all = append(all, page.Data...)
+
+		if page.NextCursor == "" || page.NextCursor == "LTE=" || len(page.Data) == 0 {
+			break
+		}
+		cursor = page.NextCursor
 	}
 
-	headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get open orders: %w", err)
-	}
-	ApplyL2Headers(req, headers)
-
-	respBody, err := c.doRequest(req, "GET /orders")
-	if err != nil {
-		return nil, fmt.Errorf("get open orders: %w", err)
-	}
-
-	var page PaginatedResponse[OrderStatus]
-	if err := json.Unmarshal(respBody, &page); err != nil {
-		return nil, fmt.Errorf("get open orders: unmarshal response: %w", err)
-	}
-
-	return page.Data, nil
+	return all, nil
 }
 
 func (c *CLOBClient) GetTrades(ctx context.Context, makerAddress, market, assetID string, creds *L2Credentials) ([]Trade, error) {
-	path := "/trades"
-	query := "?maker_address=" + makerAddress + "&"
-	if market != "" {
-		query += "market=" + market + "&"
-	}
-	if assetID != "" {
-		query += "asset_id=" + assetID + "&"
-	}
-	fullPath := path + query[:len(query)-1]
+	var all []Trade
+	cursor := ""
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get trades: build request: %w", err)
+	for {
+		path := "/trades"
+		query := "?maker_address=" + makerAddress + "&"
+		if market != "" {
+			query += "market=" + market + "&"
+		}
+		if assetID != "" {
+			query += "asset_id=" + assetID + "&"
+		}
+		if cursor != "" {
+			query += "next_cursor=" + cursor + "&"
+		}
+		fullPath := path + query[:len(query)-1]
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get trades: build request: %w", err)
+		}
+
+		headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get trades: %w", err)
+		}
+		ApplyL2Headers(req, headers)
+
+		respBody, err := c.doRequest(req, "GET /trades")
+		if err != nil {
+			return nil, fmt.Errorf("get trades: %w", err)
+		}
+
+		var page PaginatedResponse[Trade]
+		if err := json.Unmarshal(respBody, &page); err != nil {
+			return nil, fmt.Errorf("get trades: unmarshal response: %w", err)
+		}
+
+		all = append(all, page.Data...)
+
+		if page.NextCursor == "" || page.NextCursor == "LTE=" || len(page.Data) == 0 {
+			break
+		}
+		cursor = page.NextCursor
 	}
 
-	headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get trades: %w", err)
-	}
-	ApplyL2Headers(req, headers)
-
-	respBody, err := c.doRequest(req, "GET /trades")
-	if err != nil {
-		return nil, fmt.Errorf("get trades: %w", err)
-	}
-
-	var page PaginatedResponse[Trade]
-	if err := json.Unmarshal(respBody, &page); err != nil {
-		return nil, fmt.Errorf("get trades: unmarshal response: %w", err)
-	}
-
-	return page.Data, nil
+	return all, nil
 }
 
 func (c *CLOBClient) GetBalances(ctx context.Context, creds *L2Credentials) ([]BalanceEntry, error) {
@@ -318,6 +348,60 @@ func (c *CLOBClient) GetBalances(ctx context.Context, creds *L2Credentials) ([]B
 		}
 	}
 	return balances, nil
+}
+
+func (c *CLOBClient) GetBalanceAllowance(ctx context.Context, assetType string, tokenID string, sigType int, creds *L2Credentials) (*BalanceAllowanceResponse, error) {
+	path := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
+	if tokenID != "" {
+		path += "&token_id=" + tokenID
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get balance allowance: build request: %w", err)
+	}
+
+	headers, err := SignL2Request(creds, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get balance allowance: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	respBody, err := c.doRequest(req, "GET /balance-allowance")
+	if err != nil {
+		return nil, fmt.Errorf("get balance allowance: %w", err)
+	}
+
+	var result BalanceAllowanceResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("get balance allowance: unmarshal response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func (c *CLOBClient) UpdateBalanceAllowance(ctx context.Context, assetType string, tokenID string, sigType int, creds *L2Credentials) error {
+	path := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
+	if tokenID != "" {
+		path += "&token_id=" + tokenID
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("update balance allowance: build request: %w", err)
+	}
+
+	headers, err := SignL2Request(creds, http.MethodPut, path, nil)
+	if err != nil {
+		return fmt.Errorf("update balance allowance: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	if _, err := c.doRequest(req, "PUT /balance-allowance"); err != nil {
+		return fmt.Errorf("update balance allowance: %w", err)
+	}
+
+	return nil
 }
 
 func (c *CLOBClient) GetPositions(ctx context.Context, walletAddress string) ([]PositionEntry, error) {
