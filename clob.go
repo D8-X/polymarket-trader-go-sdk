@@ -98,7 +98,7 @@ func (c *CLOBClient) GetOrder(ctx context.Context, orderID string, creds *L2Cred
 	}
 	ApplyL2Headers(req, headers)
 
-	respBody, err := c.doRequest(req, "GET /data/order")
+	respBody, err := c.doRequest(req, "GET /order")
 	if err != nil {
 		return nil, fmt.Errorf("get order: %w", err)
 	}
@@ -255,7 +255,7 @@ func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, 
 	}
 	ApplyL2Headers(req, headers)
 
-	respBody, err := c.doRequest(req, "GET /data/orders")
+	respBody, err := c.doRequest(req, "GET /orders")
 	if err != nil {
 		return nil, fmt.Errorf("get open orders: %w", err)
 	}
@@ -269,8 +269,8 @@ func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, 
 }
 
 func (c *CLOBClient) GetTrades(ctx context.Context, market, assetID string, creds *L2Credentials) ([]Trade, error) {
-	path := "/data/trades"
-	query := "?"
+	path := "/trades"
+	query := "?maker_address=" + creds.Address + "&"
 	if market != "" {
 		query += "market=" + market + "&"
 	}
