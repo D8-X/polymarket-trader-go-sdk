@@ -30,11 +30,29 @@ func (ob *OrderBuilder) PrepareSweep(
 	if err != nil {
 		return nil, err
 	}
+
+	return ob.PrepareSweepFromLevels(book.AssetID, levels, side, orderType, refPrice, size, maxSlippage, apiKey, opt)
+}
+
+// PrepareSweepFromLevels is the core sweep method. It takes preparsed price
+// levels (already sorted from best to worst) and builds one signed order per level
+// until size is filled or slippage exceeds maxSlippage.
+//
+// If refPrice <= 0, the first level's price is used as reference.
+func (ob *OrderBuilder) PrepareSweepFromLevels(assetID string, levels []PriceLevel, side, orderType string, refPrice, size, maxSlippage float64, apiKey string, opts ...OrderOpts) (*SweepResult, error) {
+	var opt OrderOpts
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+
 	if len(levels) == 0 {
-		return nil, fmt.Errorf("prepare sweep: no liquidity on %s side", side)
+		return nil, fmt.Errorf("prepare sweep: no levels provided")
 	}
 
 	bestPrice := levels[0].Price
+	if refPrice > 0 {
+		bestPrice = refPrice
+	}
 
 	result := &SweepResult{BestPrice: bestPrice, Side: side}
 	remaining := size
@@ -53,7 +71,7 @@ func (ob *OrderBuilder) PrepareSweep(
 			continue
 		}
 
-		signed, err := ob.PrepareAndSign(book.AssetID, side, orderType, lvl.Price, fillSize, apiKey, opt)
+		signed, err := ob.PrepareAndSign(assetID, side, orderType, lvl.Price, fillSize, apiKey, opt)
 		if err != nil {
 			return nil, fmt.Errorf("prepare sweep level price=%v size=%v: %w", lvl.Price, fillSize, err)
 		}
@@ -79,12 +97,7 @@ func (ob *OrderBuilder) PrepareSweep(
 	return result, nil
 }
 
-type parsedLevel struct {
-	Price float64
-	Size  float64
-}
-
-func parseLevels(book *OrderBook, side string) ([]parsedLevel, error) {
+func parseLevels(book *OrderBook, side string) ([]PriceLevel, error) {
 	var raw []OrderBookLevel
 	switch side {
 	case "BUY":
@@ -95,7 +108,7 @@ func parseLevels(book *OrderBook, side string) ([]parsedLevel, error) {
 		return nil, fmt.Errorf("prepare sweep: invalid side %q (want BUY or SELL)", side)
 	}
 
-	out := make([]parsedLevel, 0, len(raw))
+	out := make([]PriceLevel, 0, len(raw))
 	for _, lvl := range raw {
 		p, err := strconv.ParseFloat(lvl.Price, 64)
 		if err != nil {
@@ -105,7 +118,7 @@ func parseLevels(book *OrderBook, side string) ([]parsedLevel, error) {
 		if err != nil {
 			return nil, fmt.Errorf("prepare sweep: parse size %q: %w", lvl.Size, err)
 		}
-		out = append(out, parsedLevel{Price: p, Size: s})
+		out = append(out, PriceLevel{Price: p, Size: s})
 	}
 
 	// Ensure correct ordering: ascending for BUY (asks), descending for SELL (bids).

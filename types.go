@@ -168,6 +168,11 @@ type BalanceAllowanceResponse struct {
 	Allowances map[string]string `json:"allowances"`
 }
 
+type PriceLevel struct {
+	Price float64
+	Size  float64
+}
+
 type SweepLevel struct {
 	Price    float64
 	Size     float64
