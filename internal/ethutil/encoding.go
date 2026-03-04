@@ -27,6 +27,3 @@ func ParseAddress(s string) []byte {
 	return n.Bytes()
 }
 
-func RoundTo10k(v int64) int64 {
-	return (v / 10000) * 10000
-}
