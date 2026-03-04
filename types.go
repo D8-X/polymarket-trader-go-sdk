@@ -52,6 +52,7 @@ type SignedOrder struct {
 	Owner     string      `json:"owner"`
 	OrderType string      `json:"orderType"`
 	PostOnly  bool        `json:"postOnly,omitempty"`
+	DeferExec bool        `json:"deferExec,omitempty"`
 }
 
 type PlaceOrderResponse struct {
@@ -66,21 +67,21 @@ type PlaceOrderResponse struct {
 }
 
 type OrderStatus struct {
-	ID               string      `json:"id"`
-	Status           string      `json:"status"`
-	SizeMatched      json.Number `json:"size_matched"`
-	OriginalSize     json.Number `json:"original_size"`
-	Price            json.Number `json:"price"`
-	Side             string      `json:"side"`
-	TokenID          string      `json:"asset_id"`
-	Market           string      `json:"market,omitempty"`
-	Outcome          string      `json:"outcome,omitempty"`
-	OrderType        string      `json:"order_type,omitempty"`
-	MakerAddress     string      `json:"maker_address,omitempty"`
-	Owner            string      `json:"owner,omitempty"`
-	Expiration       string      `json:"expiration,omitempty"`
-	AssociatedTrades []string    `json:"associate_trades,omitempty"`
-	CreatedAt        int64       `json:"created_at,omitempty"`
+	ID               string   `json:"id"`
+	Status           string   `json:"status"`
+	SizeMatched      string   `json:"size_matched"`
+	OriginalSize     string   `json:"original_size"`
+	Price            string   `json:"price"`
+	Side             string   `json:"side"`
+	TokenID          string   `json:"asset_id"`
+	Market           string   `json:"market,omitempty"`
+	Outcome          string   `json:"outcome,omitempty"`
+	OrderType        string   `json:"order_type,omitempty"`
+	MakerAddress     string   `json:"maker_address,omitempty"`
+	Owner            string   `json:"owner,omitempty"`
+	Expiration       string   `json:"expiration,omitempty"`
+	AssociatedTrades []string `json:"associate_trades,omitempty"`
+	CreatedAt        int64    `json:"created_at,omitempty"`
 }
 
 type BalanceEntry struct {
