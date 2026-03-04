@@ -79,24 +79,196 @@ func (c *CLOBClient) GetOrder(ctx context.Context, orderID string, creds *L2Cred
 	return &status, nil
 }
 
-func (c *CLOBClient) CancelOrder(ctx context.Context, orderID string, creds *L2Credentials) error {
-	path := "/order/" + orderID
+func (c *CLOBClient) CancelOrder(ctx context.Context, orderID string, creds *L2Credentials) (*CancelResponse, error) {
+	body, err := json.Marshal(map[string]string{"orderID": orderID})
+	if err != nil {
+		return nil, fmt.Errorf("cancel order: marshal: %w", err)
+	}
+
+	path := "/order"
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("cancel order: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	headers, err := SignL2Request(creds, http.MethodDelete, path, body)
+	if err != nil {
+		return nil, fmt.Errorf("cancel order: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	respBody, err := c.doRequest(req, "DELETE /order")
+	if err != nil {
+		return nil, fmt.Errorf("cancel order: %w", err)
+	}
+
+	var result CancelResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("cancel order: unmarshal response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func (c *CLOBClient) CancelOrders(ctx context.Context, orderIDs []string, creds *L2Credentials) (*CancelResponse, error) {
+	body, err := json.Marshal(orderIDs)
+	if err != nil {
+		return nil, fmt.Errorf("cancel orders: marshal: %w", err)
+	}
+
+	path := "/orders"
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("cancel orders: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	headers, err := SignL2Request(creds, http.MethodDelete, path, body)
+	if err != nil {
+		return nil, fmt.Errorf("cancel orders: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	respBody, err := c.doRequest(req, "DELETE /orders")
+	if err != nil {
+		return nil, fmt.Errorf("cancel orders: %w", err)
+	}
+
+	var result CancelResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("cancel orders: unmarshal response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func (c *CLOBClient) CancelAll(ctx context.Context, creds *L2Credentials) (*CancelResponse, error) {
+	path := "/cancel-all"
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, nil)
 	if err != nil {
-		return fmt.Errorf("cancel order: build request: %w", err)
+		return nil, fmt.Errorf("cancel all: build request: %w", err)
 	}
 
 	headers, err := SignL2Request(creds, http.MethodDelete, path, nil)
 	if err != nil {
-		return fmt.Errorf("cancel order: %w", err)
+		return nil, fmt.Errorf("cancel all: %w", err)
 	}
 	ApplyL2Headers(req, headers)
 
-	if _, err := c.doRequest(req, "DELETE /order"); err != nil {
-		return fmt.Errorf("cancel order: %w", err)
+	respBody, err := c.doRequest(req, "DELETE /cancel-all")
+	if err != nil {
+		return nil, fmt.Errorf("cancel all: %w", err)
 	}
 
-	return nil
+	var result CancelResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("cancel all: unmarshal response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func (c *CLOBClient) CancelMarketOrders(ctx context.Context, market, assetID string, creds *L2Credentials) (*CancelResponse, error) {
+	body, err := json.Marshal(map[string]string{"market": market, "asset_id": assetID})
+	if err != nil {
+		return nil, fmt.Errorf("cancel market orders: marshal: %w", err)
+	}
+
+	path := "/cancel-market-orders"
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("cancel market orders: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	headers, err := SignL2Request(creds, http.MethodDelete, path, body)
+	if err != nil {
+		return nil, fmt.Errorf("cancel market orders: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	respBody, err := c.doRequest(req, "DELETE /cancel-market-orders")
+	if err != nil {
+		return nil, fmt.Errorf("cancel market orders: %w", err)
+	}
+
+	var result CancelResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("cancel market orders: unmarshal response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, creds *L2Credentials) ([]OrderStatus, error) {
+	path := "/data/orders"
+	query := "?"
+	if market != "" {
+		query += "market=" + market + "&"
+	}
+	if assetID != "" {
+		query += "asset_id=" + assetID + "&"
+	}
+	fullPath := path + query[:len(query)-1] // trim trailing & or ?
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get open orders: build request: %w", err)
+	}
+
+	headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get open orders: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	respBody, err := c.doRequest(req, "GET /data/orders")
+	if err != nil {
+		return nil, fmt.Errorf("get open orders: %w", err)
+	}
+
+	var orders []OrderStatus
+	if err := json.Unmarshal(respBody, &orders); err != nil {
+		return nil, fmt.Errorf("get open orders: unmarshal response: %w", err)
+	}
+
+	return orders, nil
+}
+
+func (c *CLOBClient) GetTrades(ctx context.Context, market, assetID string, creds *L2Credentials) ([]Trade, error) {
+	path := "/data/trades"
+	query := "?"
+	if market != "" {
+		query += "market=" + market + "&"
+	}
+	if assetID != "" {
+		query += "asset_id=" + assetID + "&"
+	}
+	fullPath := path + query[:len(query)-1]
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get trades: build request: %w", err)
+	}
+
+	headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get trades: %w", err)
+	}
+	ApplyL2Headers(req, headers)
+
+	respBody, err := c.doRequest(req, "GET /data/trades")
+	if err != nil {
+		return nil, fmt.Errorf("get trades: %w", err)
+	}
+
+	var trades []Trade
+	if err := json.Unmarshal(respBody, &trades); err != nil {
+		return nil, fmt.Errorf("get trades: unmarshal response: %w", err)
+	}
+
+	return trades, nil
 }
 
 func (c *CLOBClient) GetBalances(ctx context.Context, creds *L2Credentials) ([]BalanceEntry, error) {
