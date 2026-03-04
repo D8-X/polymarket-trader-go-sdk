@@ -1,6 +1,19 @@
 package polytrade
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
+
+type APIError struct {
+	StatusCode int
+	Endpoint   string
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("polymarket api %s returned status %d: %s", e.Endpoint, e.StatusCode, e.Body)
+}
 
 type L2Credentials struct {
 	Address    string `json:"address,omitempty"`
