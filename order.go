@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/d8x/polymarket-sports-sdk-go/internal/ethutil"
+	"github.com/D8-X/polymarket-trader-go-sdk/internal/ethutil"
 )
 
 type OrderBuilder struct {

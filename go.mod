@@ -1,4 +1,4 @@
-module github.com/d8x/polymarket-sports-sdk-go
+module github.com/D8-X/polymarket-trader-go-sdk
 
 go 1.25.1
 
