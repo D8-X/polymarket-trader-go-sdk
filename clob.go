@@ -228,12 +228,12 @@ func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, 
 		return nil, fmt.Errorf("get open orders: %w", err)
 	}
 
-	var orders []OrderStatus
-	if err := json.Unmarshal(respBody, &orders); err != nil {
+	var page PaginatedResponse[OrderStatus]
+	if err := json.Unmarshal(respBody, &page); err != nil {
 		return nil, fmt.Errorf("get open orders: unmarshal response: %w", err)
 	}
 
-	return orders, nil
+	return page.Data, nil
 }
 
 func (c *CLOBClient) GetTrades(ctx context.Context, market, assetID string, creds *L2Credentials) ([]Trade, error) {
@@ -263,12 +263,12 @@ func (c *CLOBClient) GetTrades(ctx context.Context, market, assetID string, cred
 		return nil, fmt.Errorf("get trades: %w", err)
 	}
 
-	var trades []Trade
-	if err := json.Unmarshal(respBody, &trades); err != nil {
+	var page PaginatedResponse[Trade]
+	if err := json.Unmarshal(respBody, &page); err != nil {
 		return nil, fmt.Errorf("get trades: unmarshal response: %w", err)
 	}
 
-	return trades, nil
+	return page.Data, nil
 }
 
 func (c *CLOBClient) GetBalances(ctx context.Context, creds *L2Credentials) ([]BalanceEntry, error) {
