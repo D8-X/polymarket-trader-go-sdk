@@ -35,9 +35,10 @@ const (
 )
 
 const (
-	AmountScale    = 1e6
-	GTDExpiration  = 5 * time.Minute
-	SaltUpperBound = 1 << 62
+	AmountScale          = 1e6
+	GTDExpiration         = 5 * time.Minute
+	GTDSecurityThreshold  = 60 * time.Second
+	SaltUpperBound        = 1 << 62
 )
 
 const (
