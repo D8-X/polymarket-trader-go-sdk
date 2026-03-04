@@ -103,11 +103,13 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 	nonce := "0"
 
 	rc := getRoundConfig(opt.TickSize)
-	if err := checkPrecision(price, rc.price, "price"); err != nil {
-		return nil, fmt.Errorf("prepare order: %w", err)
-	}
-	if err := checkPrecision(size, rc.size, "size"); err != nil {
-		return nil, fmt.Errorf("prepare order: %w", err)
+	if opt.TickSize != "" {
+		if err := checkPrecision(price, rc.price, "price"); err != nil {
+			return nil, fmt.Errorf("prepare order: %w", err)
+		}
+		if err := checkPrecision(size, rc.size, "size"); err != nil {
+			return nil, fmt.Errorf("prepare order: %w", err)
+		}
 	}
 	sizeWei := int64(size * AmountScale)
 	amountFactor := math.Pow(10, float64(rc.amount))
