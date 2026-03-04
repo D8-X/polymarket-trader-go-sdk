@@ -2,46 +2,6 @@ package polytrade
 
 import "encoding/json"
 
-type Fill struct {
-	Price float64 `json:"price"`
-	Size  float64 `json:"size"`
-	Cost  float64 `json:"cost"`
-}
-
-type FillRoute struct {
-	TokenID      string  `json:"token_id"`
-	Outcome      string  `json:"outcome"`
-	BookSide     string  `json:"book_side"`
-	AvgPrice     float64 `json:"avg_price"`
-	BestPrice    float64 `json:"best_price"`
-	WorstPrice   float64 `json:"worst_price"`
-	FilledSize   float64 `json:"filled_size"`
-	TotalCost    float64 `json:"total_cost"`
-	BookSize     float64 `json:"book_size"`
-	BookDepth    int     `json:"book_depth"`
-	BookConsumed float64 `json:"book_consumed"`
-	Fillable     bool    `json:"fillable"`
-	Fills        []Fill  `json:"fills"`
-}
-
-type SportsQuote struct {
-	ConditionID     string          `json:"contract_id"`
-	Team           string          `json:"team"`
-	Side           string          `json:"side"`
-	Size           float64         `json:"requested_size"`
-	Position       float64         `json:"position"`
-	EffectivePrice float64         `json:"effective_price"`
-	MidPrice       float64         `json:"mid_price"`
-	MarketWidth    float64         `json:"market_width"`
-	Slippage       float64         `json:"slippage"`
-	Fillable       bool            `json:"fillable"`
-	Route          string          `json:"route"`
-	Direct         *FillRoute `json:"direct"`
-	Opposite       *FillRoute `json:"opposite"`
-	Confidence     int             `json:"confidence"`
-	MarketClosed   bool            `json:"market_closed"`
-}
-
 type L2Credentials struct {
 	Address    string `json:"address,omitempty"`
 	APIKey     string `json:"apiKey"`
