@@ -2,6 +2,8 @@
 
 Go SDK for the [Polymarket CLOB API](https://docs.polymarket.com).
 
+In addition to building and signing individual orders, this SDK also offers [order book sweep](#order-book-sweep) with configurable slippage tolerance, producing signed orders at multiple price levels across the book ready for execution.
+
 ## Usage example
 
 ```go
@@ -88,6 +90,24 @@ func main() {
 	fmt.Printf("canceled: %v\n", cancelResp.Canceled)
 }
 ```
+
+## Order Book Sweep
+
+Sweep multiple order book levels with slippage control:
+
+```go
+book, _ := clob.GetOrderBook(ctx, tokenID)
+sweep, err := builder.PrepareSweep(book, "BUY", "FOK", 0, 100, 0.02, creds.APIKey) // 0 = use best book price
+if err != nil {
+	log.Fatal(err)
+}
+for _, lvl := range sweep.Levels {
+	fmt.Printf("level price=%.4f size=%.2f slippage=%.4f\n", lvl.Price, lvl.Size, lvl.Slippage)
+}
+responses, _ := clob.PlaceOrders(ctx, sweep.Orders, creds)
+```
+
+`PrepareSweep` walks the book from best price (or a caller-provided `refPrice`), signs one order per level with the given order type, and stops when the requested size is filled or slippage exceeds the threshold (2% in the example above). The book's `TickSize` is used automatically for rounding.
 
 ## Order Types
 
