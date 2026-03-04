@@ -25,7 +25,7 @@ type FillRoute struct {
 }
 
 type SportsQuote struct {
-	ContractID     string          `json:"contract_id"`
+	ConditionID     string          `json:"contract_id"`
 	Team           string          `json:"team"`
 	Side           string          `json:"side"`
 	Size           float64         `json:"requested_size"`
