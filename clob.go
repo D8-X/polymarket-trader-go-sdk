@@ -86,7 +86,7 @@ func (c *CLOBClient) PlaceOrders(ctx context.Context, signedOrders []*SignedOrde
 }
 
 func (c *CLOBClient) GetOrder(ctx context.Context, orderID string, creds *L2Credentials) (*OrderStatus, error) {
-	path := "/data/order/" + orderID
+	path := "/order/" + orderID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get order: build request: %w", err)
@@ -234,7 +234,7 @@ func (c *CLOBClient) CancelMarketOrders(ctx context.Context, market, assetID str
 }
 
 func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, creds *L2Credentials) ([]OrderStatus, error) {
-	path := "/data/orders"
+	path := "/orders"
 	query := "?"
 	if market != "" {
 		query += "market=" + market + "&"
