@@ -162,3 +162,8 @@ type OrderBookLevel struct {
 	Price string `json:"price"`
 	Size  string `json:"size"`
 }
+
+type BalanceAllowanceResponse struct {
+	Balance    string            `json:"balance"`
+	Allowances map[string]string `json:"allowances"`
+}
