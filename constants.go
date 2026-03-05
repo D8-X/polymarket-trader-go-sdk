@@ -41,6 +41,24 @@ const (
 	SaltUpperBound       = 1 << 62
 )
 
+
+// The cancelled status is not in the polumarket doc, but I found it used in the rs client
+const (
+	OrderStatusMatched   = "matched" // Order placed and matched with a resting order
+	OrderStatusLive      = "live" // Order placed and resting on the book
+	OrderStatusDelayed   = "delayed" // Order is marketable but subject to a matching delay
+	OrderStatusCanceled  = "canceled"  // https://github.com/Polymarket/rs-clob-client/blob/main/src/clob/types/mod.rs
+	OrderStatusUnmatched = "unmatched" // Order is marketable but failed to delay — placement still successful
+)
+
+// rate limit of the ledger groups which includes the GET /order have a 900 req/10. 
+// so up to 18 polling simultaneously with 200ms interval
+const (
+	DefaultPollInterval       = 200 * time.Millisecond // that shaould be safe https://docs.polymarket.com/api-reference/rate-limits
+	DefaultDelayedPollTimeout = 10 * time.Second
+	DefaultLivePollTimeout    = 60 * time.Second
+)
+
 const (
 	eip712DomainType      = "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
 	eip712AuthDomainType  = "EIP712Domain(string name,string version,uint256 chainId)"

@@ -2,6 +2,7 @@ package polytrade
 
 import (
 	"fmt"
+	"time"
 )
 
 type APIError struct {
@@ -81,6 +82,18 @@ type OrderStatus struct {
 	Expiration       string   `json:"expiration,omitempty"`
 	AssociatedTrades []string `json:"associate_trades,omitempty"`
 	CreatedAt        int64    `json:"created_at,omitempty"`
+}
+
+type PollOpts struct {
+	Interval time.Duration
+	Timeout  time.Duration
+}
+
+type PollResult struct {
+	OrderID     string
+	Status      *OrderStatus
+	PlaceStatus string
+	Err         error
 }
 
 type BalanceEntry struct {
