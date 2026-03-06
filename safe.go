@@ -167,12 +167,15 @@ func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredent
 	return safeAddr, nil
 }
 
-// EnsureSafeAddress first tries to look up an existing Safe for the EOA via the
-// Safe Transaction Service. If none is found, it derives and deploys a new one
-// via the Polymarket relayer
+// EnsureSafeAddress derives the deterministic Safe address for the EOA,
+// checks if it is deployed, and deploys it via the relayer if not.
 func EnsureSafeAddress(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials) (string, error) {
-	safeAddr, err := LookupSafeAddress(ctx, eoaAddress)
-	if err == nil {
+	safeAddr := DeriveSafeAddress(eoaAddress)
+	deployed, err := IsSafeDeployed(ctx, safeAddr)
+	if err != nil {
+		return "", fmt.Errorf("ensure safe: check deployed: %w", err)
+	}
+	if deployed {
 		return safeAddr, nil
 	}
 	return DeploySafe(ctx, privateKeyHex, creds)
@@ -206,6 +209,9 @@ func applyBuilderHeaders(req *http.Request, creds *BuilderCredentials, method, p
 	req.Header.Set("POLY_BUILDER_SIGNATURE", signBuilderHMAC(creds.Secret, ts, method, path, body))
 }
 
+// LookupSafeAddress queries the Safe Transaction Service to find the Gnosis Safe
+// owned by the given EOA. Useful as an independent validation that the EOA is
+// registered as a Safe owner, separate from the deterministic derivation.
 func LookupSafeAddress(ctx context.Context, eoaAddress string) (string, error) {
 	endpoint := fmt.Sprintf("/owners/%s/safes/", eoaAddress)
 	url := SafeAPIBaseURL + endpoint
