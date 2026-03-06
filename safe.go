@@ -174,6 +174,8 @@ func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredent
 
 // EnsureSafeAddress derives the deterministic Safe address for the EOA,
 // checks if it is deployed, and deploys it via the relayer if not.
+// This is async. it returns as soon as the relayer accepts the request.
+// Use WaitForSafeDeployment or EnsureSafeAddressSync for blocking behavior.
 func EnsureSafeAddress(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials) (string, *RelayerResponse, error) {
 	safeAddr := DeriveSafeAddress(eoaAddress)
 	deployed, err := IsSafeDeployed(ctx, safeAddr)
@@ -184,6 +186,47 @@ func EnsureSafeAddress(ctx context.Context, eoaAddress, privateKeyHex string, cr
 		return safeAddr, nil, nil
 	}
 	return DeploySafe(ctx, privateKeyHex, creds)
+}
+
+// WaitForSafeDeployment polls IsSafeDeployed until the Safe is deployed on-chain
+// or the context is cancelled
+func WaitForSafeDeployment(ctx context.Context, safeAddress string) error {
+	pollInterval := 500 * time.Millisecond
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		deployed, err := IsSafeDeployed(ctx, safeAddress)
+		if err != nil {
+			return fmt.Errorf("wait for safe deployment: %w", err)
+		}
+		if deployed {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait for safe deployment: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+// EnsureSafeAddressSync is like EnsureSafeAddress but blocks until the Safe is
+// actually deployed on-chain. Use a context with timeout to control how long to wait.
+// Pass 0 for pollInterval to use the default 500ms
+func EnsureSafeAddressSync(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials, pollInterval time.Duration) (string, *RelayerResponse, error) {
+	safeAddr, relayResp, err := EnsureSafeAddress(ctx, eoaAddress, privateKeyHex, creds)
+	if err != nil {
+		return "", nil, err
+	}
+	if relayResp == nil {
+		return safeAddr, nil, nil
+	}
+	if err := WaitForSafeDeployment(ctx, safeAddr, pollInterval); err != nil {
+		return safeAddr, relayResp, err
+	}
+	return safeAddr, relayResp, nil
 }
 
 func signBuilderHMAC(secret string, timestamp int64, method, path string, body []byte) string {
