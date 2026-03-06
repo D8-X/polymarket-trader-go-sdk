@@ -298,3 +298,69 @@ func LookupSafeAddress(ctx context.Context, eoaAddress string) (string, error) {
 	}
 	return result.Safes[0], nil
 }
+
+// GetRelayerTransaction fetches the current state of a relayer transaction by id
+func GetRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
+	endpoint := fmt.Sprintf("/transaction?id=%s", transactionID)
+	url := RelayerBaseURL + endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get relayer tx: build request: %w", err)
+	}
+
+	client := &http.Client{Timeout: DefaultTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get relayer tx: http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("get relayer tx: read body: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Endpoint:   "GET /transaction",
+			Body:       string(body),
+		}
+	}
+
+	var txns []RelayerTransaction
+	if err := json.Unmarshal(body, &txns); err != nil {
+		return nil, fmt.Errorf("get relayer tx: unmarshal response: %w", err)
+	}
+	if len(txns) == 0 {
+		return nil, fmt.Errorf("get relayer tx: transaction %s not found", transactionID)
+	}
+	return &txns[0], nil
+}
+
+// WaitForRelayerTransaction polls the relayer until the transaction reaches a
+// terminal state (MINED, CONFIRMED, FAILED, or INVALID) or the context is cancelled
+func WaitForRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
+	pollInterval := 2 * time.Second
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		tx, err := GetRelayerTransaction(ctx, transactionID)
+		if err != nil {
+			return nil, fmt.Errorf("wait for relayer tx: %w", err)
+		}
+
+		switch tx.State {
+		case RelayerStateMined, RelayerStateConfirmed:
+			return tx, nil
+		case RelayerStateFailed, RelayerStateInvalid:
+			return tx, fmt.Errorf("wait for relayer tx: transaction %s: %s", transactionID, tx.State)
+		}
+
+		select {
+		case <-ctx.Done():
+			return tx, fmt.Errorf("wait for relayer tx: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
