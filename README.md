@@ -4,6 +4,50 @@ Go SDK for the [Polymarket CLOB API](https://docs.polymarket.com).
 
 In addition to building and signing individual orders, this SDK also offers [order book sweep](#order-book-sweep) with configurable slippage tolerance, producing signed orders at multiple price levels across the book ready for execution.
 
+## Gnosis Safe Provisioning
+
+The SDK can derive and deploy Gnosis Safe wallets without requiring a Polymarket UI login. This enables fully automated wallet provisioning for trading bots and hedgers.
+
+```go
+ctx := context.Background()
+privateKey := "your-private-key-hex"
+
+// Builder credentials from your Polymarket Builder Profile
+// See https://docs.polymarket.com/developers/builders/relayer-client
+builderCreds := &polytrade.BuilderCredentials{
+    APIKey:     "your-builder-api-key",
+    Secret:     "your-builder-secret",
+    Passphrase: "your-builder-passphrase",
+}
+
+// Derive Safe address, deploy if needed, return address + relayer response
+safeAddr, relayResp, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, builderCreds)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Safe address:", safeAddr)
+if relayResp != nil {
+    fmt.Printf("Deployed: txID=%s state=%s\n", relayResp.TransactionID, relayResp.State)
+}
+```
+
+Individual functions are also available:
+
+```go
+safeAddr := polytrade.DeriveSafeAddress("0xYourEOA")
+
+// Check deployment status via Polymarket relayer
+deployed, err := polytrade.IsSafeDeployed(ctx, safeAddr)
+
+// Deploy via relayer. It checks deployment firsta nd skips if already deployed
+safeAddr, relayResp, err := polytrade.DeploySafe(ctx, privateKey, builderCreds)
+
+// Lookup via Safe Transaction Service (safe.global). To be used for a second independent validation
+safeAddr, err := polytrade.LookupSafeAddress(ctx, "0xYourEOA")
+```
+
+After deployment, fund the Safe address with USDC on Polygon to start trading.
+
 ## Usage example
 
 ```go
@@ -34,8 +78,13 @@ func main() {
 		}
 	}
 
-	// 3. Resolve your Gnosis Safe address
-	safeAddr, err := polytrade.LookupSafeAddress(ctx, "0xYourEOA")
+	// 3. Ensure Gnosis Safe is deployed
+	builderCreds := &polytrade.BuilderCredentials{
+		APIKey:     "your-builder-api-key",
+		Secret:     "your-builder-secret",
+		Passphrase: "your-builder-passphrase",
+	}
+	safeAddr, _, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, builderCreds)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -108,6 +157,53 @@ responses, _ := clob.PlaceOrders(ctx, sweep.Orders, creds)
 ```
 
 `PrepareSweep` walks the book from best price (or a caller-provided `refPrice`), signs one order per level with the given order type, and stops when the requested size is filled or slippage exceeds the threshold (2% in the example above). The book's `TickSize` is used automatically for rounding.
+
+## Order Polling
+
+For FOK/FAK orders on sports markets, orders go through a `"delayed"` state (~3s) before being matched. Use `AwaitOrder` / `AwaitOrders` to poll until a terminal status is reached:
+
+```go
+// Place and await a single order
+resp, _ := clob.PlaceOrder(ctx, signedOrder, creds)
+result, _ := clob.AwaitOrder(ctx, resp, creds, nil) // default: 200ms poll, 10s timeout
+fmt.Printf("order %s: %s matched=%s/%s\n",
+    result.OrderID, result.Status.Status, result.Status.SizeMatched, result.Status.OriginalSize)
+
+// Place sweep and await all orders
+responses, _ := clob.PlaceOrders(ctx, sweep.Orders, creds)
+results := clob.AwaitOrders(ctx, responses, creds, nil)
+for _, r := range results {
+    if r.Status != nil {
+        fmt.Printf("order %s: %s matched=%s/%s\n",
+            r.OrderID, r.Status.Status, r.Status.SizeMatched, r.Status.OriginalSize)
+    }
+}
+
+// Custom poll options
+results = clob.AwaitOrders(ctx, responses, creds, &polytrade.PollOpts{
+    Interval: 1 * time.Second,
+    Timeout:  30 * time.Second,
+})
+```
+
+Default timeouts: 10s if all orders are delayed, 60s if any are live (GTC/GTD). Override via `PollOpts`.
+
+### Channel based async polling
+
+`AwaitOrderAsync` and `AwaitOrdersAsync` return channels so you can continue doing other work while orders are being polled:
+
+```go
+// Async: place and continue working
+ch := clob.AwaitOrderAsync(ctx, resp, creds, nil)
+// ... do other work ...
+result := <-ch
+
+// Async: stream results as orders complete
+ch := clob.AwaitOrdersAsync(ctx, responses, creds, nil)
+for result := range ch {
+    fmt.Printf("order %s: %s\n", result.OrderID, result.Status.Status)
+}
+```
 
 ## Order Types
 
