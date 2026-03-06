@@ -214,8 +214,7 @@ func WaitForSafeDeployment(ctx context.Context, safeAddress string) error {
 
 // EnsureSafeAddressSync is like EnsureSafeAddress but blocks until the Safe is
 // actually deployed on-chain. Use a context with timeout to control how long to wait.
-// Pass 0 for pollInterval to use the default 500ms
-func EnsureSafeAddressSync(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials, pollInterval time.Duration) (string, *RelayerResponse, error) {
+func EnsureSafeAddressSync(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials) (string, *RelayerResponse, error) {
 	safeAddr, relayResp, err := EnsureSafeAddress(ctx, eoaAddress, privateKeyHex, creds)
 	if err != nil {
 		return "", nil, err
@@ -223,7 +222,7 @@ func EnsureSafeAddressSync(ctx context.Context, eoaAddress, privateKeyHex string
 	if relayResp == nil {
 		return safeAddr, nil, nil
 	}
-	if err := WaitForSafeDeployment(ctx, safeAddr, pollInterval); err != nil {
+	if err := WaitForSafeDeployment(ctx, safeAddr); err != nil {
 		return safeAddr, relayResp, err
 	}
 	return safeAddr, relayResp, nil
