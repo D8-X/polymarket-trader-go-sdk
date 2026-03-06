@@ -30,6 +30,13 @@ const (
 )
 
 const (
+	SafeFactory      = "0xaacFeEa03eb1561C4e67d661e40682Bd20E3541b"
+	SafeInitCodeHash = "0x2bce2127ff07fb632d16c8347c4ebf501f4841168bed00d9e6ef715ddb6fcecf"
+	SafeFactoryName  = "Polymarket Contract Proxy Factory"
+	RelayerBaseURL   = "https://relayer-v2.polymarket.com"
+)
+
+const (
 	DefaultTimeout = 10 * time.Second
 	CLOBTimeout    = 15 * time.Second
 )
@@ -64,6 +71,9 @@ const (
 	eip712AuthDomainType  = "EIP712Domain(string name,string version,uint256 chainId)"
 	eip712ClobAuthType    = "ClobAuth(address address,string timestamp,uint256 nonce,string message)"
 	eip712OrderType       = "Order(uint256 salt,address maker,address signer,address taker,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint256 expiration,uint256 nonce,uint256 feeRateBps,uint8 side,uint8 signatureType)"
+	eip712SafeFactoryDomainType = "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
+	eip712CreateProxyType       = "CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)"
+
 	eip712AuthDomainName  = "ClobAuthDomain"
 	eip712OrderDomainName = "Polymarket CTF Exchange"
 	eip712Version         = "1"
