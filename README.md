@@ -2,7 +2,7 @@
 
 Go SDK for the [Polymarket CLOB API](https://docs.polymarket.com).
 
-In addition to building and signing individual orders, this SDK also offers [order book sweep](#order-book-sweep) with configurable slippage tolerance, producing signed orders at multiple price levels across the book ready for execution.
+In addition to building and signing individual orders, this SDK also offers [order book sweep](#order-book-sweep) with configurable slippage tolerance, producing signed orders at multiple price levels across the book ready for execution. It also handles [Gnosis Safe provisioning](#gnosis-safe-provisioning), allowing deriving and deploying Safe wallets via Polymarket's relayer without requiring a browser login.
 
 ## Gnosis Safe Provisioning
 
