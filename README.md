@@ -1,4 +1,4 @@
-# Polymarket CLOB SDK (Go)
+# Polymarket Trader Go SDK
 
 Go SDK for the [Polymarket CLOB API](https://docs.polymarket.com).
 
