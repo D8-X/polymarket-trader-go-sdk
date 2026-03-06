@@ -64,6 +64,67 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 	return "0x" + common.Bytes2Hex(sig), nil
 }
 
+func hashSafeFactoryDomain() []byte {
+	typeHash := ethutil.Keccak256([]byte(eip712SafeFactoryDomainType))
+	nameHash := ethutil.Keccak256([]byte(SafeFactoryName))
+	chainIDBytes := ethutil.PadTo32(big.NewInt(PolygonChainID).Bytes())
+
+	factoryAddr := new(big.Int)
+	factoryAddr.SetString(SafeFactory[2:], 16)
+
+	return ethutil.Keccak256(ethutil.Concat(
+		ethutil.PadTo32(typeHash),
+		ethutil.PadTo32(nameHash),
+		chainIDBytes,
+		ethutil.PadTo32(factoryAddr.Bytes()),
+	))
+}
+
+func hashCreateProxyStruct(paymentToken, payment, paymentReceiver string) []byte {
+	typeHash := ethutil.Keccak256([]byte(eip712CreateProxyType))
+
+	tokenAddr := new(big.Int)
+	if len(paymentToken) > 2 {
+		tokenAddr.SetString(paymentToken[2:], 16)
+	}
+
+	paymentBig := new(big.Int)
+	paymentBig.SetString(payment, 10)
+
+	receiverAddr := new(big.Int)
+	if len(paymentReceiver) > 2 {
+		receiverAddr.SetString(paymentReceiver[2:], 16)
+	}
+
+	return ethutil.Keccak256(ethutil.Concat(
+		ethutil.PadTo32(typeHash),
+		ethutil.PadTo32(tokenAddr.Bytes()),
+		ethutil.PadTo32(paymentBig.Bytes()),
+		ethutil.PadTo32(receiverAddr.Bytes()),
+	))
+}
+
+func signSafeCreate(privateKeyHex string) (string, error) {
+	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
+	if err != nil {
+		return "", fmt.Errorf("sign safe create: invalid private key: %w", err)
+	}
+
+	domainSep := hashSafeFactoryDomain()
+	structHash := hashCreateProxyStruct(ZeroAddress, "0", ZeroAddress)
+	digest := ethutil.Keccak256Pack([]byte{0x19, 0x01}, domainSep, structHash)
+
+	sig, err := crypto.Sign(digest, pk)
+	if err != nil {
+		return "", fmt.Errorf("sign safe create: sign EIP-712 digest: %w", err)
+	}
+	if sig[64] < 27 {
+		sig[64] += 27
+	}
+
+	return "0x" + common.Bytes2Hex(sig), nil
+}
+
 func hashClobAuthDomain(chainID int) []byte {
 	typeHash := ethutil.Keccak256([]byte(eip712AuthDomainType))
 	nameHash := ethutil.Keccak256([]byte(eip712AuthDomainName))

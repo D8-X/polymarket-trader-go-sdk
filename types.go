@@ -96,6 +96,38 @@ type PollResult struct {
 	Err         error
 }
 
+type BuilderCredentials struct {
+	APIKey     string
+	Secret     string
+	Passphrase string
+}
+
+type safeCreateSignatureParams struct {
+	PaymentToken    string `json:"paymentToken"`
+	Payment         string `json:"payment"`
+	PaymentReceiver string `json:"paymentReceiver"`
+}
+
+type safeCreateRequest struct {
+	Type            string                    `json:"type"`
+	From            string                    `json:"from"`
+	To              string                    `json:"to"`
+	ProxyWallet     string                    `json:"proxyWallet"`
+	Data            string                    `json:"data"`
+	Signature       string                    `json:"signature"`
+	SignatureParams safeCreateSignatureParams `json:"signatureParams"`
+}
+
+type RelayerResponse struct {
+	TransactionID   string `json:"transactionID"`
+	State           string `json:"state"`
+	TransactionHash string `json:"transactionHash"`
+}
+
+type deployedResponse struct {
+	Deployed bool `json:"deployed"`
+}
+
 type BalanceEntry struct {
 	AssetID string  `json:"asset_id"`
 	Balance float64 `json:"balance"`

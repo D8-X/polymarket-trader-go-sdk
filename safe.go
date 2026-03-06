@@ -92,26 +92,26 @@ func IsSafeDeployed(ctx context.Context, safeAddress string) (bool, error) {
 
 // DeploySafe derives the deterministic Safe address for the given private key's EOA,
 // checks if it is already deployed, and if not, submits a deployment request to the
-// Polymarket relayer. Returns the Safe address.
-func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredentials) (string, error) {
+// Polymarket relayer. Returns the Safe address and the relayer response.
+func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredentials) (string, *RelayerResponse, error) {
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
-		return "", fmt.Errorf("deploy safe: invalid private key: %w", err)
+		return "", nil, fmt.Errorf("deploy safe: invalid private key: %w", err)
 	}
 	eoaAddress := crypto.PubkeyToAddress(pk.PublicKey).Hex()
 	safeAddr := DeriveSafeAddress(eoaAddress)
 
 	deployed, err := IsSafeDeployed(ctx, safeAddr)
 	if err != nil {
-		return "", fmt.Errorf("deploy safe: check deployed: %w", err)
+		return "", nil, fmt.Errorf("deploy safe: check deployed: %w", err)
 	}
 	if deployed {
-		return safeAddr, nil
+		return safeAddr, nil, nil
 	}
 
 	sig, err := signSafeCreate(privateKeyHex)
 	if err != nil {
-		return "", fmt.Errorf("deploy safe: %w", err)
+		return "", nil, fmt.Errorf("deploy safe: %w", err)
 	}
 
 	reqBody := safeCreateRequest{
@@ -130,14 +130,14 @@ func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredent
 
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("deploy safe: marshal request: %w", err)
+		return "", nil, fmt.Errorf("deploy safe: marshal request: %w", err)
 	}
 
 	endpoint := "/submit"
 	url := RelayerBaseURL + endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
-		return "", fmt.Errorf("deploy safe: build request: %w", err)
+		return "", nil, fmt.Errorf("deploy safe: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -148,35 +148,40 @@ func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredent
 	client := &http.Client{Timeout: CLOBTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("deploy safe: http request: %w", err)
+		return "", nil, fmt.Errorf("deploy safe: http request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("deploy safe: read body: %w", err)
+		return "", nil, fmt.Errorf("deploy safe: read body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", &APIError{
+		return "", nil, &APIError{
 			StatusCode: resp.StatusCode,
 			Endpoint:   "POST " + endpoint,
 			Body:       string(body),
 		}
 	}
 
-	return safeAddr, nil
+	var relayResp RelayerResponse
+	if err := json.Unmarshal(body, &relayResp); err != nil {
+		return safeAddr, nil, nil
+	}
+
+	return safeAddr, &relayResp, nil
 }
 
 // EnsureSafeAddress derives the deterministic Safe address for the EOA,
 // checks if it is deployed, and deploys it via the relayer if not.
-func EnsureSafeAddress(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials) (string, error) {
+func EnsureSafeAddress(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials) (string, *RelayerResponse, error) {
 	safeAddr := DeriveSafeAddress(eoaAddress)
 	deployed, err := IsSafeDeployed(ctx, safeAddr)
 	if err != nil {
-		return "", fmt.Errorf("ensure safe: check deployed: %w", err)
+		return "", nil, fmt.Errorf("ensure safe: check deployed: %w", err)
 	}
 	if deployed {
-		return safeAddr, nil
+		return safeAddr, nil, nil
 	}
 	return DeploySafe(ctx, privateKeyHex, creds)
 }
