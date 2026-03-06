@@ -1,12 +1,10 @@
 # Polymarket Trader Go SDK
 
-Go SDK for the [Polymarket CLOB API](https://docs.polymarket.com).
-
-In addition to building and signing individual orders, this SDK also offers [order book sweep](#order-book-sweep) with configurable slippage tolerance, producing signed orders at multiple price levels across the book ready for execution. It also handles [Gnosis Safe provisioning](#gnosis-safe-provisioning), allowing deriving and deploying Safe wallets via Polymarket's relayer without requiring a browser login.
+Go SDK for trading on [Polymarket](https://docs.polymarket.com). Covers [Safe wallet provisioning](#gnosis-safe-provisioning) via the relayer (no browser login needed), L2 authentication, order building with [order book sweep](#order-book-sweep) and slippage control, and CLOB interaction.
 
 ## Gnosis Safe Provisioning
 
-The SDK can derive and deploy Gnosis Safe wallets without requiring a Polymarket UI login. This enables fully automated wallet provisioning for trading bots and hedgers.
+The SDK derives and deploys Gnosis Safe wallets via Polymarket's relayer, enabling fully automated wallet provisioning for trading bots and hedgers.
 
 ```go
 ctx := context.Background()
