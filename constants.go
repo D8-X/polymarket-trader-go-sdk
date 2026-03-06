@@ -37,6 +37,18 @@ const (
 )
 
 const (
+	SafeMultisend      = "0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761" // a helper contract that batches multiple txns into one Safe execution
+	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" 
+	CTFExchange        = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045" // Polymarket exchange and ERC-1155 conditional token contract
+	NegRiskCTFExchange = "0xC5d563A36AE78145C45a50134d48A1215220f80a" // for capped loss markets
+)
+
+const (
+	OperationCall         = 0
+	OperationDelegateCall = 1
+)
+
+const (
 	DefaultTimeout = 10 * time.Second
 	CLOBTimeout    = 15 * time.Second
 )
@@ -72,6 +84,8 @@ const (
 	eip712ClobAuthType    = "ClobAuth(address address,string timestamp,uint256 nonce,string message)"
 	eip712OrderType       = "Order(uint256 salt,address maker,address signer,address taker,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint256 expiration,uint256 nonce,uint256 feeRateBps,uint8 side,uint8 signatureType)"
 	eip712SafeFactoryDomainType = "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
+	eip712SafeTxDomainType      = "EIP712Domain(uint256 chainId,address verifyingContract)"
+	eip712SafeTxType            = "SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"
 	eip712CreateProxyType       = "CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)"
 
 	eip712AuthDomainName  = "ClobAuthDomain"
