@@ -73,6 +73,16 @@ func encodeApproveCalldata(spender string) string {
 	return "0x" + hex.EncodeToString(data)
 }
 
+func encodeTransferCalldata(to string, amount *big.Int) string {
+	selector := ethutil.Keccak256([]byte("transfer(address,uint256)"))[:4]
+	toAddr := common.HexToAddress(to)
+	data := make([]byte, 0, 4+32+32)
+	data = append(data, selector...)
+	data = append(data, ethutil.PadTo32(toAddr.Bytes())...)
+	data = append(data, ethutil.PadTo32(amount.Bytes())...)
+	return "0x" + hex.EncodeToString(data)
+}
+
 // encodeSetApprovalForAllCalldata ABI-encodes a setApprovalForAll(address,bool) call with true.
 func encodeSetApprovalForAllCalldata(operator string) string {
 	// selector = keccak256("setApprovalForAll(address,bool)")[:4]
@@ -225,6 +235,18 @@ func ExecuteSafeTransaction(ctx context.Context, eoaAddress, privateKeyHex strin
 	}
 
 	return &relayResp, nil
+}
+
+// TransferUSDCViaSafe transfers USDC from the sender's Safe to a recipient address
+// via the Polymarket relayer (gasless). Amount is in raw units (6 decimals, e.g. 1_000_000 = 1 USDC).
+func TransferUSDCViaSafe(ctx context.Context, eoaAddress, privateKeyHex string, to string, amount *big.Int, creds *BuilderCredentials) (*RelayerResponse, error) {
+	tx := SafeTransaction{
+		To:        USDCAddress,
+		Value:     "0",
+		Data:      encodeTransferCalldata(to, amount),
+		Operation: OperationCall,
+	}
+	return ExecuteSafeTransaction(ctx, eoaAddress, privateKeyHex, []SafeTransaction{tx}, creds)
 }
 
 // ApproveSafeTokens submits a batched Safe transaction that approves USDC and
