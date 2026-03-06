@@ -124,6 +124,31 @@ type RelayerResponse struct {
 	TransactionHash string `json:"transactionHash"`
 }
 
+type RelayerTransaction struct {
+	TransactionID   string `json:"transactionID"`
+	TransactionHash string `json:"transactionHash"`
+	From            string `json:"from"`
+	To              string `json:"to"`
+	ProxyAddress    string `json:"proxyAddress"`
+	Data            string `json:"data"`
+	Nonce           string `json:"nonce"`
+	Value           string `json:"value"`
+	State           string `json:"state"`
+	Type            string `json:"type"`
+	Metadata        string `json:"metadata"`
+	CreatedAt       string `json:"createdAt"`
+	UpdatedAt       string `json:"updatedAt"`
+}
+
+const (
+	RelayerStateNew       = "STATE_NEW"
+	RelayerStateExecuted  = "STATE_EXECUTED"
+	RelayerStateMined     = "STATE_MINED"
+	RelayerStateConfirmed = "STATE_CONFIRMED"
+	RelayerStateInvalid   = "STATE_INVALID"
+	RelayerStateFailed    = "STATE_FAILED"
+)
+
 // SafeTransaction is a single transaction to execute through a Safe
 type SafeTransaction struct {
 	To        string
