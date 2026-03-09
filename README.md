@@ -2,6 +2,12 @@
 
 Go SDK for trading on [Polymarket](https://docs.polymarket.com). Covers [Safe wallet provisioning](#gnosis-safe-provisioning) via the relayer (no browser login needed), L2 authentication, order building with [order book sweep](#order-book-sweep) and slippage control, and CLOB interaction.
 
+## Installation
+
+```bash
+go get github.com/D8-X/polymarket-trader-go-sdk
+```
+
 ## Gnosis Safe Provisioning
 
 The SDK derives and deploys Gnosis Safe wallets via Polymarket's relayer, enabling fully automated wallet provisioning for trading bots and hedgers.
