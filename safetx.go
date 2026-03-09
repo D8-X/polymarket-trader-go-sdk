@@ -24,15 +24,15 @@ var maxUint256 = func() *big.Int {
 
 // getSafeNonce fetches the current Safe nonce for the given EOA from the relayer
 func getSafeNonce(ctx context.Context, eoaAddress string, creds *BuilderCredentials) (string, error) {
-	endpoint := fmt.Sprintf("/nonce?address=%s&type=SAFE", eoaAddress)
-	url := RelayerBaseURL + endpoint
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	signPath := "/nonce"
+	fullURL := fmt.Sprintf("%s/nonce?address=%s&type=SAFE", RelayerBaseURL, eoaAddress)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("get safe nonce: build request: %w", err)
 	}
 
 	if creds != nil {
-		applyBuilderHeaders(req, creds, http.MethodGet, endpoint, nil)
+		applyBuilderHeaders(req, creds, http.MethodGet, signPath, nil)
 	}
 
 	client := &http.Client{Timeout: DefaultTimeout}

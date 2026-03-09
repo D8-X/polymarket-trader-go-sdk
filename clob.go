@@ -351,17 +351,18 @@ func (c *CLOBClient) GetBalances(ctx context.Context, creds *L2Credentials) ([]B
 }
 
 func (c *CLOBClient) GetBalanceAllowance(ctx context.Context, assetType string, tokenID string, sigType int, creds *L2Credentials) (*BalanceAllowanceResponse, error) {
-	path := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
+	signPath := "/balance-allowance"
+	fullPath := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
 	if tokenID != "" {
-		path += "&token_id=" + tokenID
+		fullPath += "&token_id=" + tokenID
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get balance allowance: build request: %w", err)
 	}
 
-	headers, err := SignL2Request(creds, http.MethodGet, path, nil)
+	headers, err := SignL2Request(creds, http.MethodGet, signPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get balance allowance: %w", err)
 	}
@@ -381,17 +382,18 @@ func (c *CLOBClient) GetBalanceAllowance(ctx context.Context, assetType string, 
 }
 
 func (c *CLOBClient) UpdateBalanceAllowance(ctx context.Context, assetType string, tokenID string, sigType int, creds *L2Credentials) error {
-	path := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
+	signPath := "/balance-allowance"
+	fullPath := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
 	if tokenID != "" {
-		path += "&token_id=" + tokenID
+		fullPath += "&token_id=" + tokenID
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+fullPath, nil)
 	if err != nil {
 		return fmt.Errorf("update balance allowance: build request: %w", err)
 	}
 
-	headers, err := SignL2Request(creds, http.MethodPut, path, nil)
+	headers, err := SignL2Request(creds, http.MethodPut, signPath, nil)
 	if err != nil {
 		return fmt.Errorf("update balance allowance: %w", err)
 	}
