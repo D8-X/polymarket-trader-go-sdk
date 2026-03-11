@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/internal/ethutil"
@@ -234,18 +233,20 @@ func signBuilderHMAC(secret string, timestamp int64, method, path string, body [
 		message += string(body)
 	}
 
-	secretBytes, err := base64.StdEncoding.DecodeString(secret)
+	secretBytes, err := base64.URLEncoding.DecodeString(secret)
 	if err != nil {
-		secretBytes = []byte(secret)
+		secretBytes, err = base64.RawURLEncoding.DecodeString(secret)
+		if err != nil {
+			secretBytes, err = base64.StdEncoding.DecodeString(secret)
+			if err != nil {
+				secretBytes = []byte(secret)
+			}
+		}
 	}
 
 	h := hmac.New(sha256.New, secretBytes)
 	h.Write([]byte(message))
-	sig := base64.StdEncoding.EncodeToString(h.Sum(nil))
-
-	sig = strings.ReplaceAll(sig, "+", "-")
-	sig = strings.ReplaceAll(sig, "/", "_")
-	return sig
+	return base64.URLEncoding.EncodeToString(h.Sum(nil))
 }
 
 func applyBuilderHeaders(req *http.Request, creds *BuilderCredentials, method, path string, body []byte) {

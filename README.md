@@ -52,6 +52,21 @@ safeAddr, err := polytrade.LookupSafeAddress(ctx, "0xYourEOA")
 
 After deployment, fund the Safe address with USDC on Polygon to start trading.
 
+## USDC Balance
+
+Query and refresh the USDC balance available for trading:
+
+```go
+// Get the current USDC balance (raw units, 6 decimals)
+balance, err := polytrade.USDCBalanceOf(ctx, privateKey)
+fmt.Printf("USDC balance: %s\n", balance)
+
+// After transferring USDC to the Safe, refresh so Polymarket picks up the new balance
+err = polytrade.RefreshUSDCBalance(ctx, privateKey)
+```
+
+`RefreshUSDCBalance` calls `UpdateBalanceAllowance` under the hood, which tells Polymarket to re-scan the on-chain USDC balance for your Safe and make the funds available for trading. Call this after depositing USDC to the Safe address.
+
 ## Usage example
 
 ```go
