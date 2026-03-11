@@ -23,6 +23,20 @@ func USDCBalanceOf(ctx context.Context, privateKeyHex string) (*big.Int, error) 
 	return parseUSDCBalance(resp.Balance), nil
 }
 
+// RefreshUSDCBalance triggers Polymarket to re-scan the on-chain USDC balance
+// for the wallet associated with the given private key and deposit it into the
+// exchange. Call this after transferring USDC to a Safe so the funds become
+// available for trading.
+func RefreshUSDCBalance(ctx context.Context, privateKeyHex string) error {
+	pk := strings.TrimPrefix(privateKeyHex, "0x")
+	creds, err := DeriveL2Credentials(pk, PolygonChainID)
+	if err != nil {
+		return err
+	}
+	clob := NewCLOBClient()
+	return clob.UpdateBalanceAllowance(ctx, "COLLATERAL", "", SignatureTypeGnosisSafe, creds)
+}
+
 func parseUSDCBalance(s string) *big.Int {
 	bal, ok := new(big.Int).SetString(s, 10)
 	if ok {
