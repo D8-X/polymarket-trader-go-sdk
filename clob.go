@@ -256,13 +256,13 @@ func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, 
 			return nil, fmt.Errorf("get open orders: build request: %w", err)
 		}
 
-		headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
+		headers, err := SignL2Request(creds, http.MethodGet, path, nil)
 		if err != nil {
 			return nil, fmt.Errorf("get open orders: %w", err)
 		}
 		ApplyL2Headers(req, headers)
 
-		respBody, err := c.doRequest(req, "GET /orders")
+		respBody, err := c.doRequest(req, "GET /data/orders")
 		if err != nil {
 			return nil, fmt.Errorf("get open orders: %w", err)
 		}
@@ -306,13 +306,13 @@ func (c *CLOBClient) GetTrades(ctx context.Context, makerAddress, market, assetI
 			return nil, fmt.Errorf("get trades: build request: %w", err)
 		}
 
-		headers, err := SignL2Request(creds, http.MethodGet, fullPath, nil)
+		headers, err := SignL2Request(creds, http.MethodGet, path, nil)
 		if err != nil {
 			return nil, fmt.Errorf("get trades: %w", err)
 		}
 		ApplyL2Headers(req, headers)
 
-		respBody, err := c.doRequest(req, "GET /trades")
+		respBody, err := c.doRequest(req, "GET /data/trades")
 		if err != nil {
 			return nil, fmt.Errorf("get trades: %w", err)
 		}
