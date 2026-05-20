@@ -273,6 +273,28 @@ type BalanceAllowanceResponse struct {
 	Allowances map[string]string `json:"allowances"`
 }
 
+// ClobMarketInfo is the dynamic per-market metadata returned by V2 getClobMarketInfo.
+// Effective match-time fee rate = FeeDetails.Rate * 10^-FeeDetails.Exponent;
+// applied only to takers when FeeDetails.TakerOnly is true.
+type ClobMarketInfo struct {
+	MinTickSize  string                `json:"mts"`
+	MinOrderSize string                `json:"mos"`
+	FeeDetails   ClobMarketFeeDetails  `json:"fd"`
+	Tokens       []ClobMarketInfoToken `json:"t"`
+	RFQEnabled   bool                  `json:"rfqe"`
+}
+
+type ClobMarketFeeDetails struct {
+	Rate      int  `json:"r"`
+	Exponent  int  `json:"e"`
+	TakerOnly bool `json:"to"`
+}
+
+type ClobMarketInfoToken struct {
+	TokenID string `json:"token_id"`
+	Outcome string `json:"outcome"`
+}
+
 type PriceLevel struct {
 	Price float64
 	Size  float64
