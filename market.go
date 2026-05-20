@@ -83,13 +83,13 @@ func (c *CLOBClient) GetMidpoint(ctx context.Context, tokenID string) (string, e
 	}
 
 	var result struct {
-		MidPrice string `json:"mid_price"`
+		Mid string `json:"mid"`
 	}
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return "", fmt.Errorf("get midpoint: unmarshal response: %w", err)
 	}
 
-	return result.MidPrice, nil
+	return result.Mid, nil
 }
 
 func (c *CLOBClient) GetSpread(ctx context.Context, tokenID string) (string, error) {
