@@ -283,7 +283,7 @@ for result := range ch {
 
 `PostOnly` (GTC/GTD only) rejects the order if it would trade immediately.
 
-**Sports markets.** FOK and FAK orders have a ~3 second placement delay and are automatically cancelled at game start. See [Polymarket sports docs](https://docs.polymarket.com/sports/overview#order-types).
+**Sports markets.** Marketable orders (FOK / FAK) have a ~1 second placement delay before matching. Outstanding limit orders are automatically cancelled when the game begins. See [Polymarket order docs](https://docs.polymarket.com/trading/orders/create#sports-markets).
 
 ## Tick Size
 
