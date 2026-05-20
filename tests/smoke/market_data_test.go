@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	polytrade "github.com/D8-X/polymarket-trader-go-sdk"
+	polytrade "github.com/D8-X/polymarket-trader-go-sdk/v2"
 )
 
 const testConditionID = "0x1fad72fae204143ff1c3035e99e7c0f65ea8d5cd9bd1070987bd1a3316f772be"

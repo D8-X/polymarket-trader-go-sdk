@@ -1,4 +1,4 @@
-module github.com/D8-X/polymarket-trader-go-sdk
+module github.com/D8-X/polymarket-trader-go-sdk/v2
 
 go 1.25.1
 

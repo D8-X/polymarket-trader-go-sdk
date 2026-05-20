@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	polytrade "github.com/D8-X/polymarket-trader-go-sdk"
+	polytrade "github.com/D8-X/polymarket-trader-go-sdk/v2"
 )
 
 func TestAuthSmoke(t *testing.T) {
