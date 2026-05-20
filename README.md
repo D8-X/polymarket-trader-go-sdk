@@ -79,6 +79,29 @@ _, _ = cli.UnwrapToUSDC(ctx, big.NewInt(5_000_000))
 _, _ = cli.TransferOut(ctx, polytrade.PUSDAddress, recipientAddress, big.NewInt(5_000_000))
 ```
 
+## Market discovery
+
+```go
+// Paginated list of all markets. Empty cursor for the first page.
+page, _ := cli.GetMarkets(ctx, "")
+for _, m := range page.Data {
+    fmt.Println(m.ConditionID, m.Question, m.Active)
+}
+
+// Single market by condition ID.
+mkt, _ := cli.GetMarket(ctx, conditionID)
+
+// Only markets currently offering liquidity rewards.
+sampling, _ := cli.GetSamplingMarkets(ctx, "")
+simpler, _ := cli.GetSamplingSimplifiedMarkets(ctx, "")
+
+// Resolve a market from one of its outcome tokens.
+byTok, _ := cli.GetMarketByToken(ctx, tokenID)
+
+// Live event/series metadata for a market.
+live, _ := cli.GetMarketLiveActivity(ctx, conditionID)
+```
+
 ## Positions
 
 ```go
