@@ -3,18 +3,13 @@ package polytrade
 import (
 	"context"
 	"math/big"
-	"strings"
 )
 
-// USDCBalanceOf returns the USDC collateral balance for the wallet
-// associated with the given private key, via the Polymarket CLOB API.
-// Returns the balance in raw USDC units (6 decimals).
-func USDCBalanceOf(ctx context.Context, privateKeyHex string) (*big.Int, error) {
-	pk := strings.TrimPrefix(privateKeyHex, "0x")
-	creds, err := DeriveL2Credentials(pk, PolygonChainID)
-	if err != nil {
-		return big.NewInt(0), nil
-	}
+// USDCBalanceOf returns the collateral balance available for trading on the
+// Polymarket CLOB for the wallet identified by the provided L2 credentials.
+// Returns the balance in raw units (6 decimals). Post-V2 the underlying asset
+// is pUSD; pre-V2 it was USDC.e.
+func USDCBalanceOf(ctx context.Context, creds *L2Credentials) (*big.Int, error) {
 	clob := NewCLOBClient()
 	resp, err := clob.GetBalanceAllowance(ctx, "COLLATERAL", "", SignatureTypeGnosisSafe, creds)
 	if err != nil {
@@ -23,16 +18,11 @@ func USDCBalanceOf(ctx context.Context, privateKeyHex string) (*big.Int, error) 
 	return parseUSDCBalance(resp.Balance), nil
 }
 
-// RefreshUSDCBalance triggers Polymarket to re-scan the on-chain USDC balance
-// for the wallet associated with the given private key and deposit it into the
-// exchange. Call this after transferring USDC to a Safe so the funds become
-// available for trading.
-func RefreshUSDCBalance(ctx context.Context, privateKeyHex string) error {
-	pk := strings.TrimPrefix(privateKeyHex, "0x")
-	creds, err := DeriveL2Credentials(pk, PolygonChainID)
-	if err != nil {
-		return err
-	}
+// RefreshUSDCBalance triggers Polymarket to re-scan the on-chain collateral
+// balance for the Safe associated with the provided L2 credentials and deposit
+// it into the exchange. Call this after transferring collateral to a Safe so
+// the funds become available for trading.
+func RefreshUSDCBalance(ctx context.Context, creds *L2Credentials) error {
 	clob := NewCLOBClient()
 	return clob.UpdateBalanceAllowance(ctx, "COLLATERAL", "", SignatureTypeGnosisSafe, creds)
 }
