@@ -20,3 +20,5 @@ go.work.sum
 /safedeploy
 /testutils/
 /examples/
+/test-account.txt
+/v2-flow-explained.txt
