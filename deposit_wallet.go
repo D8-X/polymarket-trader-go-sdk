@@ -240,6 +240,16 @@ func ApproveDepositWalletForSellOrders(ctx context.Context, eoaAddress, privateK
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
+func TransferFromDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress, assetAddress, recipientAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+	if amount == nil || amount.Sign() <= 0 {
+		return nil, fmt.Errorf("transfer from deposit wallet: amount must be positive")
+	}
+	calls := []WalletCall{
+		{Target: assetAddress, Value: new(big.Int), Data: encodeTransferCalldata(recipientAddress, amount)},
+	}
+	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+}
+
 func WrapAndApproveDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("wrap and approve deposit wallet: amount must be positive")
@@ -261,6 +271,15 @@ func encodeApproveCalldataAmount(spender string, amount *big.Int) []byte {
 	data := make([]byte, 0, 4+32+32)
 	data = append(data, selector...)
 	data = append(data, ethutil.PadTo32(common.HexToAddress(spender).Bytes())...)
+	data = append(data, ethutil.PadTo32(amount.Bytes())...)
+	return data
+}
+
+func encodeTransferCalldata(to string, amount *big.Int) []byte {
+	selector := ethutil.Keccak256([]byte("transfer(address,uint256)"))[:4]
+	data := make([]byte, 0, 4+32+32)
+	data = append(data, selector...)
+	data = append(data, ethutil.PadTo32(common.HexToAddress(to).Bytes())...)
 	data = append(data, ethutil.PadTo32(amount.Bytes())...)
 	return data
 }
