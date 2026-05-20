@@ -105,22 +105,6 @@ type RelayerCredentials struct {
 	Passphrase string
 }
 
-type safeCreateSignatureParams struct {
-	PaymentToken    string `json:"paymentToken"`
-	Payment         string `json:"payment"`
-	PaymentReceiver string `json:"paymentReceiver"`
-}
-
-type safeCreateRequest struct {
-	Type            string                    `json:"type"`
-	From            string                    `json:"from"`
-	To              string                    `json:"to"`
-	ProxyWallet     string                    `json:"proxyWallet"`
-	Data            string                    `json:"data"`
-	Signature       string                    `json:"signature"`
-	SignatureParams safeCreateSignatureParams `json:"signatureParams"`
-}
-
 type RelayerResponse struct {
 	TransactionID   string `json:"transactionID"`
 	State           string `json:"state"`
@@ -152,41 +136,8 @@ const (
 	RelayerStateFailed    = "STATE_FAILED"
 )
 
-// SafeTransaction is a single transaction to execute through a Safe
-type SafeTransaction struct {
-	To        string
-	Value     string
-	Data      string
-	Operation int // OperationCall (0) or OperationDelegateCall (1)
-}
-
-type safeTxSignatureParams struct {
-	Operation      string `json:"operation"`
-	SafeTxnGas     string `json:"safeTxnGas"`
-	BaseGas        string `json:"baseGas"`
-	GasPrice       string `json:"gasPrice"`
-	GasToken       string `json:"gasToken"`
-	RefundReceiver string `json:"refundReceiver"`
-}
-
-type safeTxRequest struct {
-	Type            string                `json:"type"`
-	From            string                `json:"from"`
-	To              string                `json:"to"`
-	ProxyWallet     string                `json:"proxyWallet"`
-	Data            string                `json:"data"`
-	Nonce           string                `json:"nonce"`
-	Signature       string                `json:"signature"`
-	SignatureParams safeTxSignatureParams `json:"signatureParams"`
-	Metadata        string                `json:"metadata"`
-}
-
 type nonceResponse struct {
 	Nonce string `json:"nonce"`
-}
-
-type deployedResponse struct {
-	Deployed bool `json:"deployed"`
 }
 
 type BalanceEntry struct {

@@ -223,10 +223,6 @@ func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, d
 	return &r, nil
 }
 
-// ApproveDepositWalletForBuyOrders builds and submits a Batch that grants
-// the CTFExchange + NegRiskCTFExchange unlimited spend on pUSD held in the
-// deposit wallet. Sufficient for BUY orders. SELL orders also need
-// ERC-1155 setApprovalForAll on the V1 conditional tokens contract.
 func ApproveDepositWalletForBuyOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
@@ -236,9 +232,6 @@ func ApproveDepositWalletForBuyOrders(ctx context.Context, eoaAddress, privateKe
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
-// WrapAndApproveDepositWallet wraps `amount` USDC.e held in the deposit
-// wallet into pUSD and grants the CTFExchange + NegRiskCTFExchange
-// unlimited spend on pUSD in one signed batch.
 func WrapAndApproveDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("wrap and approve deposit wallet: amount must be positive")

@@ -1,14 +1,12 @@
 # Polymarket Trader Go SDK
 
-Go SDK for trading on [Polymarket](https://docs.polymarket.com). Designed for fully programmatic, UI-free trading from a Go process. The SDK owns the whole flow: deriving the Gnosis Safe, deploying it via the Polymarket relayer, approving the CTF exchanges, wrapping USDC.e into pUSD, signing orders, and placing them on the CLOB. No browser, no MetaMask, no polymarket.com signup.
+Go SDK for trading on [Polymarket](https://docs.polymarket.com). Designed for fully programmatic, UI-free trading from a Go process. The SDK owns the whole onboarding and order path. It deploys the V2 deposit wallet via the Polymarket relayer, derives L2 CLOB credentials, wraps USDC.e into pUSD, approves the CTF exchanges, signs orders, and places them on the CLOB. No browser, no MetaMask, no polymarket.com signup.
 
-Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.com/v2-migration)): orders use the V2 EIP-712 domain with the `timestamp` / `metadata` / `builder` fields, builder attribution is plumbed through `OrderOpts.BuilderCode`, and dynamic fees are queryable via `CLOBClient.GetClobMarketInfo`.
-
-The SDK targets Polymarket V2 deposit-wallet accounts (`SignatureTypePoly1271`, EIP-1271 + ERC-7739). Use a fresh EOA so the Polymarket account is created by the SDK from scratch. The legacy Safe path (`SignatureTypeGnosisSafe`) is still exposed via `Bootstrap` for older accounts but the V2 CLOB only accepts orders against deposit wallets for new accounts.
+The SDK targets Polymarket V2 deposit-wallet accounts (`SignatureTypePoly1271`, EIP-1271 + ERC-7739). Use a fresh EOA so the Polymarket account is created by the SDK from scratch.
 
 ## Compared to the official clients
 
-Covers the standard auth, order, and market-data operations the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) provide. Adds bot-focused extras on top: Gnosis Safe provisioning, gasless transactions through the Polymarket relayer, order book sweep with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp wrap/unwrap helpers. Pre-migration orders, rewards, order-scoring, WebSocket streams, market discovery, CTF split/merge/redeem, and RFQ are not yet implemented.
+Covers the standard auth, order, and market-data operations the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) provide. Adds bot-focused extras on top such as deposit-wallet onboarding through the Polymarket relayer (gasless), order book sweep with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp wrap/unwrap helpers. Pre-migration orders, rewards, order-scoring, WebSocket streams, market discovery, CTF split/merge/redeem, and RFQ are not yet implemented.
 
 ## Installation
 
@@ -16,9 +14,21 @@ Covers the standard auth, order, and market-data operations the official [py-clo
 go get github.com/D8-X/polymarket-trader-go-sdk/v2
 ```
 
-## Deposit Wallet Onboarding (V2 UI-free path)
+## How an order reaches the CLOB
 
-The SDK can onboard a fresh EOA end-to-end without polymarket.com: deploy the deposit wallet via the relayer, derive L2 CLOB credentials, wrap USDC.e to pUSD, and approve the CTF exchanges. Sign orders with `SignatureTypePoly1271` and an ERC-7739-wrapped signature.
+Three phases. The first two are one-time setup per EOA. The third runs for every trade.
+
+**1. Onboard the EOA.** Polymarket V2 doesn't accept orders signed by a raw EOA. Each account trades through a deposit wallet, a smart contract deployed per EOA at a deterministic CREATE2 address. The relayer deploys it on demand via a `WALLET-CREATE` request (no EOA signature needed in the body, just relayer HMAC credentials). Once on-chain, the contract is permanently bound to your EOA and verifies signatures via EIP-1271. You also derive L2 CLOB credentials (`apiKey` / `secret` / `passphrase`) by signing a one-time EIP-712 ClobAuth payload with your EOA. These are HMAC creds used to authenticate every request to `clob.polymarket.com`.
+
+**2. Fund and approve the deposit wallet.** Trades settle in pUSD, not USDC. Send USDC.e to the deposit wallet, then submit a signed Batch through the relayer that approves the Collateral Onramp, wraps USDC.e to pUSD, and approves the V2 CTF exchanges to pull pUSD on match. The Batch is one EIP-712 signature over the `DepositWallet/1` domain (verifying contract is the deposit wallet itself). The relayer executes it on-chain and pays the gas.
+
+**3. Build, sign, and post the order.** A V2 Order is a standard EIP-712 struct with `maker = signer = deposit wallet` and `signatureType = 3` (POLY_1271). The signature is not a raw ECDSA over the order digest. Because the maker is a contract, the wallet's EIP-1271 verifier expects an ERC-7739 wrap. The EOA signs a `TypedDataSign(...)` digest that nests the order inside the deposit-wallet domain, and the wire signature is `inner_sig || appDomainSep || contentsHash || utf8(orderTypeStr) || uint16be(len)` (around 318 bytes). The signed order is `POST`ed to `/order` with L2 HMAC headers. The CLOB checks the signature via EIP-1271, verifies funder allowance and balance on-chain, then rests or matches it.
+
+The EOA only ever signs. The relayer pays every gas cost. The order doesn't touch the chain until a match settles.
+
+## Doing it with the SDK
+
+The SDK collapses each phase into a small set of calls. The pieces below mirror the three phases above.
 
 ```go
 ctx := context.Background()
@@ -29,34 +39,53 @@ relayerCreds := &polytrade.RelayerCredentials{
     Secret:     "your-relayer-secret",
     Passphrase: "your-relayer-passphrase",
 }
-
-// 1. Deploy the deposit wallet (idempotent).
-deployResp, err := polytrade.DeployDepositWallet(ctx, eoaAddress, relayerCreds)
-// The deployment tx receipt logs the deterministic CREATE2 address Polymarket
-// assigned to your EOA. Save it; you'll need it as the funder address.
-depositWallet := "0x..." // from polygonscan or the receipt's contractAddress
-
-// 2. Fund the deposit wallet with USDC.e on Polygon (token contract
-//    0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174). The SDK never moves funds
-//    in or out of your wallet for you.
-
-// 3. Wrap USDC.e to pUSD and approve the exchanges in one signed batch.
-amount := big.NewInt(1_000_000) // 1.0 USDC.e
-_, err = polytrade.WrapAndApproveDepositWallet(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
-
-// Or do steps 1+3 in one call (only step 2 is on you):
-_, err = polytrade.BootstrapDepositWallet(ctx, privateKey, depositWallet, amount, relayerCreds)
 ```
 
-## Legacy Gnosis Safe Provisioning (V1 era)
-
-For older accounts that were created with a Safe-backed funder. The CLOB no longer accepts Safe-funded orders for accounts opened after V2; this path is kept for migration.
+Phase 1 deploys the deposit wallet (idempotent) and grabs L2 creds. The deployment tx receipt's `contractAddress` field is the deterministic CREATE2 address. Store it. Subsequent calls use it as the funder address.
 
 ```go
-boot, err := polytrade.Bootstrap(ctx, privateKey, relayerCreds)
+deployResp, err := polytrade.DeployDepositWallet(ctx, eoaAddress, relayerCreds)
+depositWallet := "0x..." // from polygonscan or the deploy tx receipt
+
+creds, err := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
+if err != nil {
+    creds, err = polytrade.CreateL2Credentials(privateKey, polytrade.PolygonChainID)
+}
 ```
 
-After deployment, fund the Safe with the active collateral token on Polygon. Use `polytrade.CollateralAddress()`; it returns pUSD by default and falls back to USDC.e only if `polytrade.SetPUSDAddress("")` is called.
+Phase 2 sends USDC.e to `depositWallet` from any wallet you control (the SDK does not move funds in for you), then wraps + approves in one signed Batch.
+
+```go
+amount := big.NewInt(1_000_000) // 1.0 USDC.e
+_, err = polytrade.WrapAndApproveDepositWallet(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
+```
+
+Both phases at once:
+
+```go
+boot, err := polytrade.BootstrapDepositWallet(ctx, privateKey, depositWallet, amount, relayerCreds)
+creds := boot.Creds
+```
+
+Phase 3 builds, signs, and places an order. The builder handles `maker = signer = depositWallet` and the ERC-7739 wrap automatically when you pass `SignatureTypePoly1271`.
+
+```go
+builder := polytrade.NewOrderBuilder(
+    depositWallet,
+    polytrade.CTFExchange,
+    privateKey,
+    polytrade.SignatureTypePoly1271,
+)
+signed, err := builder.PrepareAndSign(
+    tokenID,
+    polytrade.BUY,
+    polytrade.OrderTypeGTC,
+    0.55, 10,
+    creds.APIKey,
+    polytrade.OrderOpts{TickSize: "0.01"},
+)
+resp, err := clob.PlaceOrder(ctx, signed, creds)
+```
 
 ## Collateral Balance
 
@@ -110,13 +139,14 @@ func main() {
 	privateKey := "your-private-key-hex"
 	clob := polytrade.NewCLOBClient()
 
-	// 1. One-shot onboarding: L2 creds, Safe deploy, CTF approvals. Idempotent.
+	// 1. One-shot onboarding (deposit wallet deploy, L2 creds, wrap + approvals).
 	relayerCreds := &polytrade.RelayerCredentials{
 		APIKey:     "your-relayer-api-key",
 		Secret:     "your-relayer-secret",
 		Passphrase: "your-relayer-passphrase",
 	}
-	boot, err := polytrade.Bootstrap(ctx, privateKey, relayerCreds)
+	depositWallet := "0xYourDepositWallet" // from the WALLET-CREATE receipt
+	boot, err := polytrade.BootstrapDepositWallet(ctx, privateKey, depositWallet, big.NewInt(1_000_000), relayerCreds)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,10 +155,10 @@ func main() {
 	// 2. Create an order builder.
 	//    For neg-risk markets, pass polytrade.NegRiskCTFExchange instead.
 	builder := polytrade.NewOrderBuilder(
-		boot.SafeAddress,
+		boot.DepositWalletAddress,
 		polytrade.CTFExchange,
 		privateKey,
-		polytrade.SignatureTypeGnosisSafe,
+		polytrade.SignatureTypePoly1271,
 	)
 
 	// Optional: attach a builder code from your Polymarket Builder Profile to every order

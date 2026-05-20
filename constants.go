@@ -37,23 +37,14 @@ const (
 )
 
 const (
-	ProxyFactory      = "0xaB45c5A4B0c941a2F231C04C3f49182e1A254052"
-	ProxyInitCodeHash = "0xd21df8dc65880a8606f09fe0ce3df9b8869287ab0b058be05aa9e8af6330a00b"
-	ZeroAddress       = "0x0000000000000000000000000000000000000000"
+	ZeroAddress    = "0x0000000000000000000000000000000000000000"
+	RelayerBaseURL = "https://relayer-v2.polymarket.com"
 )
 
 const (
-	SafeFactory      = "0xaacFeEa03eb1561C4e67d661e40682Bd20E3541b"
-	SafeInitCodeHash = "0x2bce2127ff07fb632d16c8347c4ebf501f4841168bed00d9e6ef715ddb6fcecf"
-	SafeFactoryName  = "Polymarket Contract Proxy Factory"
-	RelayerBaseURL   = "https://relayer-v2.polymarket.com"
-)
-
-const (
-	SafeMultisend      = "0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761" // a helper contract that batches multiple txns into one Safe execution
-	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" // USDC.e, legacy collateral pre-V2 cutover
+	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" // USDC.e
 	PUSDAddress        = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB" // Polymarket USD (pUSD) proxy on Polygon
-	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B" // Polymarket exchange and ERC-1155 conditional token contract
+	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B" // Polymarket V2 CTF Exchange
 	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59" // for capped loss markets
 	CollateralOnramp   = "0x93070a847efEf7F70739046A929D47a521F5B8ee" // wrap USDC.e -> pUSD
 	CollateralOfframp  = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854" // unwrap pUSD -> USDC.e
@@ -94,11 +85,6 @@ func CollateralAddress() string {
 }
 
 const (
-	OperationCall         = 0
-	OperationDelegateCall = 1
-)
-
-const (
 	DefaultTimeout = 10 * time.Second
 	CLOBTimeout    = 15 * time.Second
 )
@@ -135,10 +121,6 @@ const (
 	eip712AuthDomainType  = "EIP712Domain(string name,string version,uint256 chainId)"
 	eip712ClobAuthType    = "ClobAuth(address address,string timestamp,uint256 nonce,string message)"
 	eip712OrderType       = "Order(uint256 salt,address maker,address signer,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint8 side,uint8 signatureType,uint256 timestamp,bytes32 metadata,bytes32 builder)"
-	eip712SafeFactoryDomainType = "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
-	eip712SafeTxDomainType      = "EIP712Domain(uint256 chainId,address verifyingContract)"
-	eip712SafeTxType            = "SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"
-	eip712CreateProxyType       = "CreateProxy(address paymentToken,uint256 payment,address paymentReceiver)"
 
 	eip712AuthDomainName  = "ClobAuthDomain"
 	eip712OrderDomainName = "Polymarket CTF Exchange"
