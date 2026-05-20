@@ -14,6 +14,7 @@ import (
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -21,6 +22,43 @@ type WalletCall struct {
 	Target string
 	Value  *big.Int
 	Data   []byte
+}
+
+type ReceiptFetcher interface {
+	TransactionReceipt(ctx context.Context, txHash common.Hash) (*ethtypes.Receipt, error)
+}
+
+func DepositWalletAddressFromReceipt(ctx context.Context, eth ReceiptFetcher, txHash string) (string, error) {
+	receipt, err := eth.TransactionReceipt(ctx, common.HexToHash(txHash))
+	if err != nil {
+		return "", fmt.Errorf("deposit wallet address from receipt: %w", err)
+	}
+	if receipt == nil {
+		return "", fmt.Errorf("deposit wallet address from receipt: nil receipt")
+	}
+	factory := common.HexToAddress(DepositWalletFactory)
+	for _, lg := range receipt.Logs {
+		if lg.Address != factory {
+			return lg.Address.Hex(), nil
+		}
+	}
+	return "", fmt.Errorf("deposit wallet address from receipt: no log emitter other than the factory")
+}
+
+func DeployAndResolveDepositWallet(ctx context.Context, eth ReceiptFetcher, eoaAddress string, creds *RelayerCredentials) (string, *RelayerResponse, *RelayerTransaction, error) {
+	deployResp, err := DeployDepositWallet(ctx, eoaAddress, creds)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	tx, err := WaitForRelayerTransaction(ctx, deployResp.TransactionID)
+	if err != nil {
+		return "", deployResp, tx, err
+	}
+	addr, err := DepositWalletAddressFromReceipt(ctx, eth, tx.TransactionHash)
+	if err != nil {
+		return "", deployResp, tx, err
+	}
+	return addr, deployResp, tx, nil
 }
 
 func DeployDepositWallet(ctx context.Context, eoaAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {

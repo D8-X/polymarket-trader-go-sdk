@@ -18,7 +18,10 @@ type DepositWalletBootstrapResult struct {
 	BatchResponse        *RelayerResponse
 }
 
-func BootstrapDepositWallet(ctx context.Context, privateKeyHex, depositWalletAddress string, wrapAmount *big.Int, relayerCreds *RelayerCredentials) (*DepositWalletBootstrapResult, error) {
+func BootstrapDepositWallet(ctx context.Context, eth ReceiptFetcher, privateKeyHex string, wrapAmount *big.Int, relayerCreds *RelayerCredentials) (*DepositWalletBootstrapResult, error) {
+	if eth == nil {
+		return nil, fmt.Errorf("bootstrap deposit wallet: nil ReceiptFetcher")
+	}
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
 		return nil, fmt.Errorf("bootstrap deposit wallet: invalid private key: %w", err)
@@ -33,14 +36,11 @@ func BootstrapDepositWallet(ctx context.Context, privateKeyHex, depositWalletAdd
 		}
 	}
 
-	deployResp, err := DeployDepositWallet(ctx, eoaAddress, relayerCreds)
+	depositWalletAddress, deployResp, _, err := DeployAndResolveDepositWallet(ctx, eth, eoaAddress, relayerCreds)
 	if err != nil {
 		return nil, fmt.Errorf("bootstrap deposit wallet: deploy: %w", err)
 	}
-	if deployResp != nil && deployResp.TransactionID != "" {
-		_, _ = WaitForRelayerTransaction(ctx, deployResp.TransactionID)
-		time.Sleep(2 * time.Second)
-	}
+	time.Sleep(2 * time.Second)
 
 	var batchResp *RelayerResponse
 	if wrapAmount != nil {
