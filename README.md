@@ -18,8 +18,6 @@ go get github.com/D8-X/polymarket-trader-go-sdk/v2
 
 The SDK derives and deploys Gnosis Safe wallets via Polymarket's relayer, enabling fully automated wallet provisioning for trading bots and hedgers.
 
-> **Note:** `BuilderCredentials` here authenticates with the Polymarket Safe relayer (HMAC headers, used for gasless tx submission). It is **not** the V2 CLOB builder attribution — for that, use `OrderOpts.BuilderCode` (a bytes32 identifier attached to each order). The two are unrelated despite the similar name.
-
 ```go
 ctx := context.Background()
 privateKey := "your-private-key-hex"
