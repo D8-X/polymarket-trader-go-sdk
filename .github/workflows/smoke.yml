@@ -12,7 +12,35 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25.1'
+
       - name: auth smoke test
         env:
           POLYMARKET_TEST_PK: ${{ secrets.POLYMARKET_TEST_PK }}
-        run: go test -tags=smoke -run TestAuthSmoke -v ./tests/smoke/...
+        run: |
+          set +e
+          go test -tags=smoke -run TestAuthSmoke -v ./tests/smoke/... | tee /tmp/test.out
+          echo "EXIT=$?" >> "$GITHUB_ENV"
+          exit 0
+
+      - name: summary
+        if: always()
+        run: |
+          {
+            echo "## Polymarket auth smoke"
+            echo ""
+            if grep -q "^--- SKIP" /tmp/test.out 2>/dev/null; then
+              echo "**Status:** ⏭️ Skipped — \`POLYMARKET_TEST_PK\` secret not set."
+            elif grep -q "^--- PASS" /tmp/test.out 2>/dev/null; then
+              echo "**Status:** ✅ Passed"
+              echo ""
+              echo "Verified against \`clob.polymarket.com\`:"
+              echo ""
+              echo "- EIP-712 ClobAuth signing → \`/auth/derive-api-key\`"
+              echo "- HMAC L2 signing → \`/balance-allowance\`"
+            else
+              echo "**Status:** ❌ Failed"
+              echo ""
+              echo "See the \"auth smoke test\" step above for details."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit ${EXIT:-1}
