@@ -338,14 +338,12 @@ func (c *CLOBClient) GetBalances(ctx context.Context, creds *L2Credentials) ([]B
 	if err != nil {
 		return nil, fmt.Errorf("get balances: %w", err)
 	}
-	var balances []BalanceEntry
+	balances := make([]BalanceEntry, 0, len(positions))
 	for _, p := range positions {
-		if p.Size > 0 {
-			balances = append(balances, BalanceEntry{
-				AssetID: p.Asset,
-				Balance: p.Size,
-			})
-		}
+		balances = append(balances, BalanceEntry{
+			AssetID: p.Asset,
+			Balance: p.Size,
+		})
 	}
 	return balances, nil
 }
