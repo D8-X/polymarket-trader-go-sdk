@@ -20,7 +20,6 @@ type OrderBuilder struct {
 type OrderOpts struct {
 	PostOnly   bool
 	DeferExec  bool
-	FeeRateBps string
 	Expiration time.Duration
 	TickSize   string
 }
@@ -100,8 +99,6 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 	}
 	salt := saltBig.Int64()
 
-	nonce := "0"
-
 	rc := getRoundConfig(opt.TickSize)
 	if opt.TickSize != "" {
 		if err := checkPrecision(price, rc.price, "price"); err != nil {
@@ -133,22 +130,17 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		expiration = time.Now().Add(GTDSecurityThreshold + dur).Unix()
 	}
 
-	feeRate := "0"
-	if opt.FeeRateBps != "" {
-		feeRate = opt.FeeRateBps
-	}
-
 	order := OrderFields{
 		Salt:          salt,
 		Maker:         ob.makerAddress,
 		Signer:        ob.signerAddress,
-		Taker:         ZeroAddress,
 		TokenID:       tokenID,
 		MakerAmount:   strconv.FormatInt(makerAmount, 10),
 		TakerAmount:   strconv.FormatInt(takerAmount, 10),
 		Expiration:    strconv.FormatInt(expiration, 10),
-		Nonce:         nonce,
-		FeeRateBps:    feeRate,
+		Timestamp:     strconv.FormatInt(time.Now().UnixMilli(), 10),
+		Metadata:      ZeroBytes32,
+		Builder:       ZeroBytes32,
 		Side:          sideStr,
 		SignatureType: ob.sigType,
 		sideNumeric:   sideNumeric,

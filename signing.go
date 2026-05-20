@@ -40,15 +40,14 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 		ethutil.PadTo32(big.NewInt(order.Salt).Bytes()),
 		ethutil.PadTo32(ethutil.ParseAddress(order.Maker)),
 		ethutil.PadTo32(ethutil.ParseAddress(order.Signer)),
-		ethutil.PadTo32(ethutil.ParseAddress(order.Taker)),
 		ethutil.PadTo32(ethutil.ParseBigInt(order.TokenID)),
 		ethutil.PadTo32(ethutil.ParseBigInt(order.MakerAmount)),
 		ethutil.PadTo32(ethutil.ParseBigInt(order.TakerAmount)),
-		ethutil.PadTo32(ethutil.ParseBigInt(order.Expiration)),
-		ethutil.PadTo32(ethutil.ParseBigInt(order.Nonce)),
-		ethutil.PadTo32(ethutil.ParseBigInt(order.FeeRateBps)),
 		ethutil.PadTo32(big.NewInt(int64(order.sideNumeric)).Bytes()),
 		ethutil.PadTo32(big.NewInt(int64(order.SignatureType)).Bytes()),
+		ethutil.PadTo32(ethutil.ParseBigInt(order.Timestamp)),
+		ethutil.ParseBytes32(order.Metadata),
+		ethutil.ParseBytes32(order.Builder),
 	))
 
 	digest := ethutil.Keccak256Pack([]byte{0x19, 0x01}, domainSep, structHash)
