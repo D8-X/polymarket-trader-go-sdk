@@ -39,7 +39,7 @@ const (
 const (
 	SafeMultisend      = "0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761" // a helper contract that batches multiple txns into one Safe execution
 	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" // USDC.e, legacy collateral pre-V2 cutover
-	PUSDAddress        = ""                                          // Polymarket USD (pUSD); set via SetPUSDAddress once the deployed Polygon address is known
+	PUSDAddress        = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB" // Polymarket USD (pUSD) proxy on Polygon
 	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B" // Polymarket exchange and ERC-1155 conditional token contract
 	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59" // for capped loss markets
 )
@@ -48,14 +48,15 @@ const (
 // to USDCAddress until callers configure pUSD.
 var configuredPUSDAddress = PUSDAddress
 
-// SetPUSDAddress configures the deployed Polymarket USD (pUSD) Polygon address.
-// CollateralAddress returns this value once set; until then it returns USDC.e.
+// SetPUSDAddress overrides the default Polymarket USD (pUSD) Polygon address.
+// CollateralAddress returns this value when non-empty; otherwise it returns
+// USDCAddress (USDC.e).
 func SetPUSDAddress(addr string) {
 	configuredPUSDAddress = addr
 }
 
-// CollateralAddress returns the active collateral ERC-20. Post-V2 this is pUSD;
-// pre-V2 (or until SetPUSDAddress is called) it is USDC.e.
+// CollateralAddress returns the active collateral ERC-20 — pUSD by default,
+// falling back to USDC.e if pUSD has been explicitly unset via SetPUSDAddress("").
 func CollateralAddress() string {
 	if configuredPUSDAddress != "" {
 		return configuredPUSDAddress
