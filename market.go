@@ -136,6 +136,30 @@ func (c *CLOBClient) GetTickSize(ctx context.Context, tokenID string) (string, e
 	return result.TickSize.String(), nil
 }
 
+// GetClobMarketInfo returns the per-market metadata for a condition ID:
+// minimum tick size, minimum order size, fee details, the outcome tokens,
+// and the RFQ-enabled flag.
+func (c *CLOBClient) GetClobMarketInfo(ctx context.Context, conditionID string) (*ClobMarketInfo, error) {
+	path := "/markets/" + conditionID
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get clob market info: build request: %w", err)
+	}
+
+	respBody, err := c.doRequest(req, "GET "+path)
+	if err != nil {
+		return nil, fmt.Errorf("get clob market info: %w", err)
+	}
+
+	var info ClobMarketInfo
+	if err := json.Unmarshal(respBody, &info); err != nil {
+		return nil, fmt.Errorf("get clob market info: unmarshal response: %w", err)
+	}
+	return &info, nil
+}
+
+// Deprecated: fees are now set by operators at match time. Use
+// GetClobMarketInfo and read FeeDetails instead.
 func (c *CLOBClient) GetFeeRate(ctx context.Context, tokenID string) (int, error) {
 	path := "/fee-rate"
 	if tokenID != "" {
