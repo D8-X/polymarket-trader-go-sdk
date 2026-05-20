@@ -282,6 +282,23 @@ go func() {
 }()
 ```
 
+## Conditional tokens
+
+Convert pUSD into a complete set of outcome tokens (YES + NO) and back, or redeem winners after a market resolves. Each call is a single signed Batch through the deposit wallet.
+
+```go
+// Split 5 pUSD into 5 YES + 5 NO of the binary market.
+_, _ = cli.SplitPosition(ctx, conditionID, big.NewInt(5_000_000))
+
+// Merge back 5 YES + 5 NO into 5 pUSD.
+_, _ = cli.MergePositions(ctx, conditionID, big.NewInt(5_000_000))
+
+// Redeem winning outcome tokens after resolution.
+_, _ = cli.RedeemPositions(ctx, conditionID)
+```
+
+Only binary markets are supported. Neg-risk markets route through a different adapter and are not covered here.
+
 ## WebSocket subscriptions
 
 Two streams. The `market` channel is public and emits order book + price events for the assets you subscribe to. The `user` channel emits your own order + trade updates and requires CLOB credentials (`Client.Bootstrap` or `Config.Creds`).
