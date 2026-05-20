@@ -99,7 +99,7 @@ creds, _ := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
 balance, err := polytrade.CollateralBalanceOf(ctx, creds)
 fmt.Printf("balance: %s\n", balance)
 
-// After transferring collateral to the Safe, refresh so Polymarket picks up the new balance
+// After transferring collateral to the deposit wallet, refresh so Polymarket picks up the new balance
 err = polytrade.RefreshCollateralBalance(ctx, creds)
 ```
 
@@ -107,19 +107,19 @@ err = polytrade.RefreshCollateralBalance(ctx, creds)
 
 ### Wrapping and Unwrapping pUSD
 
-API traders moving between USDC.e and pUSD can use the Collateral Onramp / Offramp via the relayer:
+API traders moving between USDC.e and pUSD can use the Collateral Onramp / Offramp through the deposit wallet.
 
 ```go
 amount := big.NewInt(5_000_000) // 5 pUSD (6 decimals)
 
-// USDC.e in the Safe -> pUSD in the Safe
-relayResp, err := polytrade.WrapToPUSD(ctx, eoaAddress, privateKey, amount, relayerCreds)
+// USDC.e in the deposit wallet -> pUSD in the deposit wallet
+relayResp, err := polytrade.WrapToPUSD(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
 
-// pUSD in the Safe -> USDC.e in the Safe
-relayResp, err = polytrade.UnwrapToUSDC(ctx, eoaAddress, privateKey, amount, relayerCreds)
+// pUSD in the deposit wallet -> USDC.e in the deposit wallet
+relayResp, err = polytrade.UnwrapToUSDC(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
 ```
 
-Both helpers batch the required ERC-20 approval and the on/offramp call into a single gasless Safe transaction.
+Both helpers batch the required ERC-20 approval and the on/offramp call into a single gasless relayer batch signed over the `DepositWallet/1` EIP-712 domain.
 
 ## Usage example
 
@@ -283,7 +283,7 @@ for result := range ch {
 
 `PostOnly` (GTC/GTD only) rejects the order if it would trade immediately.
 
-**Sports markets:** FOK and FAK orders have a ~3 second placement delay and are automatically cancelled at game start. See [Polymarket sports docs](https://docs.polymarket.com/sports/overview#order-types).
+**Sports markets.** FOK and FAK orders have a ~3 second placement delay and are automatically cancelled at game start. See [Polymarket sports docs](https://docs.polymarket.com/sports/overview#order-types).
 
 ## Tick Size
 
