@@ -332,6 +332,34 @@ func (c *Client) GetBalances(ctx context.Context) ([]BalanceEntry, error) {
 	return c.clob.GetBalances(ctx, creds)
 }
 
+func (c *Client) GetMarkets(ctx context.Context, nextCursor string) (*PaginatedResponse[MarketInfo], error) {
+	return c.clob.GetMarkets(ctx, nextCursor)
+}
+
+func (c *Client) GetMarket(ctx context.Context, conditionID string) (*MarketInfo, error) {
+	return c.clob.GetMarket(ctx, conditionID)
+}
+
+func (c *Client) GetSamplingMarkets(ctx context.Context, nextCursor string) (*PaginatedResponse[MarketInfo], error) {
+	return c.clob.GetSamplingMarkets(ctx, nextCursor)
+}
+
+func (c *Client) GetSimplifiedMarkets(ctx context.Context, nextCursor string) (*PaginatedResponse[SimplifiedMarketInfo], error) {
+	return c.clob.GetSimplifiedMarkets(ctx, nextCursor)
+}
+
+func (c *Client) GetSamplingSimplifiedMarkets(ctx context.Context, nextCursor string) (*PaginatedResponse[SimplifiedMarketInfo], error) {
+	return c.clob.GetSamplingSimplifiedMarkets(ctx, nextCursor)
+}
+
+func (c *Client) GetMarketByToken(ctx context.Context, tokenID string) (*MarketByTokenInfo, error) {
+	return c.clob.GetMarketByToken(ctx, tokenID)
+}
+
+func (c *Client) GetMarketLiveActivity(ctx context.Context, conditionID string) (*MarketLiveActivity, error) {
+	return c.clob.GetMarketLiveActivity(ctx, conditionID)
+}
+
 func (c *Client) GetPositions(ctx context.Context) ([]PositionEntry, error) {
 	c.mu.RLock()
 	dw := c.depositWallet
