@@ -241,7 +241,7 @@ func ExecuteSafeTransaction(ctx context.Context, eoaAddress, privateKeyHex strin
 // via the Polymarket relayer (gasless). Amount is in raw units (6 decimals, e.g. 1_000_000 = 1 USDC).
 func TransferUSDCViaSafe(ctx context.Context, eoaAddress, privateKeyHex string, to string, amount *big.Int, creds *BuilderCredentials) (*RelayerResponse, error) {
 	tx := SafeTransaction{
-		To:        USDCAddress,
+		To:        CollateralAddress(),
 		Value:     "0",
 		Data:      encodeTransferCalldata(to, amount),
 		Operation: OperationCall,
@@ -261,29 +261,26 @@ func ApproveSafeTokens(ctx context.Context, eoaAddress, privateKeyHex, ctfExchan
 		eoaAddress = derivedEOA
 	}
 
+	collateral := CollateralAddress()
 	txns := []SafeTransaction{
-		//  USDC approve for CTF exchange
 		{
-			To:        USDCAddress,
+			To:        collateral,
 			Value:     "0",
 			Data:      encodeApproveCalldata(ctfExchangeAddress),
 			Operation: OperationCall,
 		},
-		// USDC approve for NegRisk CTF exchange
 		{
-			To:        USDCAddress,
+			To:        collateral,
 			Value:     "0",
 			Data:      encodeApproveCalldata(NegRiskCTFExchange),
 			Operation: OperationCall,
 		},
-		//  CTFExchange setApprovalForAll for CTF exchange
 		{
 			To:        CTFExchange,
 			Value:     "0",
 			Data:      encodeSetApprovalForAllCalldata(ctfExchangeAddress),
 			Operation: OperationCall,
 		},
-		//CTFExchange setApprovalForAll for NegRisk CTF exchange
 		{
 			To:        CTFExchange,
 			Value:     "0",
