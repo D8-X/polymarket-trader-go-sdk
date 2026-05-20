@@ -63,7 +63,9 @@ func checkPrecision(v float64, decimals int, label string) error {
 
 func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *OrderBuilder {
 	var signer string
-	if pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex)); err == nil {
+	if sigType == SignatureTypePoly1271 {
+		signer = funderAddress
+	} else if pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex)); err == nil {
 		signer = crypto.PubkeyToAddress(pk.PublicKey).Hex()
 	}
 	return &OrderBuilder{

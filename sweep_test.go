@@ -4,9 +4,8 @@ import "testing"
 
 func newSweepBuilder(t *testing.T) *OrderBuilder {
 	t.Helper()
-	eoa := testEOA(t)
-	safe := DeriveSafeAddress(eoa)
-	return NewOrderBuilder(safe, CTFExchange, testPrivateKey, SignatureTypeGnosisSafe)
+	_ = testEOA(t)
+	return NewOrderBuilder(testDepositWallet, CTFExchange, testPrivateKey, SignatureTypePoly1271)
 }
 
 func TestPrepareSweepFromLevelsBuyFills(t *testing.T) {

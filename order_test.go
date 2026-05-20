@@ -49,9 +49,8 @@ func TestGetRoundConfig(t *testing.T) {
 }
 
 func TestPrepareAndSignAmounts(t *testing.T) {
-	eoa := testEOA(t)
-	safe := DeriveSafeAddress(eoa)
-	ob := NewOrderBuilder(safe, CTFExchange, testPrivateKey, SignatureTypeGnosisSafe)
+	_ = testEOA(t)
+	ob := NewOrderBuilder(testDepositWallet, CTFExchange, testPrivateKey, SignatureTypePoly1271)
 
 	cases := []struct {
 		name      string
@@ -85,9 +84,8 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 }
 
 func TestPrepareAndSignRejectsSubTickPrice(t *testing.T) {
-	eoa := testEOA(t)
-	safe := DeriveSafeAddress(eoa)
-	ob := NewOrderBuilder(safe, CTFExchange, testPrivateKey, SignatureTypeGnosisSafe)
+	_ = testEOA(t)
+	ob := NewOrderBuilder(testDepositWallet, CTFExchange, testPrivateKey, SignatureTypePoly1271)
 
 	_, err := ob.PrepareAndSign("100", BUY, OrderTypeGTC, 0.555, 10, "k", OrderOpts{TickSize: "0.01"})
 	if err == nil {
