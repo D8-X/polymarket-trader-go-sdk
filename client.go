@@ -332,6 +332,20 @@ func (c *Client) GetBalances(ctx context.Context) ([]BalanceEntry, error) {
 	return c.clob.GetBalances(ctx, creds)
 }
 
+func (c *Client) GetPositions(ctx context.Context) ([]PositionEntry, error) {
+	c.mu.RLock()
+	dw := c.depositWallet
+	c.mu.RUnlock()
+	if dw == "" {
+		return nil, errNoDepositWallet
+	}
+	return c.clob.GetPositions(ctx, dw)
+}
+
+func (c *Client) GetPositionsOf(ctx context.Context, walletAddress string) ([]PositionEntry, error) {
+	return c.clob.GetPositions(ctx, walletAddress)
+}
+
 func (c *Client) GetBalanceAllowance(ctx context.Context, assetType, tokenID string) (*BalanceAllowanceResponse, error) {
 	c.mu.RLock()
 	creds := c.creds
