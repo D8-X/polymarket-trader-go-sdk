@@ -10,14 +10,16 @@ import (
 )
 
 type CLOBClient struct {
-	baseURL string
-	client  *http.Client
+	baseURL        string
+	dataAPIBaseURL string
+	client         *http.Client
 }
 
 func NewCLOBClient() *CLOBClient {
 	return &CLOBClient{
-		baseURL: ClobBaseURL,
-		client:  &http.Client{Timeout: clobTimeout},
+		baseURL:        ClobBaseURL,
+		dataAPIBaseURL: DataAPIBaseURL,
+		client:         &http.Client{Timeout: clobTimeout},
 	}
 }
 
@@ -451,7 +453,7 @@ func (c *CLOBClient) UpdateBalanceAllowance(ctx context.Context, assetType strin
 }
 
 func (c *CLOBClient) GetPositions(ctx context.Context, walletAddress string) ([]PositionEntry, error) {
-	fullURL := fmt.Sprintf("%s/positions?user=%s&sizeThreshold=0", DataAPIBaseURL, walletAddress)
+	fullURL := fmt.Sprintf("%s/positions?user=%s&sizeThreshold=0", c.dataAPIBaseURL, walletAddress)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get positions: build request: %w", err)

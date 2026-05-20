@@ -79,6 +79,16 @@ _, _ = cli.UnwrapToUSDC(ctx, big.NewInt(5_000_000))
 _, _ = cli.TransferOut(ctx, polytrade.PUSDAddress, recipientAddress, big.NewInt(5_000_000))
 ```
 
+## Positions
+
+```go
+positions, _ := cli.GetPositions(ctx)                                  // for the deposit wallet
+others, _ := cli.GetPositionsOf(ctx, "0xAnyWallet")                    // for any address
+for _, p := range positions {
+    fmt.Printf("%s %s size=%g avg=%g cur=%g\n", p.Title, p.Outcome, p.Size, p.AvgPrice, p.CurPrice)
+}
+```
+
 ## Usage example
 
 ```go
