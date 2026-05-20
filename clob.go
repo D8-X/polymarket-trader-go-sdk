@@ -283,6 +283,52 @@ func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, 
 	return all, nil
 }
 
+// GetPreMigrationOrders returns the caller's V1 orders that were still open at
+// the time of the V2 cutover. Use this if you held positions before the
+// migration and want to inspect or reconcile them.
+func (c *CLOBClient) GetPreMigrationOrders(ctx context.Context, creds *L2Credentials) ([]OrderStatus, error) {
+	var all []OrderStatus
+	cursor := ""
+
+	for {
+		path := "/data/pre-migration-orders"
+		fullPath := path
+		if cursor != "" {
+			fullPath = path + "?next_cursor=" + cursor
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get pre-migration orders: build request: %w", err)
+		}
+
+		headers, err := SignL2Request(creds, http.MethodGet, path, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get pre-migration orders: %w", err)
+		}
+		ApplyL2Headers(req, headers)
+
+		respBody, err := c.doRequest(req, "GET /data/pre-migration-orders")
+		if err != nil {
+			return nil, fmt.Errorf("get pre-migration orders: %w", err)
+		}
+
+		var page PaginatedResponse[OrderStatus]
+		if err := json.Unmarshal(respBody, &page); err != nil {
+			return nil, fmt.Errorf("get pre-migration orders: unmarshal response: %w", err)
+		}
+
+		all = append(all, page.Data...)
+
+		if page.NextCursor == "" || page.NextCursor == "LTE=" || len(page.Data) == 0 {
+			break
+		}
+		cursor = page.NextCursor
+	}
+
+	return all, nil
+}
+
 func (c *CLOBClient) GetTrades(ctx context.Context, makerAddress, market, assetID string, creds *L2Credentials) ([]Trade, error) {
 	var all []Trade
 	cursor := ""
