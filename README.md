@@ -4,15 +4,28 @@ Go SDK for trading on [Polymarket](https://docs.polymarket.com). Covers [Safe wa
 
 Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.com/v2-migration)): orders use the V2 EIP-712 domain with the `timestamp` / `metadata` / `builder` fields, builder attribution is plumbed through `OrderOpts.BuilderCode`, and dynamic fees are queryable via `CLOBClient.GetClobMarketInfo`.
 
+## Compared to the official clients
+
+This SDK complements the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) by focusing on what a Go trading bot needs end-to-end on Polygon. It includes things the official clients leave to the user:
+
+- **Gnosis Safe provisioning + gasless transactions** via the Polymarket relayer — derive, deploy, approve, transfer, wrap/unwrap.
+- **Order book sweep with slippage control** — `PrepareSweep` walks levels and stops at a configurable threshold.
+- **Async order polling** for sports-style FOK/FAK delayed states — `AwaitOrder` / `AwaitOrdersAsync` with channel-based streaming.
+- **Collateral Onramp / Offramp** — single-call `WrapToPUSD` / `UnwrapToUSDC` that batch the ERC-20 approval and the on/offramp call.
+
+Not yet covered (planned, roughly in priority order): pre-migration orders, rewards endpoints, order-scoring checks, market-order helpers with `userUSDCBalance`, WebSocket streams, market discovery (`/markets`), CTF position split/merge/redeem, RFQ.
+
 ## Installation
 
 ```bash
-go get github.com/D8-X/polymarket-trader-go-sdk
+go get github.com/D8-X/polymarket-trader-go-sdk/v2
 ```
 
 ## Gnosis Safe Provisioning
 
 The SDK derives and deploys Gnosis Safe wallets via Polymarket's relayer, enabling fully automated wallet provisioning for trading bots and hedgers.
+
+> **Note:** `BuilderCredentials` here authenticates with the Polymarket Safe relayer (HMAC headers, used for gasless tx submission). It is **not** the V2 CLOB builder attribution — for that, use `OrderOpts.BuilderCode` (a bytes32 identifier attached to each order). The two are unrelated despite the similar name.
 
 ```go
 ctx := context.Background()
@@ -69,6 +82,22 @@ err = polytrade.RefreshUSDCBalance(ctx, privateKey)
 
 `RefreshUSDCBalance` calls `UpdateBalanceAllowance` under the hood; the underlying CLOB API uses the `COLLATERAL` asset type, so these helpers work for both USDC.e and pUSD.
 
+### Wrapping and Unwrapping pUSD
+
+API traders moving between USDC.e and pUSD can use the Collateral Onramp / Offramp via the relayer:
+
+```go
+amount := big.NewInt(5_000_000) // 5 pUSD (6 decimals)
+
+// USDC.e in the Safe -> pUSD in the Safe
+relayResp, err := polytrade.WrapToPUSD(ctx, eoaAddress, privateKey, amount, builderCreds)
+
+// pUSD in the Safe -> USDC.e in the Safe
+relayResp, err = polytrade.UnwrapToUSDC(ctx, eoaAddress, privateKey, amount, builderCreds)
+```
+
+Both helpers batch the required ERC-20 approval and the on/offramp call into a single gasless Safe transaction.
+
 ## Usage example
 
 ```go
@@ -79,7 +108,7 @@ import (
 	"fmt"
 	"log"
 
-	polytrade "github.com/D8-X/polymarket-trader-go-sdk"
+	polytrade "github.com/D8-X/polymarket-trader-go-sdk/v2"
 )
 
 func main() {
@@ -113,9 +142,9 @@ func main() {
 	// 4. Create an order builder
 	//    For neg-risk markets, pass polytrade.NegRiskCTFExchange instead.
 	builder := polytrade.NewOrderBuilder(
-		safeAddr,              // funder (Safe address)
-		polytrade.CTFExchange, // V2 CTF Exchange
-		privateKey,            // EOA private key; signer is derived from it
+		safeAddr,
+		polytrade.CTFExchange,
+		privateKey,
 		polytrade.SignatureTypeGnosisSafe,
 	)
 
@@ -137,10 +166,10 @@ func main() {
 	// 6. Build and sign an order
 	order, err := builder.PrepareAndSign(
 		tokenID,
-		"BUY",
-		"FOK", // GTC, GTD, FOK, or FAK
-		0.55,  // price
-		10.0,  // size
+		polytrade.BUY,
+		polytrade.OrderTypeFOK, // or OrderTypeGTC / GTD / FAK
+		0.55,                   // price
+		10.0,                   // size
 		creds.APIKey,
 		polytrade.OrderOpts{TickSize: tickSize}, // optional: enables precision validation
 	)
@@ -171,7 +200,7 @@ Sweep multiple order book levels with slippage control:
 
 ```go
 book, _ := clob.GetOrderBook(ctx, tokenID)
-sweep, err := builder.PrepareSweep(book, "BUY", "FOK", 0, 100, 0.02, creds.APIKey) // 0 = use best book price
+sweep, err := builder.PrepareSweep(book, polytrade.BUY, polytrade.OrderTypeFOK, 0, 100, 0.02, creds.APIKey) // 0 = use best book price
 if err != nil {
 	log.Fatal(err)
 }
