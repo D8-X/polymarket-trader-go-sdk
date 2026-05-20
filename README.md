@@ -28,119 +28,55 @@ The EOA only ever signs. The relayer pays every gas cost. The order doesn't touc
 
 ## Doing it with the SDK
 
-The SDK collapses each phase into a small set of calls. The pieces below mirror the three phases above.
+A single `Client` owns the private key, the L2 credentials, the deposit-wallet address, and the relayer + RPC handles. Everything else is a method on it.
 
 ```go
 ctx := context.Background()
-privateKey := "your-private-key-hex"
-
-relayerCreds := &polytrade.RelayerCredentials{
-    APIKey:     "your-relayer-api-key",
-    Secret:     "your-relayer-secret",
-    Passphrase: "your-relayer-passphrase",
-}
-```
-
-Phase 1 deploys the deposit wallet (idempotent) and grabs L2 creds. The deployment tx receipt's `contractAddress` field is the deterministic CREATE2 address. Store it. Subsequent calls use it as the funder address.
-
-```go
 eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
-depositWallet, deployResp, _, err := polytrade.DeployAndResolveDepositWallet(ctx, eth, eoaAddress, relayerCreds)
+
+cli, err := polytrade.NewClient(polytrade.Config{
+    PrivateKeyHex: "your-private-key-hex",
+    Eth:           eth,
+    RelayerCreds: &polytrade.RelayerCredentials{
+        APIKey:     "your-relayer-api-key",
+        Secret:     "your-relayer-secret",
+        Passphrase: "your-relayer-passphrase",
+    },
+})
 if err != nil {
     log.Fatal(err)
 }
 
-creds, err := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
-if err != nil {
-    creds, err = polytrade.CreateL2Credentials(privateKey, polytrade.PolygonChainID)
+// One-shot onboarding. Derives L2 creds, deploys the deposit wallet,
+// resolves its address from the receipt, wraps + approves in one signed
+// Batch (both BUY and SELL flows).
+if err := cli.Bootstrap(ctx, big.NewInt(1_000_000)); err != nil {
+    log.Fatal(err)
 }
+fmt.Println("Deposit wallet:", cli.DepositWallet())
+
+// Place an order.
+signed, _ := cli.PrepareAndSign(tokenID, polytrade.BUY, polytrade.OrderTypeGTC, 0.55, 10, polytrade.OrderOpts{TickSize: "0.01"})
+resp, _ := cli.PlaceOrder(ctx, signed)
+
+// Close a position (auto-fetches held quantity on-chain).
+closed, _ := cli.ClosePosition(ctx, tokenID, 0.50, polytrade.ClosePositionOpts{})
 ```
 
-Phase 2 sends USDC.e to `depositWallet` from any wallet you control (the SDK does not move funds in for you), then wraps + approves in one signed Batch. The approvals cover both BUY and SELL flows. They grant the V2 exchanges spend on the deposit wallet's pUSD and `setApprovalForAll` over the conditional-token ERC-1155 so SELL orders can transfer outcome tokens out.
+## Collateral
 
 ```go
-amount := big.NewInt(1_000_000) // 1.0 USDC.e
-_, err = polytrade.WrapAndApproveDepositWallet(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
-```
+balance, _ := cli.CollateralBalanceOf(ctx)               // current pUSD balance
+_ = cli.RefreshCollateralBalance(ctx)                    // tell the CLOB to re-index
 
-Both phases at once. The SDK derives the deposit-wallet address from the deployment receipt, no manual lookup required.
+// Wrap USDC.e in the deposit wallet to pUSD (gasless, one signed Batch).
+_, _ = cli.WrapToPUSD(ctx, big.NewInt(5_000_000))
 
-```go
-boot, err := polytrade.BootstrapDepositWallet(ctx, eth, privateKey, amount, relayerCreds)
-depositWallet := boot.DepositWalletAddress
-creds := boot.Creds
-```
+// Reverse direction.
+_, _ = cli.UnwrapToUSDC(ctx, big.NewInt(5_000_000))
 
-Phase 3 builds, signs, and places an order. The builder handles `maker = signer = depositWallet` and the ERC-7739 wrap automatically when you pass `SignatureTypePoly1271`.
-
-```go
-builder := polytrade.NewOrderBuilder(
-    depositWallet,
-    polytrade.CTFExchange,
-    privateKey,
-    polytrade.SignatureTypePoly1271,
-)
-signed, err := builder.PrepareAndSign(
-    tokenID,
-    polytrade.BUY,
-    polytrade.OrderTypeGTC,
-    0.55, 10,
-    creds.APIKey,
-    polytrade.OrderOpts{TickSize: "0.01"},
-)
-resp, err := clob.PlaceOrder(ctx, signed, creds)
-```
-
-To close (sell) a position, pass an `ethclient.Client` and the SDK reads the held quantity on-chain before signing a SELL for the full balance. No size argument.
-
-```go
-eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
-resp, err := clob.ClosePosition(ctx, eth, builder, tokenID, 0.50, creds, polytrade.ClosePositionOpts{})
-```
-
-## Collateral Balance
-
-Query and refresh the collateral balance available for trading:
-
-```go
-// Reuse L2 creds derived once at startup.
-creds, _ := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
-
-// Current balance (raw units, 6 decimals)
-balance, err := polytrade.CollateralBalanceOf(ctx, creds)
-fmt.Printf("balance: %s\n", balance)
-
-// After transferring collateral to the deposit wallet, refresh so Polymarket picks up the new balance
-err = polytrade.RefreshCollateralBalance(ctx, creds)
-```
-
-`RefreshCollateralBalance` calls `UpdateBalanceAllowance` under the hood. The underlying CLOB API uses the `COLLATERAL` asset type, so these helpers work for both USDC.e and pUSD.
-
-### Wrapping and Unwrapping pUSD
-
-API traders moving between USDC.e and pUSD can use the Collateral Onramp / Offramp through the deposit wallet.
-
-```go
-amount := big.NewInt(5_000_000) // 5 pUSD (6 decimals)
-
-// USDC.e in the deposit wallet -> pUSD in the deposit wallet
-relayResp, err := polytrade.WrapToPUSD(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
-
-// pUSD in the deposit wallet -> USDC.e in the deposit wallet
-relayResp, err = polytrade.UnwrapToUSDC(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
-```
-
-Both helpers batch the required ERC-20 approval and the on/offramp call into a single gasless relayer batch signed over the `DepositWallet/1` EIP-712 domain.
-
-To move funds out of the deposit wallet to any address (for example, withdrawing pUSD or USDC.e back to a CEX deposit address), use `TransferFromDepositWallet`. It's a single-call gasless batch.
-
-```go
-_, err := polytrade.TransferFromDepositWallet(
-    ctx, eoaAddress, privateKey, depositWallet,
-    polytrade.PUSDAddress, recipientAddress,
-    big.NewInt(5_000_000), // 5 pUSD
-    relayerCreds,
-)
+// Withdraw out of the deposit wallet to any address.
+_, _ = cli.TransferOut(ctx, polytrade.PUSDAddress, recipientAddress, big.NewInt(5_000_000))
 ```
 
 ## Usage example
@@ -152,79 +88,63 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/big"
 
 	polytrade "github.com/D8-X/polymarket-trader-go-sdk/v2"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func main() {
 	ctx := context.Background()
-	privateKey := "your-private-key-hex"
-	clob := polytrade.NewCLOBClient()
+	eth, _ := ethclient.DialContext(ctx, "https://polygon-rpc.com")
 
-	// 1. One-shot onboarding (deposit wallet deploy, address resolution, L2 creds, wrap + approvals).
-	relayerCreds := &polytrade.RelayerCredentials{
-		APIKey:     "your-relayer-api-key",
-		Secret:     "your-relayer-secret",
-		Passphrase: "your-relayer-passphrase",
-	}
-	eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
-	boot, err := polytrade.BootstrapDepositWallet(ctx, eth, privateKey, big.NewInt(1_000_000), relayerCreds)
+	cli, err := polytrade.NewClient(polytrade.Config{
+		PrivateKeyHex: "your-private-key-hex",
+		Eth:           eth,
+		RelayerCreds: &polytrade.RelayerCredentials{
+			APIKey:     "your-relayer-api-key",
+			Secret:     "your-relayer-secret",
+			Passphrase: "your-relayer-passphrase",
+		},
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	creds := boot.Creds
 
-	// 2. Create an order builder.
-	//    For neg-risk markets, pass polytrade.NegRiskCTFExchange instead.
-	builder := polytrade.NewOrderBuilder(
-		boot.DepositWalletAddress,
-		polytrade.CTFExchange,
-		privateKey,
-		polytrade.SignatureTypePoly1271,
-	)
+	if err := cli.Bootstrap(ctx, big.NewInt(1_000_000)); err != nil {
+		log.Fatal(err)
+	}
 
-	// Optional: attach a builder code from your Polymarket Builder Profile to every order
-	// builder.SetBuilderCode("0x...")
+	// Optional: builder attribution.
+	// cli.SetBuilderCode("0x...")
 
-	// 3. Get market data
 	tokenID := "your-token-id"
 
-	book, _ := clob.GetOrderBook(ctx, tokenID)
+	book, _ := cli.GetOrderBook(ctx, tokenID)
 	fmt.Printf("best bid: %s  best ask: %s\n", book.Bids[0].Price, book.Asks[0].Price)
 
-	// Per-market metadata: tick size, min order size, fee details, tokens
-	info, _ := clob.GetClobMarketInfo(ctx, "your-condition-id")
+	info, _ := cli.GetClobMarketInfo(ctx, "your-condition-id")
 	tickSize := info.MinTickSize.String()
-	fmt.Printf("tick: %s  fee r=%g e=%d takerOnly=%v\n",
-		tickSize, info.FeeDetails.Rate, info.FeeDetails.Exponent, info.FeeDetails.TakerOnly)
 
-	// 4. Build and sign an order
-	order, err := builder.PrepareAndSign(
-		tokenID,
-		polytrade.BUY,
-		polytrade.OrderTypeFOK, // or OrderTypeGTC / GTD / FAK
-		0.55,                   // price
-		10.0,                   // size
-		creds.APIKey,
-		polytrade.OrderOpts{TickSize: tickSize}, // optional: enables precision validation
+	signed, err := cli.PrepareAndSign(
+		tokenID, polytrade.BUY, polytrade.OrderTypeFOK,
+		0.55, 10,
+		polytrade.OrderOpts{TickSize: tickSize},
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// 5. Place the order
-	resp, err := clob.PlaceOrder(ctx, order, creds)
+	resp, err := cli.PlaceOrder(ctx, signed)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("order %s success=%v\n", resp.OrderID, resp.Success)
 
-	// 6. Check order status
-	status, _ := clob.GetOrder(ctx, resp.OrderID, creds)
+	status, _ := cli.GetOrder(ctx, resp.OrderID)
 	fmt.Printf("status: %s  matched: %s/%s\n", status.Status, status.SizeMatched, status.OriginalSize)
 
-	// 7. Cancel
-	cancelResp, _ := clob.CancelOrder(ctx, resp.OrderID, creds)
+	cancelResp, _ := cli.CancelOrder(ctx, resp.OrderID)
 	fmt.Printf("canceled: %v\n", cancelResp.Canceled)
 }
 ```
@@ -234,7 +154,7 @@ func main() {
 `EstimateSweep` walks the order book from the best price (or a caller-supplied `refPrice`) until your requested size is filled or slippage exceeds the threshold. It returns the deepest price touched, the total fillable size, the size-weighted average price, and the per-level breakdown. It does NOT sign orders. The matching engine already walks levels for you, so a single limit order at the worst price fills the same way as N orders at each level.
 
 ```go
-book, _ := clob.GetOrderBook(ctx, tokenID)
+book, _ := cli.GetOrderBook(ctx, tokenID)
 est, err := polytrade.EstimateSweep(book, polytrade.BUY, 0, 100, 0.02)
 if err != nil {
 	log.Fatal(err)
@@ -243,12 +163,12 @@ for _, lvl := range est.Levels {
 	fmt.Printf("level price=%.4f size=%.2f slippage=%.4f\n", lvl.Price, lvl.Size, lvl.Slippage)
 }
 
-signed, _ := builder.PrepareAndSign(
+signed, _ := cli.PrepareAndSign(
 	tokenID, polytrade.BUY, polytrade.OrderTypeFAK,
-	est.WorstPrice, est.TotalSize, creds.APIKey,
+	est.WorstPrice, est.TotalSize,
 	polytrade.OrderOpts{TickSize: book.TickSize},
 )
-resp, _ := clob.PlaceOrder(ctx, signed, creds)
+resp, _ := cli.PlaceOrder(ctx, signed)
 ```
 
 ## Order Polling
@@ -257,14 +177,14 @@ For FOK/FAK orders on sports markets, orders go through a `"delayed"` state (~3s
 
 ```go
 // Place and await a single order
-resp, _ := clob.PlaceOrder(ctx, signedOrder, creds)
-result, _ := clob.AwaitOrder(ctx, resp, creds, nil) // default: 200ms poll, 5s timeout
+resp, _ := cli.PlaceOrder(ctx, signedOrder)
+result, _ := cli.AwaitOrder(ctx, resp, nil) // default: 200ms poll, 5s timeout
 fmt.Printf("order %s: %s matched=%s/%s\n",
     result.OrderID, result.Status.Status, result.Status.SizeMatched, result.Status.OriginalSize)
 
 // Place a batch of orders and await all of them
-responses, _ := clob.PlaceOrders(ctx, signedOrders, creds)
-results := clob.AwaitOrders(ctx, responses, creds, nil)
+responses, _ := cli.PlaceOrders(ctx, signedOrders)
+results := cli.AwaitOrders(ctx, responses, nil)
 for _, r := range results {
     if r.Status != nil {
         fmt.Printf("order %s: %s matched=%s/%s\n",
@@ -273,7 +193,7 @@ for _, r := range results {
 }
 
 // Custom poll options
-results = clob.AwaitOrders(ctx, responses, creds, &polytrade.PollOpts{
+results = cli.AwaitOrders(ctx, responses, &polytrade.PollOpts{
     Interval: 1 * time.Second,
     Timeout:  30 * time.Second,
 })
@@ -287,12 +207,12 @@ Default timeouts are 5s if all orders are delayed, 60s if any are live (GTC/GTD)
 
 ```go
 // Async: place and continue working
-ch := clob.AwaitOrderAsync(ctx, resp, creds, nil)
+ch := cli.AwaitOrderAsync(ctx, resp, nil)
 // ... do other work ...
 result := <-ch
 
 // Async: stream results as orders complete
-ch := clob.AwaitOrdersAsync(ctx, responses, creds, nil)
+ch := cli.AwaitOrdersAsync(ctx, responses, nil)
 for result := range ch {
     fmt.Printf("order %s: %s\n", result.OrderID, result.Status.Status)
 }
@@ -305,7 +225,7 @@ For long-running market makers, Polymarket auto-cancels all open orders if no he
 ```go
 ctx, cancel := context.WithCancel(context.Background())
 defer cancel()
-errs := clob.RunHeartbeat(ctx, 5*time.Second, creds)
+errs := cli.RunHeartbeat(ctx, 5*time.Second)
 go func() {
     for e := range errs {
         log.Printf("heartbeat: %v", e)
