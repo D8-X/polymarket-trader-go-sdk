@@ -51,6 +51,8 @@ const (
 
 	DepositWalletFactory        = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
 	DepositWalletImplementation = "0x58ca52ebe0dadfdf531cde7062e76746de4db1eb"
+
+	ConditionalTokens = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
 )
 
 const (

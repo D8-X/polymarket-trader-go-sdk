@@ -232,6 +232,14 @@ func ApproveDepositWalletForBuyOrders(ctx context.Context, eoaAddress, privateKe
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
+func ApproveDepositWalletForSellOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
+	calls := []WalletCall{
+		{Target: ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(CTFExchange, true)},
+		{Target: ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
+	}
+	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+}
+
 func WrapAndApproveDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("wrap and approve deposit wallet: amount must be positive")
@@ -242,6 +250,8 @@ func WrapAndApproveDepositWallet(ctx context.Context, eoaAddress, privateKeyHex,
 		{Target: CollateralOnramp, Value: new(big.Int), Data: encodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
 		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(CTFExchange, maxU)},
 		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(NegRiskCTFExchange, maxU)},
+		{Target: ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(CTFExchange, true)},
+		{Target: ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -262,5 +272,18 @@ func encodeOnrampWrapCalldata(asset, to string, amount *big.Int) []byte {
 	data = append(data, ethutil.PadTo32(common.HexToAddress(asset).Bytes())...)
 	data = append(data, ethutil.PadTo32(common.HexToAddress(to).Bytes())...)
 	data = append(data, ethutil.PadTo32(amount.Bytes())...)
+	return data
+}
+
+func encodeSetApprovalForAllCalldata(operator string, approved bool) []byte {
+	selector := ethutil.Keccak256([]byte("setApprovalForAll(address,bool)"))[:4]
+	flag := big.NewInt(0)
+	if approved {
+		flag = big.NewInt(1)
+	}
+	data := make([]byte, 0, 4+32+32)
+	data = append(data, selector...)
+	data = append(data, ethutil.PadTo32(common.HexToAddress(operator).Bytes())...)
+	data = append(data, ethutil.PadTo32(flag.Bytes())...)
 	return data
 }

@@ -53,7 +53,7 @@ if err != nil {
 }
 ```
 
-Phase 2 sends USDC.e to `depositWallet` from any wallet you control (the SDK does not move funds in for you), then wraps + approves in one signed Batch.
+Phase 2 sends USDC.e to `depositWallet` from any wallet you control (the SDK does not move funds in for you), then wraps + approves in one signed Batch. The approvals cover both BUY and SELL flows. They grant the V2 exchanges spend on the deposit wallet's pUSD and `setApprovalForAll` over the conditional-token ERC-1155 so SELL orders can transfer outcome tokens out.
 
 ```go
 amount := big.NewInt(1_000_000) // 1.0 USDC.e
