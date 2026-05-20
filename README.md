@@ -44,8 +44,11 @@ relayerCreds := &polytrade.RelayerCredentials{
 Phase 1 deploys the deposit wallet (idempotent) and grabs L2 creds. The deployment tx receipt's `contractAddress` field is the deterministic CREATE2 address. Store it. Subsequent calls use it as the funder address.
 
 ```go
-deployResp, err := polytrade.DeployDepositWallet(ctx, eoaAddress, relayerCreds)
-depositWallet := "0x..." // from polygonscan or the deploy tx receipt
+eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
+depositWallet, deployResp, _, err := polytrade.DeployAndResolveDepositWallet(ctx, eth, eoaAddress, relayerCreds)
+if err != nil {
+    log.Fatal(err)
+}
 
 creds, err := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
 if err != nil {
@@ -60,10 +63,11 @@ amount := big.NewInt(1_000_000) // 1.0 USDC.e
 _, err = polytrade.WrapAndApproveDepositWallet(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
 ```
 
-Both phases at once:
+Both phases at once. The SDK derives the deposit-wallet address from the deployment receipt, no manual lookup required.
 
 ```go
-boot, err := polytrade.BootstrapDepositWallet(ctx, privateKey, depositWallet, amount, relayerCreds)
+boot, err := polytrade.BootstrapDepositWallet(ctx, eth, privateKey, amount, relayerCreds)
+depositWallet := boot.DepositWalletAddress
 creds := boot.Creds
 ```
 
@@ -157,14 +161,14 @@ func main() {
 	privateKey := "your-private-key-hex"
 	clob := polytrade.NewCLOBClient()
 
-	// 1. One-shot onboarding (deposit wallet deploy, L2 creds, wrap + approvals).
+	// 1. One-shot onboarding (deposit wallet deploy, address resolution, L2 creds, wrap + approvals).
 	relayerCreds := &polytrade.RelayerCredentials{
 		APIKey:     "your-relayer-api-key",
 		Secret:     "your-relayer-secret",
 		Passphrase: "your-relayer-passphrase",
 	}
-	depositWallet := "0xYourDepositWallet" // from the WALLET-CREATE receipt
-	boot, err := polytrade.BootstrapDepositWallet(ctx, privateKey, depositWallet, big.NewInt(1_000_000), relayerCreds)
+	eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
+	boot, err := polytrade.BootstrapDepositWallet(ctx, eth, privateKey, big.NewInt(1_000_000), relayerCreds)
 	if err != nil {
 		log.Fatal(err)
 	}
