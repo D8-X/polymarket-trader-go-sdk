@@ -140,7 +140,7 @@ func (c *CLOBClient) GetTickSize(ctx context.Context, tokenID string) (string, e
 // minimum tick size, minimum order size, fee details, the outcome tokens,
 // and the RFQ-enabled flag.
 func (c *CLOBClient) GetClobMarketInfo(ctx context.Context, conditionID string) (*ClobMarketInfo, error) {
-	path := "/markets/" + conditionID
+	path := "/clob-markets/" + conditionID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get clob market info: build request: %w", err)

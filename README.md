@@ -131,8 +131,8 @@ func main() {
 
 	// Per-market metadata: tick size, min order size, fee details, tokens
 	info, _ := clob.GetClobMarketInfo(ctx, "your-condition-id")
-	tickSize := info.MinTickSize
-	fmt.Printf("tick: %s  fee r=%d e=%d takerOnly=%v\n",
+	tickSize := info.MinTickSize.String()
+	fmt.Printf("tick: %s  fee r=%g e=%d takerOnly=%v\n",
 		tickSize, info.FeeDetails.Rate, info.FeeDetails.Exponent, info.FeeDetails.TakerOnly)
 
 	// 6. Build and sign an order
