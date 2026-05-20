@@ -23,6 +23,22 @@ func TestEncodeOfframpUnwrapCalldataGolden(t *testing.T) {
 	}
 }
 
+func TestEncodeSetApprovalForAllCalldataTrueGolden(t *testing.T) {
+	got := "0x" + common.Bytes2Hex(encodeSetApprovalForAllCalldata(CTFExchange, true))
+	const want = "0xa22cb465000000000000000000000000e111180000d2663c0091e4f400237545b87b996b0000000000000000000000000000000000000000000000000000000000000001"
+	if got != want {
+		t.Errorf("setApprovalForAll(true) calldata mismatch:\n  got:  %s\n  want: %s", got, want)
+	}
+}
+
+func TestEncodeSetApprovalForAllCalldataFalseGolden(t *testing.T) {
+	got := "0x" + common.Bytes2Hex(encodeSetApprovalForAllCalldata(NegRiskCTFExchange, false))
+	const want = "0xa22cb465000000000000000000000000e2222d279d744050d28e00520010520000310f590000000000000000000000000000000000000000000000000000000000000000"
+	if got != want {
+		t.Errorf("setApprovalForAll(false) calldata mismatch:\n  got:  %s\n  want: %s", got, want)
+	}
+}
+
 func TestEncodeApproveCalldataAmountGolden(t *testing.T) {
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	got := "0x" + common.Bytes2Hex(encodeApproveCalldataAmount(CTFExchange, maxU))
