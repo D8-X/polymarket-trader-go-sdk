@@ -63,12 +63,15 @@ After deployment, fund the Safe with the active collateral token on Polygon. Use
 Query and refresh the collateral balance available for trading:
 
 ```go
+// Reuse L2 creds derived once at startup.
+creds, _ := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
+
 // Current balance (raw units, 6 decimals)
-balance, err := polytrade.USDCBalanceOf(ctx, privateKey)
+balance, err := polytrade.USDCBalanceOf(ctx, creds)
 fmt.Printf("balance: %s\n", balance)
 
 // After transferring collateral to the Safe, refresh so Polymarket picks up the new balance
-err = polytrade.RefreshUSDCBalance(ctx, privateKey)
+err = polytrade.RefreshUSDCBalance(ctx, creds)
 ```
 
 `RefreshUSDCBalance` calls `UpdateBalanceAllowance` under the hood; the underlying CLOB API uses the `COLLATERAL` asset type, so these helpers work for both USDC.e and pUSD.
