@@ -87,6 +87,13 @@ signed, err := builder.PrepareAndSign(
 resp, err := clob.PlaceOrder(ctx, signed, creds)
 ```
 
+To close (sell) a position, pass an `ethclient.Client` and the SDK reads the held quantity on-chain before signing a SELL for the full balance. No size argument.
+
+```go
+eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
+resp, err := clob.ClosePosition(ctx, eth, builder, tokenID, 0.50, creds, polytrade.ClosePositionOpts{})
+```
+
 ## Collateral Balance
 
 Query and refresh the collateral balance available for trading:
