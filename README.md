@@ -4,7 +4,7 @@ Go SDK for trading on [Polymarket](https://docs.polymarket.com). Designed for fu
 
 Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.com/v2-migration)): orders use the V2 EIP-712 domain with the `timestamp` / `metadata` / `builder` fields, builder attribution is plumbed through `OrderOpts.BuilderCode`, and dynamic fees are queryable via `CLOBClient.GetClobMarketInfo`.
 
-The SDK targets Gnosis-Safe-backed accounts (`SignatureTypeGnosisSafe`). Use a fresh EOA that has never been used to sign up on polymarket.com, so the Polymarket account is created by the SDK as a Safe.
+The SDK targets Polymarket V2 deposit-wallet accounts (`SignatureTypePoly1271`, EIP-1271 + ERC-7739). Use a fresh EOA so the Polymarket account is created by the SDK from scratch. The legacy Safe path (`SignatureTypeGnosisSafe`) is still exposed via `Bootstrap` for older accounts but the V2 CLOB only accepts orders against deposit wallets for new accounts.
 
 ## Compared to the official clients
 
@@ -16,51 +16,44 @@ Covers the standard auth, order, and market-data operations the official [py-clo
 go get github.com/D8-X/polymarket-trader-go-sdk/v2
 ```
 
-## Gnosis Safe Provisioning
+## Deposit Wallet Onboarding (V2 UI-free path)
 
-The SDK derives and deploys Gnosis Safe wallets via Polymarket's relayer, enabling fully automated wallet provisioning for trading bots and hedgers.
+The SDK can onboard a fresh EOA end-to-end without polymarket.com: deploy the deposit wallet via the relayer, derive L2 CLOB credentials, wrap USDC.e to pUSD, and approve the CTF exchanges. Sign orders with `SignatureTypePoly1271` and an ERC-7739-wrapped signature.
 
 ```go
 ctx := context.Background()
 privateKey := "your-private-key-hex"
 
-// HMAC credentials for the Polymarket Safe relayer (gasless tx submission).
-// Distinct from L2 CLOB credentials. See https://docs.polymarket.com/developers/builders/relayer-client
 relayerCreds := &polytrade.RelayerCredentials{
     APIKey:     "your-relayer-api-key",
     Secret:     "your-relayer-secret",
     Passphrase: "your-relayer-passphrase",
 }
 
-// One-shot onboarding: derives/creates L2 creds, deploys the Safe if needed,
-// and approves the CTF exchanges. Idempotent.
+// 1. Deploy the deposit wallet (idempotent).
+deployResp, err := polytrade.DeployDepositWallet(ctx, eoaAddress, relayerCreds)
+// The deployment tx receipt logs the deterministic CREATE2 address Polymarket
+// assigned to your EOA. Save it; you'll need it as the funder address.
+depositWallet := "0x..." // from polygonscan or the receipt's contractAddress
+
+// 2. Fund the deposit wallet with USDC.e on Polygon (token contract
+//    0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174). The SDK never moves funds
+//    in or out of your wallet for you.
+
+// 3. Wrap USDC.e to pUSD and approve the exchanges in one signed batch.
+amount := big.NewInt(1_000_000) // 1.0 USDC.e
+_, err = polytrade.WrapAndApproveDepositWallet(ctx, eoaAddress, privateKey, depositWallet, amount, relayerCreds)
+
+// Or do steps 1+3 in one call (only step 2 is on you):
+_, err = polytrade.BootstrapDepositWallet(ctx, privateKey, depositWallet, amount, relayerCreds)
+```
+
+## Legacy Gnosis Safe Provisioning (V1 era)
+
+For older accounts that were created with a Safe-backed funder. The CLOB no longer accepts Safe-funded orders for accounts opened after V2; this path is kept for migration.
+
+```go
 boot, err := polytrade.Bootstrap(ctx, privateKey, relayerCreds)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Println("Safe address:", boot.SafeAddress)
-```
-
-Lower-level steps are also available:
-
-```go
-// Derive Safe address, deploy if needed, return address + relayer response
-safeAddr, relayResp, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, relayerCreds)
-```
-
-Individual functions are also available:
-
-```go
-safeAddr := polytrade.DeriveSafeAddress("0xYourEOA")
-
-// Check deployment status via Polymarket relayer
-deployed, err := polytrade.IsSafeDeployed(ctx, safeAddr)
-
-// Deploy via relayer. Checks deployment first and skips if already deployed.
-safeAddr, relayResp, err := polytrade.DeploySafe(ctx, privateKey, relayerCreds)
-
-// Lookup via Safe Transaction Service (safe.global). Useful as a second independent validation.
-safeAddr, err := polytrade.LookupSafeAddress(ctx, "0xYourEOA")
 ```
 
 After deployment, fund the Safe with the active collateral token on Polygon. Use `polytrade.CollateralAddress()`; it returns pUSD by default and falls back to USDC.e only if `polytrade.SetPUSDAddress("")` is called.

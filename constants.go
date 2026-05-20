@@ -33,6 +33,7 @@ const (
 	SignatureTypeEOA        = 0
 	SignatureTypePolyProxy  = 1
 	SignatureTypeGnosisSafe = 2
+	SignatureTypePoly1271   = 3
 )
 
 const (
@@ -56,6 +57,20 @@ const (
 	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59" // for capped loss markets
 	CollateralOnramp   = "0x93070a847efEf7F70739046A929D47a521F5B8ee" // wrap USDC.e -> pUSD
 	CollateralOfframp  = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854" // unwrap pUSD -> USDC.e
+
+	DepositWalletFactory        = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
+	DepositWalletImplementation = "0x58ca52ebe0dadfdf531cde7062e76746de4db1eb"
+)
+
+const (
+	eip712DepositWalletDomainType = "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+	eip712DepositWalletName       = "DepositWallet"
+	eip712DepositWalletVersion    = "1"
+
+	eip712BatchType = "Batch(address wallet,uint256 nonce,uint256 deadline,Call[] calls)Call(address target,uint256 value,bytes data)"
+	eip712CallType  = "Call(address target,uint256 value,bytes data)"
+
+	eip712SoladyTypedDataSignType = "TypedDataSign(Order contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)Order(uint256 salt,address maker,address signer,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint8 side,uint8 signatureType,uint256 timestamp,bytes32 metadata,bytes32 builder)"
 )
 
 // configuredPUSDAddress is set by SetPUSDAddress; CollateralAddress falls back
