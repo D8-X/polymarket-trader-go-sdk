@@ -16,6 +16,7 @@ func TestAuthSmoke(t *testing.T) {
 		t.Skip("POLYMARKET_TEST_PK not set")
 	}
 
+	t.Log("→ deriving L2 credentials (EIP-712 ClobAuth)")
 	creds, err := polytrade.DeriveL2Credentials(pk, polytrade.PolygonChainID)
 	if err != nil {
 		t.Fatalf("derive creds: %v", err)
@@ -23,9 +24,12 @@ func TestAuthSmoke(t *testing.T) {
 	if creds.APIKey == "" {
 		t.Fatal("empty api key")
 	}
+	t.Logf("  ✓ creds for %s", creds.Address)
 
+	t.Log("→ HMAC L2 auth via GetBalanceAllowance")
 	clob := polytrade.NewCLOBClient()
 	if _, err := clob.GetBalanceAllowance(context.Background(), "COLLATERAL", "", polytrade.SignatureTypeEOA, creds); err != nil {
 		t.Fatalf("authed call: %v", err)
 	}
+	t.Log("  ✓ HMAC auth OK")
 }
