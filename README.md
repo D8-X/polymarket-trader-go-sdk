@@ -1,8 +1,10 @@
 # Polymarket Trader Go SDK
 
-Go SDK for trading on [Polymarket](https://docs.polymarket.com). Covers [Safe wallet provisioning](#gnosis-safe-provisioning) via the relayer (no browser login needed), L2 authentication, order building with [order book sweep](#order-book-sweep) and slippage control, and CLOB interaction.
+Go SDK for trading on [Polymarket](https://docs.polymarket.com). Designed for fully programmatic, UI-free trading from a Go process. The SDK owns the whole flow: deriving the Gnosis Safe, deploying it via the Polymarket relayer, approving the CTF exchanges, wrapping USDC.e into pUSD, signing orders, and placing them on the CLOB. No browser, no MetaMask, no polymarket.com signup.
 
 Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.com/v2-migration)): orders use the V2 EIP-712 domain with the `timestamp` / `metadata` / `builder` fields, builder attribution is plumbed through `OrderOpts.BuilderCode`, and dynamic fees are queryable via `CLOBClient.GetClobMarketInfo`.
+
+The SDK targets Gnosis-Safe-backed accounts (`SignatureTypeGnosisSafe`). Use a fresh EOA that has never been used to sign up on polymarket.com, so the Polymarket account is created by the SDK as a Safe.
 
 ## Compared to the official clients
 
@@ -54,10 +56,10 @@ safeAddr := polytrade.DeriveSafeAddress("0xYourEOA")
 // Check deployment status via Polymarket relayer
 deployed, err := polytrade.IsSafeDeployed(ctx, safeAddr)
 
-// Deploy via relayer. It checks deployment firsta nd skips if already deployed
-safeAddr, relayResp, err := polytrade.DeploySafe(ctx, privateKey, builderCreds)
+// Deploy via relayer. Checks deployment first and skips if already deployed.
+safeAddr, relayResp, err := polytrade.DeploySafe(ctx, privateKey, relayerCreds)
 
-// Lookup via Safe Transaction Service (safe.global). To be used for a second independent validation
+// Lookup via Safe Transaction Service (safe.global). Useful as a second independent validation.
 safeAddr, err := polytrade.LookupSafeAddress(ctx, "0xYourEOA")
 ```
 
@@ -89,10 +91,10 @@ API traders moving between USDC.e and pUSD can use the Collateral Onramp / Offra
 amount := big.NewInt(5_000_000) // 5 pUSD (6 decimals)
 
 // USDC.e in the Safe -> pUSD in the Safe
-relayResp, err := polytrade.WrapToPUSD(ctx, eoaAddress, privateKey, amount, builderCreds)
+relayResp, err := polytrade.WrapToPUSD(ctx, eoaAddress, privateKey, amount, relayerCreds)
 
 // pUSD in the Safe -> USDC.e in the Safe
-relayResp, err = polytrade.UnwrapToUSDC(ctx, eoaAddress, privateKey, amount, builderCreds)
+relayResp, err = polytrade.UnwrapToUSDC(ctx, eoaAddress, privateKey, amount, relayerCreds)
 ```
 
 Both helpers batch the required ERC-20 approval and the on/offramp call into a single gasless Safe transaction.
@@ -113,35 +115,24 @@ import (
 func main() {
 	ctx := context.Background()
 	privateKey := "your-private-key-hex"
-
-	// 1. Create the CLOB client
 	clob := polytrade.NewCLOBClient()
 
-	// 2. Derive L2 credentials (API key, secret, passphrase)
-	creds, err := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
-	if err != nil {
-		// First time: create credentials
-		creds, err = polytrade.CreateL2Credentials(privateKey, polytrade.PolygonChainID)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	// 3. Ensure Gnosis Safe is deployed
+	// 1. One-shot onboarding: L2 creds, Safe deploy, CTF approvals. Idempotent.
 	relayerCreds := &polytrade.RelayerCredentials{
 		APIKey:     "your-relayer-api-key",
 		Secret:     "your-relayer-secret",
 		Passphrase: "your-relayer-passphrase",
 	}
-	safeAddr, _, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, relayerCreds)
+	boot, err := polytrade.Bootstrap(ctx, privateKey, relayerCreds)
 	if err != nil {
 		log.Fatal(err)
 	}
+	creds := boot.Creds
 
-	// 4. Create an order builder
+	// 2. Create an order builder.
 	//    For neg-risk markets, pass polytrade.NegRiskCTFExchange instead.
 	builder := polytrade.NewOrderBuilder(
-		safeAddr,
+		boot.SafeAddress,
 		polytrade.CTFExchange,
 		privateKey,
 		polytrade.SignatureTypeGnosisSafe,
@@ -150,7 +141,7 @@ func main() {
 	// Optional: attach a builder code from your Polymarket Builder Profile to every order
 	// builder.SetBuilderCode("0x...")
 
-	// 5. Get market data
+	// 3. Get market data
 	tokenID := "your-token-id"
 
 	book, _ := clob.GetOrderBook(ctx, tokenID)
@@ -162,7 +153,7 @@ func main() {
 	fmt.Printf("tick: %s  fee r=%g e=%d takerOnly=%v\n",
 		tickSize, info.FeeDetails.Rate, info.FeeDetails.Exponent, info.FeeDetails.TakerOnly)
 
-	// 6. Build and sign an order
+	// 4. Build and sign an order
 	order, err := builder.PrepareAndSign(
 		tokenID,
 		polytrade.BUY,
@@ -176,18 +167,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// 7. Place the order
+	// 5. Place the order
 	resp, err := clob.PlaceOrder(ctx, order, creds)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("order %s success=%v\n", resp.OrderID, resp.Success)
 
-	// 8. Check order status
+	// 6. Check order status
 	status, _ := clob.GetOrder(ctx, resp.OrderID, creds)
 	fmt.Printf("status: %s  matched: %s/%s\n", status.Status, status.SizeMatched, status.OriginalSize)
 
-	// 9. Cancel
+	// 7. Cancel
 	cancelResp, _ := clob.CancelOrder(ctx, resp.OrderID, creds)
 	fmt.Printf("canceled: %v\n", cancelResp.Canceled)
 }
