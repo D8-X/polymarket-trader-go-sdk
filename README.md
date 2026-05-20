@@ -52,7 +52,7 @@ safeAddr, relayResp, err := polytrade.DeploySafe(ctx, privateKey, builderCreds)
 safeAddr, err := polytrade.LookupSafeAddress(ctx, "0xYourEOA")
 ```
 
-After deployment, fund the Safe with the active collateral token on Polygon. Use `polytrade.CollateralAddress()`; it returns USDC.e by default and switches to pUSD once `polytrade.SetPUSDAddress(...)` has been called with the deployed Polymarket USD address.
+After deployment, fund the Safe with the active collateral token on Polygon. Use `polytrade.CollateralAddress()`; it returns pUSD by default and falls back to USDC.e only if `polytrade.SetPUSDAddress("")` is called.
 
 ## Collateral Balance
 
