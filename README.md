@@ -6,7 +6,7 @@ Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.
 
 ## Compared to the official clients
 
-This SDK complements the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) by focusing on what a Go trading bot needs end-to-end on Polygon. It includes things the official clients leave to the user:
+This SDK covers the core Polymarket CLOB V2 surface a Go trading bot needs — L1/L2 auth, order placement, cancel, lookup, market data, balance allowance — and on top of that adds extras the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) leave to the user:
 
 - **Gnosis Safe provisioning + gasless transactions** via the Polymarket relayer — derive, deploy, approve, transfer, wrap/unwrap.
 - **Order book sweep with slippage control** — `PrepareSweep` walks levels and stops at a configurable threshold.
