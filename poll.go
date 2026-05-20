@@ -9,7 +9,7 @@ import (
 
 // AwaitOrder polls a single placed order until it reaches a terminal status
 // (matched, canceled) or the timeout expires. Pass nil for opts to use
-// defaults (200ms interval, 10s timeout for delayed orders).
+// defaults (200ms interval, 5s timeout for delayed orders).
 func (c *CLOBClient) AwaitOrder(ctx context.Context, resp *PlaceOrderResponse, creds *L2Credentials, opts *PollOpts) (*PollResult, error) {
 	if resp == nil {
 		return nil, fmt.Errorf("await order: nil response")
@@ -225,7 +225,7 @@ func (c *CLOBClient) AwaitOrdersAsync(ctx context.Context, responses []PlaceOrde
 }
 
 // autoTimeout picks a default timeout based on the place statuses of the
-// pending orders: 10s if all are delayed, 60s if any are live.
+// pending orders: 5s if all are delayed, 60s if any are live.
 func autoTimeout(responses []PlaceOrderResponse, pending []int) time.Duration {
 	for _, i := range pending {
 		if responses[i].Status == OrderStatusLive {

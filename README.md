@@ -232,7 +232,7 @@ For FOK/FAK orders on sports markets, orders go through a `"delayed"` state (~3s
 ```go
 // Place and await a single order
 resp, _ := clob.PlaceOrder(ctx, signedOrder, creds)
-result, _ := clob.AwaitOrder(ctx, resp, creds, nil) // default: 200ms poll, 10s timeout
+result, _ := clob.AwaitOrder(ctx, resp, creds, nil) // default: 200ms poll, 5s timeout
 fmt.Printf("order %s: %s matched=%s/%s\n",
     result.OrderID, result.Status.Status, result.Status.SizeMatched, result.Status.OriginalSize)
 
@@ -253,7 +253,7 @@ results = clob.AwaitOrders(ctx, responses, creds, &polytrade.PollOpts{
 })
 ```
 
-Default timeouts: 10s if all orders are delayed, 60s if any are live (GTC/GTD). Override via `PollOpts`.
+Default timeouts are 5s if all orders are delayed, 60s if any are live (GTC/GTD). Override via `PollOpts`.
 
 ### Channel based async polling
 
