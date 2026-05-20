@@ -282,6 +282,30 @@ go func() {
 }()
 ```
 
+## WebSocket subscriptions
+
+Two streams. The `market` channel is public and emits order book + price events for the assets you subscribe to. The `user` channel emits your own order + trade updates and requires CLOB credentials (`Client.Bootstrap` or `Config.Creds`).
+
+```go
+sub, err := cli.SubscribeMarket(ctx, []string{tokenID})
+if err != nil {
+    log.Fatal(err)
+}
+defer sub.Close()
+for {
+    select {
+    case e := <-sub.Events():
+        fmt.Println(e.Type, string(e.Raw))
+    case err := <-sub.Errs():
+        log.Println("ws error:", err)
+    case <-ctx.Done():
+        return
+    }
+}
+```
+
+Same shape for `SubscribeUser(ctx, []conditionID)`. Cancel via `ctx` or `sub.Close()`. No auto-reconnect; the caller decides whether to retry on disconnect.
+
 ## Order Types
 
 | Type | Behavior |
