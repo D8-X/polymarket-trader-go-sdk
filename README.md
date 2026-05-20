@@ -279,6 +279,21 @@ for result := range ch {
 }
 ```
 
+## Heartbeat
+
+For long-running market makers, Polymarket auto-cancels all open orders if no heartbeat is received within ~15 seconds. Send one explicitly or run a background loop. The server rotates the `heartbeat_id` per call; the helpers track it for you.
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+errs := clob.RunHeartbeat(ctx, 5*time.Second, creds)
+go func() {
+    for e := range errs {
+        log.Printf("heartbeat: %v", e)
+    }
+}()
+```
+
 ## Order Types
 
 | Type | Behavior |
