@@ -92,7 +92,7 @@ func IsSafeDeployed(ctx context.Context, safeAddress string) (bool, error) {
 // DeploySafe derives the deterministic Safe address for the given private key's EOA,
 // checks if it is already deployed, and if not, submits a deployment request to the
 // Polymarket relayer. Returns the Safe address and the relayer response.
-func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredentials) (string, *RelayerResponse, error) {
+func DeploySafe(ctx context.Context, privateKeyHex string, creds *RelayerCredentials) (string, *RelayerResponse, error) {
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
 		return "", nil, fmt.Errorf("deploy safe: invalid private key: %w", err)
@@ -141,7 +141,7 @@ func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredent
 	req.Header.Set("Content-Type", "application/json")
 
 	if creds != nil {
-		applyBuilderHeaders(req, creds, http.MethodPost, endpoint, jsonBody)
+		applyRelayerHeaders(req, creds, http.MethodPost, endpoint, jsonBody)
 	}
 
 	client := &http.Client{Timeout: CLOBTimeout}
@@ -175,7 +175,7 @@ func DeploySafe(ctx context.Context, privateKeyHex string, creds *BuilderCredent
 // checks if it is deployed, and deploys it via the relayer if not.
 // This is async. it returns as soon as the relayer accepts the request.
 // Use WaitForSafeDeployment or EnsureSafeAddressSync for blocking behavior.
-func EnsureSafeAddress(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials) (string, *RelayerResponse, error) {
+func EnsureSafeAddress(ctx context.Context, eoaAddress, privateKeyHex string, creds *RelayerCredentials) (string, *RelayerResponse, error) {
 	safeAddr := DeriveSafeAddress(eoaAddress)
 	deployed, err := IsSafeDeployed(ctx, safeAddr)
 	if err != nil {
@@ -213,7 +213,7 @@ func WaitForSafeDeployment(ctx context.Context, safeAddress string) error {
 
 // EnsureSafeAddressSync is like EnsureSafeAddress but blocks until the Safe is
 // actually deployed on-chain. Use a context with timeout to control how long to wait.
-func EnsureSafeAddressSync(ctx context.Context, eoaAddress, privateKeyHex string, creds *BuilderCredentials) (string, *RelayerResponse, error) {
+func EnsureSafeAddressSync(ctx context.Context, eoaAddress, privateKeyHex string, creds *RelayerCredentials) (string, *RelayerResponse, error) {
 	safeAddr, relayResp, err := EnsureSafeAddress(ctx, eoaAddress, privateKeyHex, creds)
 	if err != nil {
 		return "", nil, err
@@ -227,7 +227,7 @@ func EnsureSafeAddressSync(ctx context.Context, eoaAddress, privateKeyHex string
 	return safeAddr, relayResp, nil
 }
 
-func signBuilderHMAC(secret string, timestamp int64, method, path string, body []byte) string {
+func signRelayerHMAC(secret string, timestamp int64, method, path string, body []byte) string {
 	message := strconv.FormatInt(timestamp, 10) + method + path
 	if len(body) > 0 {
 		message += string(body)
@@ -249,12 +249,12 @@ func signBuilderHMAC(secret string, timestamp int64, method, path string, body [
 	return base64.URLEncoding.EncodeToString(h.Sum(nil))
 }
 
-func applyBuilderHeaders(req *http.Request, creds *BuilderCredentials, method, path string, body []byte) {
+func applyRelayerHeaders(req *http.Request, creds *RelayerCredentials, method, path string, body []byte) {
 	ts := time.Now().Unix()
 	req.Header.Set("POLY_BUILDER_API_KEY", creds.APIKey)
 	req.Header.Set("POLY_BUILDER_PASSPHRASE", creds.Passphrase)
 	req.Header.Set("POLY_BUILDER_TIMESTAMP", strconv.FormatInt(ts, 10))
-	req.Header.Set("POLY_BUILDER_SIGNATURE", signBuilderHMAC(creds.Secret, ts, method, path, body))
+	req.Header.Set("POLY_BUILDER_SIGNATURE", signRelayerHMAC(creds.Secret, ts, method, path, body))
 }
 
 // LookupSafeAddress queries the Safe Transaction Service to find the Gnosis Safe

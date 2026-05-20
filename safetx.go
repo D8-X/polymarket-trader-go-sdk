@@ -23,7 +23,7 @@ var maxUint256 = func() *big.Int {
 }()
 
 // getSafeNonce fetches the current Safe nonce for the given EOA from the relayer
-func getSafeNonce(ctx context.Context, eoaAddress string, creds *BuilderCredentials) (string, error) {
+func getSafeNonce(ctx context.Context, eoaAddress string, creds *RelayerCredentials) (string, error) {
 	signPath := "/nonce"
 	fullURL := fmt.Sprintf("%s/nonce?address=%s&type=SAFE", RelayerBaseURL, eoaAddress)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
@@ -32,7 +32,7 @@ func getSafeNonce(ctx context.Context, eoaAddress string, creds *BuilderCredenti
 	}
 
 	if creds != nil {
-		applyBuilderHeaders(req, creds, http.MethodGet, signPath, nil)
+		applyRelayerHeaders(req, creds, http.MethodGet, signPath, nil)
 	}
 
 	client := &http.Client{Timeout: DefaultTimeout}
@@ -144,7 +144,7 @@ func encodeMultiSend(txns []SafeTransaction) string {
 
 // ExecuteSafeTransaction executes one or more transactions through a Gnosis Safe
 // via the Polymarket relayer.
-func ExecuteSafeTransaction(ctx context.Context, eoaAddress, privateKeyHex string, txns []SafeTransaction, creds *BuilderCredentials) (*RelayerResponse, error) {
+func ExecuteSafeTransaction(ctx context.Context, eoaAddress, privateKeyHex string, txns []SafeTransaction, creds *RelayerCredentials) (*RelayerResponse, error) {
 	if len(txns) == 0 {
 		return nil, fmt.Errorf("execute safe tx: no transactions provided")
 	}
@@ -207,7 +207,7 @@ func ExecuteSafeTransaction(ctx context.Context, eoaAddress, privateKeyHex strin
 	req.Header.Set("Content-Type", "application/json")
 
 	if creds != nil {
-		applyBuilderHeaders(req, creds, http.MethodPost, endpoint, jsonBody)
+		applyRelayerHeaders(req, creds, http.MethodPost, endpoint, jsonBody)
 	}
 
 	httpClient := &http.Client{Timeout: CLOBTimeout}
@@ -239,7 +239,7 @@ func ExecuteSafeTransaction(ctx context.Context, eoaAddress, privateKeyHex strin
 
 // TransferUSDCViaSafe transfers USDC from the sender's Safe to a recipient address
 // via the Polymarket relayer (gasless). Amount is in raw units (6 decimals, e.g. 1_000_000 = 1 USDC).
-func TransferUSDCViaSafe(ctx context.Context, eoaAddress, privateKeyHex string, to string, amount *big.Int, creds *BuilderCredentials) (*RelayerResponse, error) {
+func TransferUSDCViaSafe(ctx context.Context, eoaAddress, privateKeyHex string, to string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
 	tx := SafeTransaction{
 		To:        CollateralAddress(),
 		Value:     "0",
@@ -251,7 +251,7 @@ func TransferUSDCViaSafe(ctx context.Context, eoaAddress, privateKeyHex string, 
 
 // ApproveSafeTokens submits a batched Safe transaction that approves USDC and
 // CTFExchange for both the CTF exchange and the NegRisk CTF exchange.
-func ApproveSafeTokens(ctx context.Context, eoaAddress, privateKeyHex, ctfExchangeAddress string, creds *BuilderCredentials) (*RelayerResponse, error) {
+func ApproveSafeTokens(ctx context.Context, eoaAddress, privateKeyHex, ctfExchangeAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
 		return nil, fmt.Errorf("approve safe tokens: invalid private key: %w", err)

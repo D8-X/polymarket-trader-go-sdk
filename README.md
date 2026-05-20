@@ -22,23 +22,28 @@ The SDK derives and deploys Gnosis Safe wallets via Polymarket's relayer, enabli
 ctx := context.Background()
 privateKey := "your-private-key-hex"
 
-// Builder credentials from your Polymarket Builder Profile
-// See https://docs.polymarket.com/developers/builders/relayer-client
-builderCreds := &polytrade.BuilderCredentials{
-    APIKey:     "your-builder-api-key",
-    Secret:     "your-builder-secret",
-    Passphrase: "your-builder-passphrase",
+// HMAC credentials for the Polymarket Safe relayer (gasless tx submission).
+// Distinct from L2 CLOB credentials. See https://docs.polymarket.com/developers/builders/relayer-client
+relayerCreds := &polytrade.RelayerCredentials{
+    APIKey:     "your-relayer-api-key",
+    Secret:     "your-relayer-secret",
+    Passphrase: "your-relayer-passphrase",
 }
 
-// Derive Safe address, deploy if needed, return address + relayer response
-safeAddr, relayResp, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, builderCreds)
+// One-shot onboarding: derives/creates L2 creds, deploys the Safe if needed,
+// and approves the CTF exchanges. Idempotent.
+boot, err := polytrade.Bootstrap(ctx, privateKey, relayerCreds)
 if err != nil {
     log.Fatal(err)
 }
-fmt.Println("Safe address:", safeAddr)
-if relayResp != nil {
-    fmt.Printf("Deployed: txID=%s state=%s\n", relayResp.TransactionID, relayResp.State)
-}
+fmt.Println("Safe address:", boot.SafeAddress)
+```
+
+Lower-level steps are also available:
+
+```go
+// Derive Safe address, deploy if needed, return address + relayer response
+safeAddr, relayResp, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, relayerCreds)
 ```
 
 Individual functions are also available:
@@ -123,12 +128,12 @@ func main() {
 	}
 
 	// 3. Ensure Gnosis Safe is deployed
-	builderCreds := &polytrade.BuilderCredentials{
-		APIKey:     "your-builder-api-key",
-		Secret:     "your-builder-secret",
-		Passphrase: "your-builder-passphrase",
+	relayerCreds := &polytrade.RelayerCredentials{
+		APIKey:     "your-relayer-api-key",
+		Secret:     "your-relayer-secret",
+		Passphrase: "your-relayer-passphrase",
 	}
-	safeAddr, _, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, builderCreds)
+	safeAddr, _, err := polytrade.EnsureSafeAddress(ctx, "0xYourEOA", privateKey, relayerCreds)
 	if err != nil {
 		log.Fatal(err)
 	}
