@@ -67,14 +67,14 @@ Query and refresh the collateral balance available for trading:
 creds, _ := polytrade.DeriveL2Credentials(privateKey, polytrade.PolygonChainID)
 
 // Current balance (raw units, 6 decimals)
-balance, err := polytrade.USDCBalanceOf(ctx, creds)
+balance, err := polytrade.CollateralBalanceOf(ctx, creds)
 fmt.Printf("balance: %s\n", balance)
 
 // After transferring collateral to the Safe, refresh so Polymarket picks up the new balance
-err = polytrade.RefreshUSDCBalance(ctx, creds)
+err = polytrade.RefreshCollateralBalance(ctx, creds)
 ```
 
-`RefreshUSDCBalance` calls `UpdateBalanceAllowance` under the hood; the underlying CLOB API uses the `COLLATERAL` asset type, so these helpers work for both USDC.e and pUSD.
+`RefreshCollateralBalance` calls `UpdateBalanceAllowance` under the hood. The underlying CLOB API uses the `COLLATERAL` asset type, so these helpers work for both USDC.e and pUSD.
 
 ### Wrapping and Unwrapping pUSD
 

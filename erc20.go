@@ -5,29 +5,29 @@ import (
 	"math/big"
 )
 
-// USDCBalanceOf returns the collateral balance available for trading on the
-// Polymarket CLOB for the wallet identified by the provided L2 credentials.
+// CollateralBalanceOf returns the collateral balance available for trading on
+// the Polymarket CLOB for the wallet identified by the provided L2 credentials.
 // Returns the balance in raw units (6 decimals). Post-V2 the underlying asset
 // is pUSD; pre-V2 it was USDC.e.
-func USDCBalanceOf(ctx context.Context, creds *L2Credentials) (*big.Int, error) {
+func CollateralBalanceOf(ctx context.Context, creds *L2Credentials) (*big.Int, error) {
 	clob := NewCLOBClient()
 	resp, err := clob.GetBalanceAllowance(ctx, "COLLATERAL", "", SignatureTypeGnosisSafe, creds)
 	if err != nil {
 		return nil, err
 	}
-	return parseUSDCBalance(resp.Balance), nil
+	return parseCollateralBalance(resp.Balance), nil
 }
 
-// RefreshUSDCBalance triggers Polymarket to re-scan the on-chain collateral
-// balance for the Safe associated with the provided L2 credentials and deposit
-// it into the exchange. Call this after transferring collateral to a Safe so
-// the funds become available for trading.
-func RefreshUSDCBalance(ctx context.Context, creds *L2Credentials) error {
+// RefreshCollateralBalance triggers Polymarket to re-scan the on-chain
+// collateral balance for the Safe associated with the provided L2 credentials
+// and deposit it into the exchange. Call this after transferring collateral
+// to a Safe so the funds become available for trading.
+func RefreshCollateralBalance(ctx context.Context, creds *L2Credentials) error {
 	clob := NewCLOBClient()
 	return clob.UpdateBalanceAllowance(ctx, "COLLATERAL", "", SignatureTypeGnosisSafe, creds)
 }
 
-func parseUSDCBalance(s string) *big.Int {
+func parseCollateralBalance(s string) *big.Int {
 	bal, ok := new(big.Int).SetString(s, 10)
 	if ok {
 		return bal
