@@ -128,6 +128,17 @@ relayResp, err = polytrade.UnwrapToUSDC(ctx, eoaAddress, privateKey, depositWall
 
 Both helpers batch the required ERC-20 approval and the on/offramp call into a single gasless relayer batch signed over the `DepositWallet/1` EIP-712 domain.
 
+To move funds out of the deposit wallet to any address (for example, withdrawing pUSD or USDC.e back to a CEX deposit address), use `TransferFromDepositWallet`. It's a single-call gasless batch.
+
+```go
+_, err := polytrade.TransferFromDepositWallet(
+    ctx, eoaAddress, privateKey, depositWallet,
+    polytrade.PUSDAddress, recipientAddress,
+    big.NewInt(5_000_000), // 5 pUSD
+    relayerCreds,
+)
+```
+
 ## Usage example
 
 ```go

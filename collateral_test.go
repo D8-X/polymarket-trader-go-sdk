@@ -39,6 +39,14 @@ func TestEncodeSetApprovalForAllCalldataFalseGolden(t *testing.T) {
 	}
 }
 
+func TestEncodeTransferCalldataGolden(t *testing.T) {
+	got := "0x" + common.Bytes2Hex(encodeTransferCalldata(testDepositWallet, big.NewInt(1_234_567)))
+	const want = "0xa9059cbb000000000000000000000000000000000000000000000000000000000000d077000000000000000000000000000000000000000000000000000000000012d687"
+	if got != want {
+		t.Errorf("transfer calldata mismatch:\n  got:  %s\n  want: %s", got, want)
+	}
+}
+
 func TestEncodeApproveCalldataAmountGolden(t *testing.T) {
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	got := "0x" + common.Bytes2Hex(encodeApproveCalldataAmount(CTFExchange, maxU))
