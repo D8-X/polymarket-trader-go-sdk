@@ -112,7 +112,7 @@ const (
 // so up to 18 polling simultaneously with 200ms interval
 const (
 	DefaultPollInterval       = 200 * time.Millisecond // that shaould be safe https://docs.polymarket.com/api-reference/rate-limits
-	DefaultDelayedPollTimeout = 10 * time.Second
+	DefaultDelayedPollTimeout = 5 * time.Second
 	DefaultLivePollTimeout    = 60 * time.Second
 )
 
