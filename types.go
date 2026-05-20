@@ -258,8 +258,7 @@ type SweepLevel struct {
 	Slippage float64
 }
 
-type SweepResult struct {
-	Orders     []*SignedOrder
+type SweepEstimate struct {
 	Levels     []SweepLevel
 	Side       string
 	BestPrice  float64
