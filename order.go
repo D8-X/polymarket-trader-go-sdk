@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -15,7 +16,9 @@ type OrderBuilder struct {
 	ctfExchangeAddress string
 	privateKeyHex      string
 	sigType            int
-	builderCode        string
+
+	mu          sync.RWMutex
+	builderCode string
 }
 
 type OrderOpts struct {
@@ -72,7 +75,15 @@ func (ob *OrderBuilder) MakerAddress() string {
 // SetBuilderCode sets a bytes32 builder code applied to every order built by
 // this OrderBuilder. Individual orders may override via OrderOpts.BuilderCode.
 func (ob *OrderBuilder) SetBuilderCode(code string) {
+	ob.mu.Lock()
 	ob.builderCode = code
+	ob.mu.Unlock()
+}
+
+func (ob *OrderBuilder) getBuilderCode() string {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+	return ob.builderCode
 }
 
 // PrepareAndSign builds and EIP-712-signs an order for the Polymarket CLOB.
@@ -139,7 +150,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		expiration = time.Now().Add(GTDSecurityThreshold + dur).Unix()
 	}
 
-	builder := ob.builderCode
+	builder := ob.getBuilderCode()
 	if opt.BuilderCode != "" {
 		builder = opt.BuilderCode
 	}
