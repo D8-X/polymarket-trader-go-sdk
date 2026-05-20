@@ -6,7 +6,7 @@ The SDK targets Polymarket V2 deposit-wallet accounts (`SignatureTypePoly1271`, 
 
 ## Compared to the official clients
 
-Covers the standard auth, order, and market-data operations the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) provide. Adds bot-focused extras on top such as deposit-wallet onboarding through the Polymarket relayer (gasless), order book sweep with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp wrap/unwrap helpers. Pre-migration orders, rewards, order-scoring, WebSocket streams, market discovery, CTF split/merge/redeem, and RFQ are not yet implemented.
+Covers the standard auth, order, and market-data operations the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) provide. Adds bot-focused extras on top such as deposit-wallet onboarding through the Polymarket relayer (gasless), pre-trade sweep estimation with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp wrap/unwrap helpers. Pre-migration orders, rewards, order-scoring, WebSocket streams, market discovery, CTF split/merge/redeem, and RFQ are not yet implemented.
 
 ## Installation
 
@@ -225,23 +225,27 @@ func main() {
 }
 ```
 
-## Order Book Sweep
+## Sweep estimation
 
-Sweep multiple order book levels with slippage control:
+`EstimateSweep` walks the order book from the best price (or a caller-supplied `refPrice`) until your requested size is filled or slippage exceeds the threshold. It returns the deepest price touched, the total fillable size, the size-weighted average price, and the per-level breakdown. It does NOT sign orders. The matching engine already walks levels for you, so a single limit order at the worst price fills the same way as N orders at each level.
 
 ```go
 book, _ := clob.GetOrderBook(ctx, tokenID)
-sweep, err := builder.PrepareSweep(book, polytrade.BUY, polytrade.OrderTypeFOK, 0, 100, 0.02, creds.APIKey) // 0 = use best book price
+est, err := polytrade.EstimateSweep(book, polytrade.BUY, 0, 100, 0.02)
 if err != nil {
 	log.Fatal(err)
 }
-for _, lvl := range sweep.Levels {
+for _, lvl := range est.Levels {
 	fmt.Printf("level price=%.4f size=%.2f slippage=%.4f\n", lvl.Price, lvl.Size, lvl.Slippage)
 }
-responses, _ := clob.PlaceOrders(ctx, sweep.Orders, creds)
-```
 
-`PrepareSweep` walks the book from best price (or a caller-provided `refPrice`), signs one order per level with the given order type, and stops when the requested size is filled or slippage exceeds the threshold (2% in the example above). The book's `TickSize` is used automatically for rounding.
+signed, _ := builder.PrepareAndSign(
+	tokenID, polytrade.BUY, polytrade.OrderTypeFAK,
+	est.WorstPrice, est.TotalSize, creds.APIKey,
+	polytrade.OrderOpts{TickSize: book.TickSize},
+)
+resp, _ := clob.PlaceOrder(ctx, signed, creds)
+```
 
 ## Order Polling
 
@@ -254,8 +258,8 @@ result, _ := clob.AwaitOrder(ctx, resp, creds, nil) // default: 200ms poll, 5s t
 fmt.Printf("order %s: %s matched=%s/%s\n",
     result.OrderID, result.Status.Status, result.Status.SizeMatched, result.Status.OriginalSize)
 
-// Place sweep and await all orders
-responses, _ := clob.PlaceOrders(ctx, sweep.Orders, creds)
+// Place a batch of orders and await all of them
+responses, _ := clob.PlaceOrders(ctx, signedOrders, creds)
 results := clob.AwaitOrders(ctx, responses, creds, nil)
 for _, r := range results {
     if r.Status != nil {
