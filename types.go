@@ -30,17 +30,19 @@ type L2Headers struct {
 	Timestamp  string
 }
 
+// OrderFields is the CLOB order wire body. Expiration and Side (string form)
+// are sent to the API but are not part of the EIP-712 signed struct.
 type OrderFields struct {
 	Salt          int64  `json:"salt"`
 	Maker         string `json:"maker"`
 	Signer        string `json:"signer"`
-	Taker         string `json:"taker"`
 	TokenID       string `json:"tokenId"`
 	MakerAmount   string `json:"makerAmount"`
 	TakerAmount   string `json:"takerAmount"`
 	Expiration    string `json:"expiration"`
-	Nonce         string `json:"nonce"`
-	FeeRateBps    string `json:"feeRateBps"`
+	Timestamp     string `json:"timestamp"`
+	Metadata      string `json:"metadata"`
+	Builder       string `json:"builder"`
 	Side          string `json:"side"`
 	SignatureType int    `json:"signatureType"`
 	Signature     string `json:"signature"`
