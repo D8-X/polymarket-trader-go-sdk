@@ -26,7 +26,7 @@ func TestSignOrderGolden(t *testing.T) {
 	eoa := testEOA(t)
 	safe := DeriveSafeAddress(eoa)
 
-	ob := NewOrderBuilder(safe, eoa, CTFExchange, testPrivateKey, SignatureTypeGnosisSafe)
+	ob := NewOrderBuilder(safe, CTFExchange, testPrivateKey, SignatureTypeGnosisSafe)
 	order := OrderFields{
 		Salt:          12345,
 		Maker:         safe,

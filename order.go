@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type OrderBuilder struct {
@@ -58,10 +61,14 @@ func checkPrecision(v float64, decimals int, label string) error {
 	return nil
 }
 
-func NewOrderBuilder(funderAddress, eoaAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *OrderBuilder {
+func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *OrderBuilder {
+	var signer string
+	if pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex)); err == nil {
+		signer = crypto.PubkeyToAddress(pk.PublicKey).Hex()
+	}
 	return &OrderBuilder{
 		makerAddress:       funderAddress,
-		signerAddress:      eoaAddress,
+		signerAddress:      signer,
 		ctfExchangeAddress: ctfExchangeAddress,
 		privateKeyHex:      privateKeyHex,
 		sigType:            sigType,

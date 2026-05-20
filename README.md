@@ -114,9 +114,8 @@ func main() {
 	//    For neg-risk markets, pass polytrade.NegRiskCTFExchange instead.
 	builder := polytrade.NewOrderBuilder(
 		safeAddr,              // funder (Safe address)
-		"0xYourEOA",           // signer (EOA)
 		polytrade.CTFExchange, // V2 CTF Exchange
-		privateKey,
+		privateKey,            // EOA private key; signer is derived from it
 		polytrade.SignatureTypeGnosisSafe,
 	)
 
