@@ -19,13 +19,12 @@ type OrderBuilder struct {
 }
 
 type OrderOpts struct {
-	PostOnly   bool
-	DeferExec  bool
-	Expiration time.Duration
-	TickSize   string
-	// BuilderCode is a bytes32 hex identifier from the Polymarket Builder
-	// Profile. Overrides any default set on the OrderBuilder.
+	PostOnly    bool
+	DeferExec   bool
+	Expiration  time.Duration
+	TickSize    string
 	BuilderCode string
+	Metadata    string
 }
 
 type roundConfig struct {
@@ -148,6 +147,11 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		builder = ZeroBytes32
 	}
 
+	metadata := opt.Metadata
+	if metadata == "" {
+		metadata = ZeroBytes32
+	}
+
 	order := OrderFields{
 		Salt:          salt,
 		Maker:         ob.makerAddress,
@@ -157,7 +161,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		TakerAmount:   strconv.FormatInt(takerAmount, 10),
 		Expiration:    strconv.FormatInt(expiration, 10),
 		Timestamp:     strconv.FormatInt(time.Now().UnixMilli(), 10),
-		Metadata:      ZeroBytes32,
+		Metadata:      metadata,
 		Builder:       builder,
 		Side:          sideStr,
 		SignatureType: ob.sigType,
