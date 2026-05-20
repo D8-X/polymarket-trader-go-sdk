@@ -102,6 +102,22 @@ byTok, _ := cli.GetMarketByToken(ctx, tokenID)
 live, _ := cli.GetMarketLiveActivity(ctx, conditionID)
 ```
 
+## Pricing
+
+```go
+last, _ := cli.GetLastTradePrice(ctx, tokenID)
+prices, _ := cli.GetPrices(ctx, []polytrade.PriceRequest{{TokenID: tokenID, Side: polytrade.BUY}, {TokenID: tokenID, Side: polytrade.SELL}})
+spreads, _ := cli.GetSpreads(ctx, []polytrade.SpreadRequest{{TokenID: tokenID}})
+batch, _ := cli.GetLastTradePrices(ctx, []polytrade.SpreadRequest{{TokenID: tokenID}})
+
+hist, _ := cli.GetPricesHistory(ctx, polytrade.PricesHistoryParams{
+    Market: tokenID, Interval: "1d", Fidelity: 720,
+})
+for _, c := range hist {
+    fmt.Printf("t=%d p=%g\n", c.Timestamp, c.Price)
+}
+```
+
 ## Positions
 
 ```go

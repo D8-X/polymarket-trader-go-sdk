@@ -306,6 +306,26 @@ func (c *Client) GetSpread(ctx context.Context, tokenID string) (string, error) 
 	return c.clob.GetSpread(ctx, tokenID)
 }
 
+func (c *Client) GetPrices(ctx context.Context, params []PriceRequest) (map[string]map[string]string, error) {
+	return c.clob.GetPrices(ctx, params)
+}
+
+func (c *Client) GetSpreads(ctx context.Context, params []SpreadRequest) (map[string]string, error) {
+	return c.clob.GetSpreads(ctx, params)
+}
+
+func (c *Client) GetLastTradePrice(ctx context.Context, tokenID string) (*LastTradePrice, error) {
+	return c.clob.GetLastTradePrice(ctx, tokenID)
+}
+
+func (c *Client) GetLastTradePrices(ctx context.Context, params []SpreadRequest) ([]LastTradePrice, error) {
+	return c.clob.GetLastTradePrices(ctx, params)
+}
+
+func (c *Client) GetPricesHistory(ctx context.Context, p PricesHistoryParams) ([]PriceHistoryEntry, error) {
+	return c.clob.GetPricesHistory(ctx, p)
+}
+
 func (c *Client) GetTickSize(ctx context.Context, tokenID string) (string, error) {
 	return c.clob.GetTickSize(ctx, tokenID)
 }
