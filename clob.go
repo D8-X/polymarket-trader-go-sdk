@@ -86,7 +86,7 @@ func (c *CLOBClient) PlaceOrders(ctx context.Context, signedOrders []*SignedOrde
 }
 
 func (c *CLOBClient) GetOrder(ctx context.Context, orderID string, creds *L2Credentials) (*OrderStatus, error) {
-	path := "/order/" + orderID
+	path := "/data/order/" + orderID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get order: build request: %w", err)
@@ -238,7 +238,7 @@ func (c *CLOBClient) GetOpenOrders(ctx context.Context, market, assetID string, 
 	cursor := ""
 
 	for {
-		path := "/orders"
+		path := "/data/orders"
 		query := "?"
 		if market != "" {
 			query += "market=" + market + "&"
@@ -288,7 +288,7 @@ func (c *CLOBClient) GetTrades(ctx context.Context, makerAddress, market, assetI
 	cursor := ""
 
 	for {
-		path := "/trades"
+		path := "/data/trades"
 		query := "?maker_address=" + makerAddress + "&"
 		if market != "" {
 			query += "market=" + market + "&"
@@ -380,18 +380,18 @@ func (c *CLOBClient) GetBalanceAllowance(ctx context.Context, assetType string, 
 }
 
 func (c *CLOBClient) UpdateBalanceAllowance(ctx context.Context, assetType string, tokenID string, sigType int, creds *L2Credentials) error {
-	signPath := "/balance-allowance"
-	fullPath := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
+	signPath := "/balance-allowance/update"
+	fullPath := fmt.Sprintf("/balance-allowance/update?asset_type=%s&signature_type=%d", assetType, sigType)
 	if tokenID != "" {
 		fullPath += "&token_id=" + tokenID
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+fullPath, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
 	if err != nil {
 		return fmt.Errorf("update balance allowance: build request: %w", err)
 	}
 
-	headers, err := SignL2Request(creds, http.MethodPut, signPath, nil)
+	headers, err := SignL2Request(creds, http.MethodGet, signPath, nil)
 	if err != nil {
 		return fmt.Errorf("update balance allowance: %w", err)
 	}
