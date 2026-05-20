@@ -115,10 +115,10 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		opt = opts[0]
 	}
 
-	sideNumeric := SideBuy
+	sideNumeric := sideBuy
 	sideStr := BUY
 	if side == SELL {
-		sideNumeric = SideSell
+		sideNumeric = sideSell
 		sideStr = SELL
 	}
 
@@ -137,12 +137,12 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 			return nil, fmt.Errorf("prepare order: %w", err)
 		}
 	}
-	sizeWei := int64(size * AmountScale)
+	sizeWei := int64(size * amountScale)
 	amountFactor := math.Pow(10, float64(rc.amount))
-	amountWei := int64(math.Floor(size*price*amountFactor) / amountFactor * AmountScale)
+	amountWei := int64(math.Floor(size*price*amountFactor) / amountFactor * amountScale)
 
 	var makerAmount, takerAmount int64
-	if sideNumeric == SideBuy {
+	if sideNumeric == sideBuy {
 		makerAmount = amountWei
 		takerAmount = sizeWei
 	} else {
@@ -152,7 +152,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 
 	expiration := int64(0)
 	if orderType == OrderTypeGTD {
-		dur := GTDExpiration
+		dur := gtdExpiration
 		if opt.Expiration > 0 {
 			dur = opt.Expiration
 		}
@@ -164,12 +164,12 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		builder = opt.BuilderCode
 	}
 	if builder == "" {
-		builder = ZeroBytes32
+		builder = zeroBytes32
 	}
 
 	metadata := opt.Metadata
 	if metadata == "" {
-		metadata = ZeroBytes32
+		metadata = zeroBytes32
 	}
 
 	order := OrderFields{

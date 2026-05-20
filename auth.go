@@ -49,7 +49,7 @@ func DeriveL2Credentials(privateKeyHex string, chainID int) (*L2Credentials, err
 	req.Header.Set("POLY_TIMESTAMP", now)
 	req.Header.Set("POLY_NONCE", strconv.FormatInt(nonce, 10))
 
-	client := &http.Client{Timeout: CLOBTimeout}
+	client := &http.Client{Timeout: clobTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("derive credentials: http request: %w", err)
@@ -110,7 +110,7 @@ func CreateL2Credentials(privateKeyHex string, chainID int) (*L2Credentials, err
 	req.Header.Set("POLY_TIMESTAMP", now)
 	req.Header.Set("POLY_NONCE", strconv.FormatInt(nonce, 10))
 
-	client := &http.Client{Timeout: CLOBTimeout}
+	client := &http.Client{Timeout: clobTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("create credentials: http request: %w", err)

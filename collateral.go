@@ -9,26 +9,26 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func WrapToPUSD(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+func wrapToPUSD(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("wrap to pusd: amount must be positive")
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: USDCAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(CollateralOnramp, maxU)},
-		{Target: CollateralOnramp, Value: new(big.Int), Data: encodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
+		{Target: USDCAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(collateralOnramp, maxU)},
+		{Target: collateralOnramp, Value: new(big.Int), Data: encodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
-func UnwrapToUSDC(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+func unwrapToUSDC(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("unwrap to usdc: amount must be positive")
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(CollateralOfframp, maxU)},
-		{Target: CollateralOfframp, Value: new(big.Int), Data: encodeOfframpUnwrapCalldata(USDCAddress, depositWalletAddress, amount)},
+		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(collateralOfframp, maxU)},
+		{Target: collateralOfframp, Value: new(big.Int), Data: encodeOfframpUnwrapCalldata(USDCAddress, depositWalletAddress, amount)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }

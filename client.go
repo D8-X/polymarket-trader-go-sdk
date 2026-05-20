@@ -116,7 +116,7 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	if err := c.DeriveCreds(ctx); err != nil {
 		return err
 	}
-	addr, _, _, err := DeployAndResolveDepositWallet(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
+	addr, _, _, err := deployAndResolveDepositWallet(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
 	if err != nil {
 		return fmt.Errorf("client: bootstrap: %w", err)
 	}
@@ -126,7 +126,7 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	c.mu.Unlock()
 	time.Sleep(2 * time.Second)
 	if wrapAmount != nil {
-		if _, err := WrapAndApproveDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
+		if _, err := wrapAndApproveDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
 			return fmt.Errorf("client: bootstrap: wrap+approve: %w", err)
 		}
 	}
@@ -359,7 +359,7 @@ func (c *Client) CollateralBalanceOf(ctx context.Context) (*big.Int, error) {
 	if creds == nil {
 		return nil, errNoCreds
 	}
-	return CollateralBalanceOf(ctx, creds)
+	return collateralBalanceOf(ctx, creds)
 }
 
 func (c *Client) RefreshCollateralBalance(ctx context.Context) error {
@@ -369,7 +369,7 @@ func (c *Client) RefreshCollateralBalance(ctx context.Context) error {
 	if creds == nil {
 		return errNoCreds
 	}
-	return RefreshCollateralBalance(ctx, creds)
+	return refreshCollateralBalance(ctx, creds)
 }
 
 func (c *Client) GetCurrentRewards(ctx context.Context) ([]CurrentRewardMarket, error) {
@@ -421,7 +421,7 @@ func (c *Client) WrapToPUSD(ctx context.Context, amount *big.Int) (*RelayerRespo
 	if err != nil {
 		return nil, err
 	}
-	return WrapToPUSD(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wrapToPUSD(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerResponse, error) {
@@ -429,7 +429,7 @@ func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerRes
 	if err != nil {
 		return nil, err
 	}
-	return UnwrapToUSDC(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return unwrapToUSDC(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amount *big.Int) (*RelayerResponse, error) {
@@ -437,7 +437,7 @@ func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amoun
 	if err != nil {
 		return nil, err
 	}
-	return TransferFromDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
+	return transferFromDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
@@ -445,7 +445,7 @@ func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ApproveDepositWalletForBuyOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return approveDepositWalletForBuyOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
 }
 
 func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
@@ -453,7 +453,7 @@ func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ApproveDepositWalletForSellOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return approveDepositWalletForSellOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
 }
 
 func (c *Client) requireDepositWalletOps() (string, error) {

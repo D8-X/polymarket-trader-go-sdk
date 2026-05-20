@@ -31,7 +31,7 @@ func GetOutcomeTokenBalance(ctx context.Context, eth ContractCaller, ownerAddres
 	data = append(data, selector...)
 	data = append(data, ethutil.PadTo32(common.HexToAddress(ownerAddress).Bytes())...)
 	data = append(data, ethutil.PadTo32(tokenIDBig.Bytes())...)
-	addr := common.HexToAddress(ConditionalTokens)
+	addr := common.HexToAddress(conditionalTokens)
 	msg := ethereum.CallMsg{To: &addr, Data: data}
 	result, err := eth.CallContract(ctx, msg, nil)
 	if err != nil {
@@ -44,7 +44,7 @@ func rawBalanceToSize(balance *big.Int) float64 {
 	if balance == nil || balance.Sign() == 0 {
 		return 0
 	}
-	f, _ := new(big.Float).Quo(new(big.Float).SetInt(balance), big.NewFloat(AmountScale)).Float64()
+	f, _ := new(big.Float).Quo(new(big.Float).SetInt(balance), big.NewFloat(amountScale)).Float64()
 	return f
 }
 

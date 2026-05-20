@@ -18,7 +18,7 @@ func (m *mockReceiptFetcher) TransactionReceipt(ctx context.Context, txHash comm
 }
 
 func TestDepositWalletAddressFromReceiptPicksNonFactoryEmitter(t *testing.T) {
-	factory := common.HexToAddress(DepositWalletFactory)
+	factory := common.HexToAddress(depositWalletFactory)
 	wallet := common.HexToAddress("0xf7d4a87a96c1d4b2bb05b2750ed6a6f9c7eb5e62")
 	mf := &mockReceiptFetcher{
 		receipt: &ethtypes.Receipt{
@@ -29,7 +29,7 @@ func TestDepositWalletAddressFromReceiptPicksNonFactoryEmitter(t *testing.T) {
 			},
 		},
 	}
-	got, err := DepositWalletAddressFromReceipt(context.Background(), mf, "0x00")
+	got, err := depositWalletAddressFromReceipt(context.Background(), mf, "0x00")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestDepositWalletAddressFromReceiptPicksNonFactoryEmitter(t *testing.T) {
 }
 
 func TestDepositWalletAddressFromReceiptErrorsWhenOnlyFactoryEmits(t *testing.T) {
-	factory := common.HexToAddress(DepositWalletFactory)
+	factory := common.HexToAddress(depositWalletFactory)
 	mf := &mockReceiptFetcher{
 		receipt: &ethtypes.Receipt{
 			Logs: []*ethtypes.Log{
@@ -47,7 +47,7 @@ func TestDepositWalletAddressFromReceiptErrorsWhenOnlyFactoryEmits(t *testing.T)
 			},
 		},
 	}
-	_, err := DepositWalletAddressFromReceipt(context.Background(), mf, "0x00")
+	_, err := depositWalletAddressFromReceipt(context.Background(), mf, "0x00")
 	if err == nil {
 		t.Fatal("expected error when only factory emits")
 	}
@@ -55,7 +55,7 @@ func TestDepositWalletAddressFromReceiptErrorsWhenOnlyFactoryEmits(t *testing.T)
 
 func TestDepositWalletAddressFromReceiptErrorsOnNilReceipt(t *testing.T) {
 	mf := &mockReceiptFetcher{receipt: nil}
-	_, err := DepositWalletAddressFromReceipt(context.Background(), mf, "0x00")
+	_, err := depositWalletAddressFromReceipt(context.Background(), mf, "0x00")
 	if err == nil {
 		t.Fatal("expected error on nil receipt")
 	}

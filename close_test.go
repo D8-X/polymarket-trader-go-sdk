@@ -44,8 +44,8 @@ func TestGetOutcomeTokenBalanceCalldata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.EqualFold(mc.lastTo, ConditionalTokens) {
-		t.Errorf("called to: got %s want %s", mc.lastTo, ConditionalTokens)
+	if !strings.EqualFold(mc.lastTo, conditionalTokens) {
+		t.Errorf("called to: got %s want %s", mc.lastTo, conditionalTokens)
 	}
 	gotHex := hex.EncodeToString(mc.lastData)
 	const wantPrefix = "00fdd58e"
