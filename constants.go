@@ -30,10 +30,9 @@ const (
 )
 
 const (
-	SignatureTypeEOA         = 0
-	SignatureTypePolyProxy   = 1
-	SignatureTypeGnosisSafe  = 2
-	SignatureTypePoly1271    = 3
+	SignatureTypeEOA        = 0
+	SignatureTypePolyProxy  = 1
+	SignatureTypeGnosisSafe = 2
 )
 
 const (
