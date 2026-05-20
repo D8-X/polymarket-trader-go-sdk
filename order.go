@@ -15,6 +15,7 @@ type OrderBuilder struct {
 	ctfExchangeAddress string
 	privateKeyHex      string
 	sigType            int
+	builderCode        string
 }
 
 type OrderOpts struct {
@@ -22,6 +23,9 @@ type OrderOpts struct {
 	DeferExec  bool
 	Expiration time.Duration
 	TickSize   string
+	// BuilderCode is a bytes32 hex identifier from the Polymarket Builder
+	// Profile. Overrides any default set on the OrderBuilder.
+	BuilderCode string
 }
 
 type roundConfig struct {
@@ -64,6 +68,12 @@ func NewOrderBuilder(funderAddress, eoaAddress, ctfExchangeAddress, privateKeyHe
 
 func (ob *OrderBuilder) MakerAddress() string {
 	return ob.makerAddress
+}
+
+// SetBuilderCode sets a bytes32 builder code applied to every order built by
+// this OrderBuilder. Individual orders may override via OrderOpts.BuilderCode.
+func (ob *OrderBuilder) SetBuilderCode(code string) {
+	ob.builderCode = code
 }
 
 // PrepareAndSign builds and EIP-712-signs an order for the Polymarket CLOB.
@@ -130,6 +140,14 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		expiration = time.Now().Add(GTDSecurityThreshold + dur).Unix()
 	}
 
+	builder := ob.builderCode
+	if opt.BuilderCode != "" {
+		builder = opt.BuilderCode
+	}
+	if builder == "" {
+		builder = ZeroBytes32
+	}
+
 	order := OrderFields{
 		Salt:          salt,
 		Maker:         ob.makerAddress,
@@ -140,7 +158,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		Expiration:    strconv.FormatInt(expiration, 10),
 		Timestamp:     strconv.FormatInt(time.Now().UnixMilli(), 10),
 		Metadata:      ZeroBytes32,
-		Builder:       ZeroBytes32,
+		Builder:       builder,
 		Side:          sideStr,
 		SignatureType: ob.sigType,
 		sideNumeric:   sideNumeric,
