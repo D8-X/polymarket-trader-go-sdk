@@ -2,6 +2,8 @@
 
 Go SDK for trading on [Polymarket](https://docs.polymarket.com). Covers [Safe wallet provisioning](#gnosis-safe-provisioning) via the relayer (no browser login needed), L2 authentication, order building with [order book sweep](#order-book-sweep) and slippage control, and CLOB interaction.
 
+Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.com/v2-migration)): orders use the V2 EIP-712 domain with the `timestamp` / `metadata` / `builder` fields, builder attribution is plumbed through `OrderOpts.BuilderCode`, and dynamic fees are queryable via `CLOBClient.GetClobMarketInfo`.
+
 ## Installation
 
 ```bash
@@ -50,22 +52,22 @@ safeAddr, relayResp, err := polytrade.DeploySafe(ctx, privateKey, builderCreds)
 safeAddr, err := polytrade.LookupSafeAddress(ctx, "0xYourEOA")
 ```
 
-After deployment, fund the Safe address with USDC on Polygon to start trading.
+After deployment, fund the Safe with the active collateral token on Polygon. Use `polytrade.CollateralAddress()`; it returns USDC.e by default and switches to pUSD once `polytrade.SetPUSDAddress(...)` has been called with the deployed Polymarket USD address.
 
-## USDC Balance
+## Collateral Balance
 
-Query and refresh the USDC balance available for trading:
+Query and refresh the collateral balance available for trading:
 
 ```go
-// Get the current USDC balance (raw units, 6 decimals)
+// Current balance (raw units, 6 decimals)
 balance, err := polytrade.USDCBalanceOf(ctx, privateKey)
-fmt.Printf("USDC balance: %s\n", balance)
+fmt.Printf("balance: %s\n", balance)
 
-// After transferring USDC to the Safe, refresh so Polymarket picks up the new balance
+// After transferring collateral to the Safe, refresh so Polymarket picks up the new balance
 err = polytrade.RefreshUSDCBalance(ctx, privateKey)
 ```
 
-`RefreshUSDCBalance` calls `UpdateBalanceAllowance` under the hood, which tells Polymarket to re-scan the on-chain USDC balance for your Safe and make the funds available for trading. Call this after depositing USDC to the Safe address.
+`RefreshUSDCBalance` calls `UpdateBalanceAllowance` under the hood; the underlying CLOB API uses the `COLLATERAL` asset type, so these helpers work for both USDC.e and pUSD.
 
 ## Usage example
 
@@ -109,15 +111,17 @@ func main() {
 	}
 
 	// 4. Create an order builder
-	//    For neg-risk markets, use the Neg Risk CTF Exchange address instead.
-	ctfExchange := "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E"
+	//    For neg-risk markets, pass polytrade.NegRiskCTFExchange instead.
 	builder := polytrade.NewOrderBuilder(
-		safeAddr,    // funder (Safe address)
-		"0xYourEOA", // signer (EOA)
-		ctfExchange,
+		safeAddr,              // funder (Safe address)
+		"0xYourEOA",           // signer (EOA)
+		polytrade.CTFExchange, // V2 CTF Exchange
 		privateKey,
 		polytrade.SignatureTypeGnosisSafe,
 	)
+
+	// Optional: attach a builder code from your Polymarket Builder Profile to every order
+	// builder.SetBuilderCode("0x...")
 
 	// 5. Get market data
 	tokenID := "your-token-id"
@@ -125,8 +129,11 @@ func main() {
 	book, _ := clob.GetOrderBook(ctx, tokenID)
 	fmt.Printf("best bid: %s  best ask: %s\n", book.Bids[0].Price, book.Asks[0].Price)
 
-	tickSize, _ := clob.GetTickSize(ctx, tokenID)
-	fmt.Printf("tick size: %s\n", tickSize)
+	// Per-market metadata: tick size, min order size, fee details, tokens
+	info, _ := clob.GetClobMarketInfo(ctx, "your-condition-id")
+	tickSize := info.MinTickSize
+	fmt.Printf("tick: %s  fee r=%d e=%d takerOnly=%v\n",
+		tickSize, info.FeeDetails.Rate, info.FeeDetails.Exponent, info.FeeDetails.TakerOnly)
 
 	// 6. Build and sign an order
 	order, err := builder.PrepareAndSign(
