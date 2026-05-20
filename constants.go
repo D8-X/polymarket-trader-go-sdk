@@ -54,6 +54,8 @@ const (
 	PUSDAddress        = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB" // Polymarket USD (pUSD) proxy on Polygon
 	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B" // Polymarket exchange and ERC-1155 conditional token contract
 	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59" // for capped loss markets
+	CollateralOnramp   = "0x93070a847efEf7F70739046A929D47a521F5B8ee" // wrap USDC.e -> pUSD
+	CollateralOfframp  = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854" // unwrap pUSD -> USDC.e
 )
 
 // configuredPUSDAddress is set by SetPUSDAddress; CollateralAddress falls back
