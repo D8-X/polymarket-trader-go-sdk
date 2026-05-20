@@ -87,6 +87,12 @@ signed, err := builder.PrepareAndSign(
 resp, err := clob.PlaceOrder(ctx, signed, creds)
 ```
 
+Closing a position is a one-liner — signs and submits a SELL through the same builder.
+
+```go
+resp, err := clob.ClosePosition(ctx, builder, tokenID, 0.55, 10, creds, polytrade.ClosePositionOpts{})
+```
+
 ## Collateral Balance
 
 Query and refresh the collateral balance available for trading:
