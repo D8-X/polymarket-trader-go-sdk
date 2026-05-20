@@ -38,9 +38,9 @@ const (
 
 const (
 	SafeMultisend      = "0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761" // a helper contract that batches multiple txns into one Safe execution
-	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" 
-	CTFExchange        = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045" // Polymarket exchange and ERC-1155 conditional token contract
-	NegRiskCTFExchange = "0xC5d563A36AE78145C45a50134d48A1215220f80a" // for capped loss markets
+	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B" // Polymarket exchange and ERC-1155 conditional token contract
+	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59" // for capped loss markets
 )
 
 const (
@@ -90,6 +90,7 @@ const (
 
 	eip712AuthDomainName  = "ClobAuthDomain"
 	eip712OrderDomainName = "Polymarket CTF Exchange"
-	eip712Version         = "1"
+	eip712OrderVersion    = "2"
+	eip712AuthVersion     = "1"
 	eip712AuthMessage     = "This message attests that I control the given wallet"
 )

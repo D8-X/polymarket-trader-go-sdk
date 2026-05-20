@@ -17,7 +17,7 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 
 	domainTypeHash := ethutil.Keccak256([]byte(eip712DomainType))
 	nameHash := ethutil.Keccak256([]byte(eip712OrderDomainName))
-	versionHash := ethutil.Keccak256([]byte(eip712Version))
+	versionHash := ethutil.Keccak256([]byte(eip712OrderVersion))
 	chainID := ethutil.PadTo32(big.NewInt(PolygonChainID).Bytes())
 
 	ctfAddr := new(big.Int)
@@ -209,7 +209,7 @@ func signSafeTx(privateKeyHex, safeAddress string, tx SafeTransaction, nonce str
 func hashClobAuthDomain(chainID int) []byte {
 	typeHash := ethutil.Keccak256([]byte(eip712AuthDomainType))
 	nameHash := ethutil.Keccak256([]byte(eip712AuthDomainName))
-	versionHash := ethutil.Keccak256([]byte(eip712Version))
+	versionHash := ethutil.Keccak256([]byte(eip712AuthVersion))
 	chainIDBytes := ethutil.PadTo32(new(big.Int).SetInt64(int64(chainID)).Bytes())
 
 	return ethutil.Keccak256(append(append(append(ethutil.PadTo32(typeHash), ethutil.PadTo32(nameHash)...), ethutil.PadTo32(versionHash)...), chainIDBytes...))
