@@ -18,6 +18,18 @@ const (
 )
 
 const (
+	BUY  = "BUY"
+	SELL = "SELL"
+)
+
+const (
+	OrderTypeGTC = "GTC"
+	OrderTypeGTD = "GTD"
+	OrderTypeFOK = "FOK"
+	OrderTypeFAK = "FAK"
+)
+
+const (
 	SignatureTypeEOA        = 0
 	SignatureTypePolyProxy  = 1
 	SignatureTypeGnosisSafe = 2

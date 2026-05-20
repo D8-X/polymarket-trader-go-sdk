@@ -100,9 +100,9 @@ func (ob *OrderBuilder) PrepareSweepFromLevels(assetID string, levels []PriceLev
 func parseLevels(book *OrderBook, side string) ([]PriceLevel, error) {
 	var raw []OrderBookLevel
 	switch side {
-	case "BUY":
+	case BUY:
 		raw = book.Asks
-	case "SELL":
+	case SELL:
 		raw = book.Bids
 	default:
 		return nil, fmt.Errorf("prepare sweep: invalid side %q (want BUY or SELL)", side)
@@ -122,7 +122,7 @@ func parseLevels(book *OrderBook, side string) ([]PriceLevel, error) {
 	}
 
 	// Ensure correct ordering: ascending for BUY (asks), descending for SELL (bids).
-	if side == "BUY" {
+	if side == BUY {
 		sort.Slice(out, func(i, j int) bool { return out[i].Price < out[j].Price })
 	} else {
 		sort.Slice(out, func(i, j int) bool { return out[i].Price > out[j].Price })

@@ -96,10 +96,10 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 	}
 
 	sideNumeric := SideBuy
-	sideStr := "BUY"
-	if side == "SELL" {
+	sideStr := BUY
+	if side == SELL {
 		sideNumeric = SideSell
-		sideStr = "SELL"
+		sideStr = SELL
 	}
 
 	saltBig, err := rand.Int(rand.Reader, big.NewInt(SaltUpperBound))
@@ -131,7 +131,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 	}
 
 	expiration := int64(0)
-	if orderType == "GTD" {
+	if orderType == OrderTypeGTD {
 		dur := GTDExpiration
 		if opt.Expiration > 0 {
 			dur = opt.Expiration
