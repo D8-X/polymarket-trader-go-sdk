@@ -6,14 +6,7 @@ Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.
 
 ## Compared to the official clients
 
-This SDK covers the core Polymarket CLOB V2 surface a Go trading bot needs — L1/L2 auth, order placement, cancel, lookup, market data, balance allowance — and on top of that adds extras the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) leave to the user:
-
-- **Gnosis Safe provisioning + gasless transactions** via the Polymarket relayer — derive, deploy, approve, transfer, wrap/unwrap.
-- **Order book sweep with slippage control** — `PrepareSweep` walks levels and stops at a configurable threshold.
-- **Async order polling** for sports-style FOK/FAK delayed states — `AwaitOrder` / `AwaitOrdersAsync` with channel-based streaming.
-- **Collateral Onramp / Offramp** — single-call `WrapToPUSD` / `UnwrapToUSDC` that batch the ERC-20 approval and the on/offramp call.
-
-Not yet covered (planned, roughly in priority order): pre-migration orders, rewards endpoints, order-scoring checks, market-order helpers with `userUSDCBalance`, WebSocket streams, market discovery (`/markets`), CTF position split/merge/redeem, RFQ.
+This SDK covers the core Polymarket CLOB V2 surface a Go trading bot needs (auth, orders, market data, balance allowance) and adds extras the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) leave to the user: Gnosis Safe provisioning with gasless transactions via the Polymarket relayer, order book sweep with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp/Offramp wrap/unwrap helpers. Not yet covered: pre-migration orders, rewards endpoints, order-scoring checks, market-order helpers with `userUSDCBalance`, WebSocket streams, market discovery (`/markets`), CTF position split/merge/redeem, and RFQ.
 
 ## Installation
 
