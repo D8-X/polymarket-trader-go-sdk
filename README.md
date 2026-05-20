@@ -6,7 +6,7 @@ Compatible with the new Polymarket CLOB ([V2 migration](https://docs.polymarket.
 
 ## Compared to the official clients
 
-This SDK covers what a Go trading bot needs from the Polymarket CLOB V2. That is auth, orders, market data, and balance allowance. It also adds extras the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) leave to the user. Those are Gnosis Safe provisioning with gasless transactions via the Polymarket relayer, order book sweep with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp/Offramp wrap/unwrap helpers. Not yet covered: pre-migration orders, rewards endpoints, order-scoring checks, market-order helpers with `userUSDCBalance`, WebSocket streams, market discovery, CTF position split/merge/redeem, and RFQ.
+Covers the standard auth, order, and market-data operations the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) provide. Adds bot-focused extras on top: Gnosis Safe provisioning, gasless transactions through the Polymarket relayer, order book sweep with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp wrap/unwrap helpers. Pre-migration orders, rewards, order-scoring, WebSocket streams, market discovery, CTF split/merge/redeem, and RFQ are not yet implemented.
 
 ## Installation
 
