@@ -13,8 +13,8 @@ const (
 )
 
 const (
-	SideBuy  = 0
-	SideSell = 1
+	sideBuy  = 0
+	sideSell = 1
 )
 
 const (
@@ -38,7 +38,7 @@ const (
 
 const (
 	ZeroAddress    = "0x0000000000000000000000000000000000000000"
-	RelayerBaseURL = "https://relayer-v2.polymarket.com"
+	relayerBaseURL = "https://relayer-v2.polymarket.com"
 )
 
 const (
@@ -46,13 +46,13 @@ const (
 	PUSDAddress        = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB" // Polymarket USD (pUSD) proxy on Polygon
 	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B" // Polymarket V2 CTF Exchange
 	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59" // for capped loss markets
-	CollateralOnramp   = "0x93070a847efEf7F70739046A929D47a521F5B8ee" // wrap USDC.e -> pUSD
-	CollateralOfframp  = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854" // unwrap pUSD -> USDC.e
+	collateralOnramp   = "0x93070a847efEf7F70739046A929D47a521F5B8ee" // wrap USDC.e -> pUSD
+	collateralOfframp  = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854" // unwrap pUSD -> USDC.e
 
-	DepositWalletFactory        = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
-	DepositWalletImplementation = "0x58ca52ebe0dadfdf531cde7062e76746de4db1eb"
+	depositWalletFactory        = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
+	depositWalletImplementation = "0x58ca52ebe0dadfdf531cde7062e76746de4db1eb"
 
-	ConditionalTokens = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
+	conditionalTokens = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
 )
 
 const (
@@ -87,17 +87,17 @@ func CollateralAddress() string {
 }
 
 const (
-	DefaultTimeout = 10 * time.Second
-	CLOBTimeout    = 15 * time.Second
+	defaultTimeout = 10 * time.Second
+	clobTimeout    = 15 * time.Second
 )
 
 const (
-	AmountScale          = 1e6
-	GTDExpiration        = 5 * time.Minute
+	amountScale          = 1e6
+	gtdExpiration        = 5 * time.Minute
 	GTDSecurityThreshold = 60 * time.Second
 	SaltUpperBound       = 1 << 62
 
-	ZeroBytes32 = "0x0000000000000000000000000000000000000000000000000000000000000000"
+	zeroBytes32 = "0x0000000000000000000000000000000000000000000000000000000000000000"
 )
 
 

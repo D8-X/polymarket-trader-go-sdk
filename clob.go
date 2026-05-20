@@ -17,7 +17,7 @@ type CLOBClient struct {
 func NewCLOBClient() *CLOBClient {
 	return &CLOBClient{
 		baseURL: ClobBaseURL,
-		client:  &http.Client{Timeout: CLOBTimeout},
+		client:  &http.Client{Timeout: clobTimeout},
 	}
 }
 

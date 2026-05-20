@@ -41,14 +41,14 @@ func applyRelayerHeaders(req *http.Request, creds *RelayerCredentials, method, p
 	req.Header.Set("POLY_BUILDER_SIGNATURE", signRelayerHMAC(creds.Secret, ts, method, path, body))
 }
 
-func GetRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
+func getRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
 	endpoint := fmt.Sprintf("/transaction?id=%s", transactionID)
-	url := RelayerBaseURL + endpoint
+	url := relayerBaseURL + endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get relayer tx: build request: %w", err)
 	}
-	client := &http.Client{Timeout: DefaultTimeout}
+	client := &http.Client{Timeout: defaultTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("get relayer tx: http request: %w", err)
@@ -71,12 +71,12 @@ func GetRelayerTransaction(ctx context.Context, transactionID string) (*RelayerT
 	return &txns[0], nil
 }
 
-func WaitForRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
+func waitForRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
 	pollInterval := 2 * time.Second
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
-		tx, err := GetRelayerTransaction(ctx, transactionID)
+		tx, err := getRelayerTransaction(ctx, transactionID)
 		if err != nil {
 			return nil, fmt.Errorf("wait for relayer tx: %w", err)
 		}

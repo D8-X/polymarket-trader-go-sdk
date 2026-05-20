@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-type DepositWalletBootstrapResult struct {
+type depositWalletBootstrapResult struct {
 	Creds                *L2Credentials
 	EOAAddress           string
 	DepositWalletAddress string
@@ -18,7 +18,7 @@ type DepositWalletBootstrapResult struct {
 	BatchResponse        *RelayerResponse
 }
 
-func BootstrapDepositWallet(ctx context.Context, eth ReceiptFetcher, privateKeyHex string, wrapAmount *big.Int, relayerCreds *RelayerCredentials) (*DepositWalletBootstrapResult, error) {
+func bootstrapDepositWallet(ctx context.Context, eth ReceiptFetcher, privateKeyHex string, wrapAmount *big.Int, relayerCreds *RelayerCredentials) (*depositWalletBootstrapResult, error) {
 	if eth == nil {
 		return nil, fmt.Errorf("bootstrap deposit wallet: nil ReceiptFetcher")
 	}
@@ -36,7 +36,7 @@ func BootstrapDepositWallet(ctx context.Context, eth ReceiptFetcher, privateKeyH
 		}
 	}
 
-	depositWalletAddress, deployResp, _, err := DeployAndResolveDepositWallet(ctx, eth, eoaAddress, relayerCreds)
+	depositWalletAddress, deployResp, _, err := deployAndResolveDepositWallet(ctx, eth, eoaAddress, relayerCreds)
 	if err != nil {
 		return nil, fmt.Errorf("bootstrap deposit wallet: deploy: %w", err)
 	}
@@ -44,14 +44,14 @@ func BootstrapDepositWallet(ctx context.Context, eth ReceiptFetcher, privateKeyH
 
 	var batchResp *RelayerResponse
 	if wrapAmount != nil {
-		r, err := WrapAndApproveDepositWallet(ctx, eoaAddress, privateKeyHex, depositWalletAddress, wrapAmount, relayerCreds)
+		r, err := wrapAndApproveDepositWallet(ctx, eoaAddress, privateKeyHex, depositWalletAddress, wrapAmount, relayerCreds)
 		if err != nil {
 			return nil, fmt.Errorf("bootstrap deposit wallet: wrap+approve: %w", err)
 		}
 		batchResp = r
 	}
 
-	return &DepositWalletBootstrapResult{
+	return &depositWalletBootstrapResult{
 		Creds:                creds,
 		EOAAddress:           eoaAddress,
 		DepositWalletAddress: depositWalletAddress,

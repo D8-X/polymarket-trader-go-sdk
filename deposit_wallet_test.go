@@ -58,11 +58,11 @@ func TestWrapPoly1271OrderSignatureGolden(t *testing.T) {
 		TakerAmount:   "5000000",
 		Expiration:    "0",
 		Timestamp:     "1716000000000",
-		Metadata:      ZeroBytes32,
-		Builder:       ZeroBytes32,
+		Metadata:      zeroBytes32,
+		Builder:       zeroBytes32,
 		Side:          BUY,
 		SignatureType: SignatureTypePoly1271,
-		sideNumeric:   SideBuy,
+		sideNumeric:   sideBuy,
 	}
 	got, err := ob.signOrder(order)
 	if err != nil {
