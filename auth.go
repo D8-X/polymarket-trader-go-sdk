@@ -147,27 +147,10 @@ func SignL2Request(creds *L2Credentials, method, path string, body []byte) (*L2H
 	}
 
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
-
-	message := ts + method + path
-	if len(body) > 0 {
-		message += string(body)
-	}
-
-	secretBytes, err := base64.URLEncoding.DecodeString(creds.Secret)
+	signature, err := signL2Message(creds.Secret, ts, method, path, body)
 	if err != nil {
-		secretBytes, err = base64.RawURLEncoding.DecodeString(creds.Secret)
-		if err != nil {
-			secretBytes, err = base64.StdEncoding.DecodeString(creds.Secret)
-			if err != nil {
-				return nil, fmt.Errorf("sign request: decode secret: %w", err)
-			}
-		}
+		return nil, fmt.Errorf("sign request: %w", err)
 	}
-
-	mac := hmac.New(sha256.New, secretBytes)
-	mac.Write([]byte(message))
-	signature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
-
 	return &L2Headers{
 		Address:    creds.Address,
 		APIKey:     creds.APIKey,
@@ -175,6 +158,28 @@ func SignL2Request(creds *L2Credentials, method, path string, body []byte) (*L2H
 		Signature:  signature,
 		Timestamp:  ts,
 	}, nil
+}
+
+func signL2Message(secret, ts, method, path string, body []byte) (string, error) {
+	message := ts + method + path
+	if len(body) > 0 {
+		message += string(body)
+	}
+
+	secretBytes, err := base64.URLEncoding.DecodeString(secret)
+	if err != nil {
+		secretBytes, err = base64.RawURLEncoding.DecodeString(secret)
+		if err != nil {
+			secretBytes, err = base64.StdEncoding.DecodeString(secret)
+			if err != nil {
+				return "", fmt.Errorf("decode secret: %w", err)
+			}
+		}
+	}
+
+	mac := hmac.New(sha256.New, secretBytes)
+	mac.Write([]byte(message))
+	return base64.URLEncoding.EncodeToString(mac.Sum(nil)), nil
 }
 
 func ApplyL2Headers(req *http.Request, h *L2Headers) {
