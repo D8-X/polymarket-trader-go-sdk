@@ -1,6 +1,7 @@
 package polytrade
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -277,22 +278,22 @@ type BalanceAllowanceResponse struct {
 // Effective match-time fee rate = FeeDetails.Rate * 10^-FeeDetails.Exponent;
 // applied only to takers when FeeDetails.TakerOnly is true.
 type ClobMarketInfo struct {
-	MinTickSize  string                `json:"mts"`
-	MinOrderSize string                `json:"mos"`
+	MinTickSize  json.Number           `json:"mts"`
+	MinOrderSize json.Number           `json:"mos"`
 	FeeDetails   ClobMarketFeeDetails  `json:"fd"`
 	Tokens       []ClobMarketInfoToken `json:"t"`
 	RFQEnabled   bool                  `json:"rfqe"`
 }
 
 type ClobMarketFeeDetails struct {
-	Rate      int  `json:"r"`
-	Exponent  int  `json:"e"`
-	TakerOnly bool `json:"to"`
+	Rate      float64 `json:"r"`
+	Exponent  int     `json:"e"`
+	TakerOnly bool    `json:"to"`
 }
 
 type ClobMarketInfoToken struct {
-	TokenID string `json:"token_id"`
-	Outcome string `json:"outcome"`
+	TokenID string `json:"t"`
+	Outcome string `json:"o"`
 }
 
 type PriceLevel struct {
