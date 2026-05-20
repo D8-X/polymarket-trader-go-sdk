@@ -136,10 +136,9 @@ func (c *CLOBClient) GetTickSize(ctx context.Context, tokenID string) (string, e
 	return result.TickSize.String(), nil
 }
 
-// GetClobMarketInfo returns the V2 per-market metadata for a condition ID:
-// minimum tick size, minimum order size, dynamic fee details, the outcome
-// tokens, and the RFQ-enabled flag. Prefer this over GetFeeRate / GetTickSize
-// since V2 fees are operator-controlled at match time.
+// GetClobMarketInfo returns the per-market metadata for a condition ID:
+// minimum tick size, minimum order size, fee details, the outcome tokens,
+// and the RFQ-enabled flag.
 func (c *CLOBClient) GetClobMarketInfo(ctx context.Context, conditionID string) (*ClobMarketInfo, error) {
 	path := "/markets/" + conditionID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
@@ -159,8 +158,8 @@ func (c *CLOBClient) GetClobMarketInfo(ctx context.Context, conditionID string) 
 	return &info, nil
 }
 
-// Deprecated: Polymarket V2 fees are set by operators at match time, not on
-// orders. Use GetClobMarketInfo and inspect FeeDetails instead.
+// Deprecated: fees are now set by operators at match time. Use
+// GetClobMarketInfo and read FeeDetails instead.
 func (c *CLOBClient) GetFeeRate(ctx context.Context, tokenID string) (int, error) {
 	path := "/fee-rate"
 	if tokenID != "" {
