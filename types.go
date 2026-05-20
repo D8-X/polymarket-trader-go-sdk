@@ -99,7 +99,7 @@ type PollResult struct {
 	Err         error
 }
 
-type BuilderCredentials struct {
+type RelayerCredentials struct {
 	APIKey     string
 	Secret     string
 	Passphrase string
