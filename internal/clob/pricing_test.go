@@ -1,4 +1,4 @@
-package polytrade
+package clob
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 )
 
 func TestGetPricesPostsRequestList(t *testing.T) {
@@ -20,17 +22,17 @@ func TestGetPricesPostsRequestList(t *testing.T) {
 		_, _ = w.Write([]byte(`{"tok1":{"BUY":"0.55","SELL":"0.60"}}`))
 	}))
 	defer srv.Close()
-	c := NewCLOBClient()
+	c := NewClient()
 	c.SetBaseURL(srv.URL)
 
-	got, err := c.GetPrices(context.Background(), []PriceRequest{{TokenID: "tok1", Side: "BUY"}, {TokenID: "tok1", Side: "SELL"}})
+	got, err := c.GetPrices(context.Background(), []models.PriceRequest{{TokenID: "tok1", Side: "BUY"}, {TokenID: "tok1", Side: "SELL"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got["tok1"]["BUY"] != "0.55" || got["tok1"]["SELL"] != "0.60" {
 		t.Errorf("got %+v", got)
 	}
-	var sent []PriceRequest
+	var sent []models.PriceRequest
 	if err := json.Unmarshal(seenBody, &sent); err != nil {
 		t.Fatal(err)
 	}
@@ -44,10 +46,10 @@ func TestGetSpreadsRoundTrip(t *testing.T) {
 		_, _ = w.Write([]byte(`{"tok1":"0.05"}`))
 	}))
 	defer srv.Close()
-	c := NewCLOBClient()
+	c := NewClient()
 	c.SetBaseURL(srv.URL)
 
-	got, err := c.GetSpreads(context.Background(), []SpreadRequest{{TokenID: "tok1"}})
+	got, err := c.GetSpreads(context.Background(), []models.SpreadRequest{{TokenID: "tok1"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +66,7 @@ func TestGetLastTradePriceRoundTrip(t *testing.T) {
 		_, _ = w.Write([]byte(`{"price":"0.81","side":"BUY"}`))
 	}))
 	defer srv.Close()
-	c := NewCLOBClient()
+	c := NewClient()
 	c.SetBaseURL(srv.URL)
 
 	got, err := c.GetLastTradePrice(context.Background(), "tok1")
@@ -81,10 +83,10 @@ func TestGetLastTradePricesRoundTrip(t *testing.T) {
 		_, _ = w.Write([]byte(`[{"price":"0.50","side":"BUY","token_id":"tok1"}]`))
 	}))
 	defer srv.Close()
-	c := NewCLOBClient()
+	c := NewClient()
 	c.SetBaseURL(srv.URL)
 
-	got, err := c.GetLastTradePrices(context.Background(), []SpreadRequest{{TokenID: "tok1"}})
+	got, err := c.GetLastTradePrices(context.Background(), []models.SpreadRequest{{TokenID: "tok1"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,10 +104,10 @@ func TestGetPricesHistoryRoundTrip(t *testing.T) {
 		_, _ = w.Write([]byte(`{"history":[{"t":1700000000,"p":0.55},{"t":1700003600,"p":0.6}]}`))
 	}))
 	defer srv.Close()
-	c := NewCLOBClient()
+	c := NewClient()
 	c.SetBaseURL(srv.URL)
 
-	got, err := c.GetPricesHistory(context.Background(), PricesHistoryParams{Market: "tok1", Interval: "1d"})
+	got, err := c.GetPricesHistory(context.Background(), models.PricesHistoryParams{Market: "tok1", Interval: "1d"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,8 +117,8 @@ func TestGetPricesHistoryRoundTrip(t *testing.T) {
 }
 
 func TestGetPricesHistoryRequiresIntervalOrRange(t *testing.T) {
-	c := NewCLOBClient()
-	_, err := c.GetPricesHistory(context.Background(), PricesHistoryParams{Market: "tok1"})
+	c := NewClient()
+	_, err := c.GetPricesHistory(context.Background(), models.PricesHistoryParams{Market: "tok1"})
 	if err == nil {
 		t.Fatal("expected validation error")
 	}

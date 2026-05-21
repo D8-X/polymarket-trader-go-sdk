@@ -1,4 +1,4 @@
-package polytrade
+package clob
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 )
 
 func TestPostHeartbeatRoundTrip(t *testing.T) {
@@ -26,9 +28,9 @@ func TestPostHeartbeatRoundTrip(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	clob := NewCLOBClient()
+	clob := NewClient()
 	clob.SetBaseURL(srv.URL)
-	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
+	creds := &types.L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	got, err := clob.PostHeartbeat(context.Background(), "", creds)
 	if err != nil {
@@ -48,9 +50,9 @@ func TestPostHeartbeatPropagatesErrorMsg(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	clob := NewCLOBClient()
+	clob := NewClient()
 	clob.SetBaseURL(srv.URL)
-	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
+	creds := &types.L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	_, err := clob.PostHeartbeat(context.Background(), "foo", creds)
 	if err == nil || !strings.Contains(err.Error(), "Invalid Heartbeat ID") {
@@ -68,9 +70,9 @@ func TestPostHeartbeatReturnsServerIdOn400(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	clob := NewCLOBClient()
+	clob := NewClient()
 	clob.SetBaseURL(srv.URL)
-	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
+	creds := &types.L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	id, err := clob.PostHeartbeat(context.Background(), "", creds)
 	if id != "active-from-server" {
@@ -90,9 +92,9 @@ func TestRunHeartbeatStopsOnContextCancel(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	clob := NewCLOBClient()
+	clob := NewClient()
 	clob.SetBaseURL(srv.URL)
-	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
+	creds := &types.L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	errs := clob.RunHeartbeat(ctx, 50*time.Millisecond, creds)
