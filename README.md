@@ -330,7 +330,9 @@ for {
 }
 ```
 
-Same shape for `SubscribeUser(ctx, []conditionID)`. Cancel via `ctx` or `sub.Close()`. No auto-reconnect; the caller decides whether to retry on disconnect.
+Same shape for `SubscribeUser(ctx, []conditionID)`. Cancel via `ctx` or `sub.Close()`.
+
+For long-running bots that need to survive disconnects, `SubscribeMarketReconnecting` and `SubscribeUserReconnecting` keep the same channel-based API but transparently reopen the connection and replay the subscribe message after a drop. A `"websocket: disconnected, reconnecting"` event is sent to `sub.Errs()` on each drop so the caller knows. Backoff starts at 1s and doubles up to 30s.
 
 ## Order Types
 
