@@ -95,6 +95,16 @@ func (c *Client) snapshot() (*L2Credentials, *OrderBuilder, string, error) {
 	return c.creds, c.builder, c.depositWallet, nil
 }
 
+func (c *Client) requireCreds() (*L2Credentials, error) {
+	c.mu.RLock()
+	creds := c.creds
+	c.mu.RUnlock()
+	if creds == nil {
+		return nil, errNoCreds
+	}
+	return creds, nil
+}
+
 func (c *Client) DeriveCreds(ctx context.Context) error {
 	creds, err := DeriveL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 	if err != nil {
@@ -149,21 +159,17 @@ func (c *Client) PrepareAndSign(tokenID, side, orderType string, price, size flo
 }
 
 func (c *Client) PlaceOrder(ctx context.Context, signed *SignedOrder) (*PlaceOrderResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.PlaceOrder(ctx, signed, creds)
 }
 
 func (c *Client) PlaceOrders(ctx context.Context, orders []*SignedOrder) ([]PlaceOrderResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.PlaceOrders(ctx, orders, creds)
 }
@@ -204,51 +210,41 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID string, price float6
 }
 
 func (c *Client) GetOrder(ctx context.Context, orderID string) (*OrderStatus, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetOrder(ctx, orderID, creds)
 }
 
 func (c *Client) GetOpenOrders(ctx context.Context, market, assetID string) ([]OrderStatus, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetOpenOrders(ctx, market, assetID, creds)
 }
 
 func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID string) ([]Trade, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetTrades(ctx, makerAddress, market, assetID, creds)
 }
 
 func (c *Client) GetPreMigrationOrders(ctx context.Context) ([]OrderStatus, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetPreMigrationOrders(ctx, creds)
 }
 
 func (c *Client) CancelOrder(ctx context.Context, orderID string) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelOrder(ctx, orderID, creds)
 }
@@ -269,41 +265,33 @@ func (c *Client) ReplaceOrder(ctx context.Context, oldOrderID string, newOrder *
 }
 
 func (c *Client) CancelOrders(ctx context.Context, orderIDs []string) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelOrders(ctx, orderIDs, creds)
 }
 
 func (c *Client) CancelAll(ctx context.Context) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelAll(ctx, creds)
 }
 
 func (c *Client) CancelMarketOrders(ctx context.Context, market, assetID string) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelMarketOrders(ctx, market, assetID, creds)
 }
 
 func (c *Client) AwaitOrder(ctx context.Context, resp *PlaceOrderResponse, opts *PollOpts) (*PollResult, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.AwaitOrder(ctx, resp, creds, opts)
 }
@@ -385,11 +373,9 @@ func (c *Client) GetNegRisk(ctx context.Context, tokenID string) (bool, error) {
 }
 
 func (c *Client) GetBalances(ctx context.Context) ([]BalanceEntry, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetBalances(ctx, creds)
 }
@@ -437,41 +423,33 @@ func (c *Client) GetPositionsOf(ctx context.Context, walletAddress string) ([]Po
 }
 
 func (c *Client) GetBalanceAllowance(ctx context.Context, assetType, tokenID string) (*BalanceAllowanceResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetBalanceAllowance(ctx, assetType, tokenID, creds)
 }
 
 func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType, tokenID string) error {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return err
 	}
 	return c.clob.UpdateBalanceAllowance(ctx, assetType, tokenID, creds)
 }
 
 func (c *Client) CollateralBalanceOf(ctx context.Context) (*big.Int, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return wallet.CollateralBalance(ctx, creds)
 }
 
 func (c *Client) RefreshCollateralBalance(ctx context.Context) error {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return err
 	}
 	return wallet.RefreshCollateralBalance(ctx, creds)
 }
@@ -481,41 +459,33 @@ func (c *Client) GetCurrentRewards(ctx context.Context) ([]CurrentRewardMarket, 
 }
 
 func (c *Client) GetEarningsForUserForDay(ctx context.Context, date string) ([]map[string]any, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetEarningsForUserForDay(ctx, date, creds)
 }
 
 func (c *Client) GetRewardPercentages(ctx context.Context) (map[string]any, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetRewardPercentages(ctx, creds)
 }
 
 func (c *Client) IsOrderScoring(ctx context.Context, orderID string) (*OrderScoringResult, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.IsOrderScoring(ctx, orderID, creds)
 }
 
 func (c *Client) AreOrdersScoring(ctx context.Context, orderIDs []string) (map[string]bool, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.AreOrdersScoring(ctx, orderIDs, creds)
 }
@@ -614,11 +584,9 @@ func (c *Client) requireDepositWalletOps() (string, error) {
 }
 
 func (c *Client) PostHeartbeat(ctx context.Context) (string, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return "", errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return "", err
 	}
 	c.mu.Lock()
 	prev := c.heartbeatID
