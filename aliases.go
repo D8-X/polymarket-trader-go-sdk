@@ -96,12 +96,12 @@ func ApplyL2Headers(req *http.Request, h *L2Headers) {
 	auth.ApplyHeaders(req, h)
 }
 
-func EstimateSweep(book *OrderBook, side string, refPrice, size, maxSlippage float64) (*SweepEstimate, error) {
-	return sweep.Estimate(book, side, refPrice, size, maxSlippage)
+func EstimateSweep(book *OrderBook, side string, maxSlippage float64) (*SweepEstimate, error) {
+	return sweep.Estimate(book, side, maxSlippage)
 }
 
-func EstimateSweepFromLevels(levels []PriceLevel, side string, refPrice, size, maxSlippage float64) (*SweepEstimate, error) {
-	return sweep.EstimateFromLevels(levels, side, refPrice, size, maxSlippage)
+func EstimateSweepFromLevels(levels []PriceLevel, side string, maxSlippage float64) (*SweepEstimate, error) {
+	return sweep.EstimateFromLevels(levels, side, maxSlippage)
 }
 
 func GetOutcomeTokenBalance(ctx context.Context, eth ContractCaller, ownerAddress, tokenID string) (*big.Int, error) {
