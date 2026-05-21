@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
@@ -61,7 +59,7 @@ func TestGetRoundConfig(t *testing.T) {
 }
 
 func TestPrepareAndSignAmounts(t *testing.T) {
-	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey, consts.SignatureTypePoly1271)
+	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
 
 	cases := []struct {
 		name      string
@@ -95,28 +93,16 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 }
 
 func TestPrepareAndSignRejectsSubTickPrice(t *testing.T) {
-	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey, consts.SignatureTypePoly1271)
+	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
 	_, err := ob.PrepareAndSign("100", consts.BUY, consts.OrderTypeGTC, 0.555, 10, "k", Opts{TickSize: "0.01"})
 	if err == nil {
 		t.Fatal("expected error for sub-tick price")
 	}
 }
 
-func TestPoly1271BuilderSetsSignerToFunder(t *testing.T) {
-	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey, consts.SignatureTypePoly1271)
+func TestBuilderSetsSignerToFunder(t *testing.T) {
+	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
 	if ob.SignerAddress() != testDepositWallet {
 		t.Errorf("signerAddress: got %s want %s", ob.SignerAddress(), testDepositWallet)
-	}
-}
-
-func TestNonPoly1271BuilderSetsSignerToEOA(t *testing.T) {
-	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(testPrivateKey))
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantEOA := crypto.PubkeyToAddress(pk.PublicKey).Hex()
-	ob := NewBuilder("0xabc", testCTFExchange, testPrivateKey, consts.SignatureTypeGnosisSafe)
-	if ob.SignerAddress() != wantEOA {
-		t.Errorf("signerAddress: got %s want %s", ob.SignerAddress(), wantEOA)
 	}
 }

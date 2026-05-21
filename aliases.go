@@ -23,8 +23,8 @@ func NewCLOBClient() *CLOBClient { return clob.NewClient() }
 type OrderBuilder = order.Builder
 type OrderOpts = order.Opts
 
-func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *OrderBuilder {
-	return order.NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex, sigType)
+func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string) *OrderBuilder {
+	return order.NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex)
 }
 
 type APIError = types.APIError

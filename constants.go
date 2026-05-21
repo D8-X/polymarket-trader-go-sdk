@@ -24,10 +24,7 @@ const (
 )
 
 const (
-	SignatureTypeEOA        = consts.SignatureTypeEOA
-	SignatureTypePolyProxy  = consts.SignatureTypePolyProxy
-	SignatureTypeGnosisSafe = consts.SignatureTypeGnosisSafe
-	SignatureTypePoly1271   = consts.SignatureTypePoly1271
+	SignatureTypePoly1271 = consts.SignatureTypePoly1271
 )
 
 const (

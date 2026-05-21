@@ -10,10 +10,8 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/sign"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type Builder struct {
@@ -21,7 +19,6 @@ type Builder struct {
 	signerAddress      string
 	ctfExchangeAddress string
 	privateKeyHex      string
-	sigType            int
 
 	mu          sync.RWMutex
 	builderCode string
@@ -64,19 +61,12 @@ func checkPrecision(v float64, decimals int, label string) error {
 	return nil
 }
 
-func NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *Builder {
-	var signer string
-	if sigType == consts.SignatureTypePoly1271 {
-		signer = funderAddress
-	} else if pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex)); err == nil {
-		signer = crypto.PubkeyToAddress(pk.PublicKey).Hex()
-	}
+func NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string) *Builder {
 	return &Builder{
 		makerAddress:       funderAddress,
-		signerAddress:      signer,
+		signerAddress:      funderAddress,
 		ctfExchangeAddress: ctfExchangeAddress,
 		privateKeyHex:      privateKeyHex,
-		sigType:            sigType,
 	}
 }
 
@@ -170,7 +160,7 @@ func (ob *Builder) PrepareAndSign(tokenID, side, orderType string, price, size f
 		Metadata:      metadata,
 		Builder:       builder,
 		Side:          sideStr,
-		SignatureType: ob.sigType,
+		SignatureType: consts.SignatureTypePoly1271,
 		SideNumeric:   sideNumeric,
 	}
 

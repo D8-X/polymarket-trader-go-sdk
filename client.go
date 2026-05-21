@@ -62,7 +62,7 @@ func NewClient(cfg Config) (*Client, error) {
 		depositWallet: cfg.DepositWallet,
 	}
 	if c.depositWallet != "" {
-		c.builder = NewOrderBuilder(c.depositWallet, CTFExchange, cfg.PrivateKeyHex, SignatureTypePoly1271)
+		c.builder = NewOrderBuilder(c.depositWallet, CTFExchange, cfg.PrivateKeyHex)
 	}
 	return c, nil
 }
@@ -125,7 +125,7 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	}
 	c.mu.Lock()
 	c.depositWallet = addr
-	c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex, SignatureTypePoly1271)
+	c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex)
 	c.mu.Unlock()
 	time.Sleep(2 * time.Second)
 	if wrapAmount != nil {
@@ -570,6 +570,30 @@ func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
 		return nil, err
 	}
 	return wallet.ApproveForSell(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+}
+
+func (c *Client) SplitPosition(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
+	dw, err := c.requireDepositWalletOps()
+	if err != nil {
+		return nil, err
+	}
+	return wallet.SplitPosition(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, amount, c.cfg.RelayerCreds)
+}
+
+func (c *Client) MergePositions(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
+	dw, err := c.requireDepositWalletOps()
+	if err != nil {
+		return nil, err
+	}
+	return wallet.MergePositions(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, amount, c.cfg.RelayerCreds)
+}
+
+func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*RelayerResponse, error) {
+	dw, err := c.requireDepositWalletOps()
+	if err != nil {
+		return nil, err
+	}
+	return wallet.RedeemPositions(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, c.cfg.RelayerCreds)
 }
 
 func (c *Client) requireDepositWalletOps() (string, error) {

@@ -26,7 +26,7 @@ func TestWrapPoly1271OrderSignatureGolden(t *testing.T) {
 		Metadata:      consts.ZeroBytes32,
 		Builder:       consts.ZeroBytes32,
 		Side:          "BUY",
-		SignatureType: SignatureTypePoly1271,
+		SignatureType: consts.SignatureTypePoly1271,
 		SideNumeric:   consts.SideBuy,
 	}
 	got, err := Order(testPrivateKey, testCTFExchange, order)

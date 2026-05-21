@@ -11,7 +11,7 @@ import (
 
 func CollateralBalance(ctx context.Context, creds *types.L2Credentials) (*big.Int, error) {
 	c := clob.NewClient()
-	resp, err := c.GetBalanceAllowance(ctx, "COLLATERAL", "", consts.SignatureTypeGnosisSafe, creds)
+	resp, err := c.GetBalanceAllowance(ctx, "COLLATERAL", "", consts.SignatureTypePoly1271, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -20,7 +20,7 @@ func CollateralBalance(ctx context.Context, creds *types.L2Credentials) (*big.In
 
 func RefreshCollateralBalance(ctx context.Context, creds *types.L2Credentials) error {
 	c := clob.NewClient()
-	return c.UpdateBalanceAllowance(ctx, "COLLATERAL", "", consts.SignatureTypeGnosisSafe, creds)
+	return c.UpdateBalanceAllowance(ctx, "COLLATERAL", "", consts.SignatureTypePoly1271, creds)
 }
 
 func parseCollateralBalance(s string) *big.Int {

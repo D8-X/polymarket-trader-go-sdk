@@ -7,13 +7,7 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-)
-
-const (
-	SignatureTypeEOA      = 0
-	SignatureTypePoly1271 = 3
 )
 
 func Order(privateKeyHex, ctfExchangeAddress string, order models.OrderFields) (string, error) {
@@ -57,19 +51,5 @@ func Order(privateKeyHex, ctfExchangeAddress string, order models.OrderFields) (
 		ethutil.ParseBytes32(order.Builder),
 	))
 
-	if order.SignatureType == SignatureTypePoly1271 {
-		return WrapPoly1271Signature(pk, order.Signer, domainSep, structHash)
-	}
-
-	digest := ethutil.Keccak256Pack([]byte{0x19, 0x01}, domainSep, structHash)
-
-	sig, err := crypto.Sign(digest, pk)
-	if err != nil {
-		return "", fmt.Errorf("sign order: sign EIP-712 digest: %w", err)
-	}
-	if sig[64] < 27 {
-		sig[64] += 27
-	}
-
-	return "0x" + common.Bytes2Hex(sig), nil
+	return WrapPoly1271Signature(pk, order.Signer, domainSep, structHash)
 }
