@@ -299,6 +299,15 @@ _, _ = cli.RedeemPositions(ctx, conditionID)
 
 Only binary markets are supported. Neg-risk markets route through a different adapter and are not covered here.
 
+## Replace an order
+
+Polymarket doesn't expose a native replace endpoint, so this is a sequenced cancel-then-place. Bails out before placing if the cancel fails.
+
+```go
+newSigned, _ := cli.PrepareAndSign(tokenID, polytrade.BUY, polytrade.OrderTypeGTC, 0.21, 5, polytrade.OrderOpts{TickSize: "0.01"})
+cancelResp, placeResp, err := cli.ReplaceOrder(ctx, oldOrderID, newSigned)
+```
+
 ## WebSocket subscriptions
 
 Two streams. The `market` channel is public and emits order book + price events for the assets you subscribe to. The `user` channel emits your own order + trade updates and requires CLOB credentials (`Client.Bootstrap` or `Config.Creds`).
