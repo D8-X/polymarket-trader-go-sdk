@@ -34,5 +34,8 @@ func parseCollateralBalance(s string) *big.Int {
 	}
 	f.Mul(f, new(big.Float).SetFloat64(consts.AmountScale))
 	raw, _ := f.Int(nil)
+	if raw == nil {
+		return big.NewInt(0)
+	}
 	return raw
 }
