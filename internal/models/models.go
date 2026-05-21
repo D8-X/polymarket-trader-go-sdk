@@ -304,6 +304,13 @@ type NonceResponse struct {
 	Nonce string `json:"nonce"`
 }
 
+type ClosePositionOpts struct {
+	OrderType string
+	TickSize  string
+	PostOnly  bool
+	DeferExec bool
+}
+
 type PriceLevel struct {
 	Price float64
 	Size  float64

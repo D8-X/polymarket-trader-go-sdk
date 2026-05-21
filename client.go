@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/relayer"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/wallet"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -116,7 +119,7 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	if err := c.DeriveCreds(ctx); err != nil {
 		return err
 	}
-	addr, _, _, err := deployAndResolveDepositWallet(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
+	addr, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
 	if err != nil {
 		return fmt.Errorf("client: bootstrap: %w", err)
 	}
@@ -126,7 +129,7 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	c.mu.Unlock()
 	time.Sleep(2 * time.Second)
 	if wrapAmount != nil {
-		if _, err := wrapAndApproveDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
+		if _, err := wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
 			return fmt.Errorf("client: bootstrap: wrap+approve: %w", err)
 		}
 	}
@@ -176,7 +179,7 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID string, price float6
 	if balance.Sign() <= 0 {
 		return nil, fmt.Errorf("close position: no position to close for tokenID %s", tokenID)
 	}
-	size := rawBalanceToSize(balance)
+	size := onchain.RawBalanceToSize(balance)
 	orderType := opts.OrderType
 	if orderType == "" {
 		orderType = OrderTypeFOK
@@ -445,7 +448,7 @@ func (c *Client) CollateralBalanceOf(ctx context.Context) (*big.Int, error) {
 	if creds == nil {
 		return nil, errNoCreds
 	}
-	return collateralBalanceOf(ctx, creds)
+	return wallet.CollateralBalance(ctx, creds)
 }
 
 func (c *Client) RefreshCollateralBalance(ctx context.Context) error {
@@ -455,7 +458,7 @@ func (c *Client) RefreshCollateralBalance(ctx context.Context) error {
 	if creds == nil {
 		return errNoCreds
 	}
-	return refreshCollateralBalance(ctx, creds)
+	return wallet.RefreshCollateralBalance(ctx, creds)
 }
 
 func (c *Client) GetCurrentRewards(ctx context.Context) ([]CurrentRewardMarket, error) {
@@ -507,7 +510,7 @@ func (c *Client) WrapToPUSD(ctx context.Context, amount *big.Int) (*RelayerRespo
 	if err != nil {
 		return nil, err
 	}
-	return wrapToPUSD(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.WrapToPUSD(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerResponse, error) {
@@ -515,7 +518,7 @@ func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerRes
 	if err != nil {
 		return nil, err
 	}
-	return unwrapToUSDC(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.UnwrapToUSDC(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amount *big.Int) (*RelayerResponse, error) {
@@ -523,15 +526,15 @@ func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amoun
 	if err != nil {
 		return nil, err
 	}
-	return transferFromDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
+	return wallet.TransferOut(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) GetRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
-	return getRelayerTransaction(ctx, transactionID)
+	return relayer.GetTransaction(ctx, transactionID)
 }
 
 func (c *Client) WaitForRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
-	return waitForRelayerTransaction(ctx, transactionID)
+	return relayer.WaitForTransaction(ctx, transactionID)
 }
 
 func (c *Client) SetupWalletForTrading(ctx context.Context, amount *big.Int) (*RelayerResponse, error) {
@@ -539,7 +542,7 @@ func (c *Client) SetupWalletForTrading(ctx context.Context, amount *big.Int) (*R
 	if err != nil {
 		return nil, err
 	}
-	return wrapAndApproveDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
@@ -547,7 +550,7 @@ func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return approveDepositWalletForBuyOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return wallet.ApproveForBuy(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
 }
 
 func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
@@ -555,7 +558,7 @@ func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return approveDepositWalletForSellOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return wallet.ApproveForSell(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
 }
 
 func (c *Client) requireDepositWalletOps() (string, error) {
