@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+const (
+	testPrivateKey    = "0x2222222222222222222222222222222222222222222222222222222222222222"
+	testDepositWallet = "0x000000000000000000000000000000000000d077"
+)
+
 func TestNewClientRequiresPrivateKey(t *testing.T) {
 	_, err := NewClient(Config{})
 	if err == nil {
