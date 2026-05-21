@@ -16,6 +16,9 @@ type ContractCaller interface {
 }
 
 func GetOutcomeTokenBalance(ctx context.Context, eth ContractCaller, ownerAddress, tokenID string) (*big.Int, error) {
+	if eth == nil {
+		return nil, fmt.Errorf("get outcome token balance: nil ContractCaller")
+	}
 	tokenIDBig, ok := new(big.Int).SetString(tokenID, 10)
 	if !ok {
 		return nil, fmt.Errorf("get outcome token balance: invalid tokenID %q", tokenID)

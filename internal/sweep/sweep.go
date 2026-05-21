@@ -15,6 +15,9 @@ const (
 )
 
 func Estimate(book *models.OrderBook, side string, refPrice, size, maxSlippage float64) (*models.SweepEstimate, error) {
+	if book == nil {
+		return nil, fmt.Errorf("estimate sweep: nil order book")
+	}
 	levels, err := parseLevels(book, side)
 	if err != nil {
 		return nil, err
