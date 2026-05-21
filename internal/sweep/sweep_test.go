@@ -1,14 +1,18 @@
-package polytrade
+package sweep
 
-import "testing"
+import (
+	"testing"
 
-func TestEstimateSweepFromLevelsBuyFills(t *testing.T) {
-	levels := []PriceLevel{
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
+)
+
+func TestEstimateFromLevelsBuyFills(t *testing.T) {
+	levels := []models.PriceLevel{
 		{Price: 0.50, Size: 5},
 		{Price: 0.52, Size: 10},
 		{Price: 0.55, Size: 20},
 	}
-	est, err := EstimateSweepFromLevels(levels, BUY, 0, 12, 0.5)
+	est, err := EstimateFromLevels(levels, Buy, 0, 12, 0.5)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
@@ -29,13 +33,13 @@ func TestEstimateSweepFromLevelsBuyFills(t *testing.T) {
 	}
 }
 
-func TestEstimateSweepFromLevelsSellFills(t *testing.T) {
-	levels := []PriceLevel{
+func TestEstimateFromLevelsSellFills(t *testing.T) {
+	levels := []models.PriceLevel{
 		{Price: 0.55, Size: 8},
 		{Price: 0.52, Size: 10},
 		{Price: 0.50, Size: 20},
 	}
-	est, err := EstimateSweepFromLevels(levels, SELL, 0, 12, 0.5)
+	est, err := EstimateFromLevels(levels, Sell, 0, 12, 0.5)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
@@ -50,52 +54,52 @@ func TestEstimateSweepFromLevelsSellFills(t *testing.T) {
 	}
 }
 
-func TestEstimateSweepFromLevelsStopsAtSlippage(t *testing.T) {
-	levels := []PriceLevel{
+func TestEstimateFromLevelsStopsAtSlippage(t *testing.T) {
+	levels := []models.PriceLevel{
 		{Price: 0.50, Size: 5},
 		{Price: 0.52, Size: 5},
 		{Price: 0.60, Size: 50},
 	}
-	est, err := EstimateSweepFromLevels(levels, BUY, 0, 100, 0.05)
+	est, err := EstimateFromLevels(levels, Buy, 0, 100, 0.05)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
 	if est.TotalSize != 10 {
-		t.Errorf("total size: got %v want 10 (only first two levels within 5%% slippage)", est.TotalSize)
+		t.Errorf("total size: got %v want 10", est.TotalSize)
 	}
 	if len(est.Levels) != 2 {
 		t.Errorf("levels: got %d want 2", len(est.Levels))
 	}
 }
 
-func TestEstimateSweepFromLevelsRefPriceOverride(t *testing.T) {
-	levels := []PriceLevel{
+func TestEstimateFromLevelsRefPriceOverride(t *testing.T) {
+	levels := []models.PriceLevel{
 		{Price: 0.51, Size: 5},
 	}
-	est, err := EstimateSweepFromLevels(levels, BUY, 0.50, 10, 0.05)
+	est, err := EstimateFromLevels(levels, Buy, 0.50, 10, 0.05)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
 	if est.BestPrice != 0.50 {
-		t.Errorf("best price: got %v want 0.50 (refPrice override)", est.BestPrice)
+		t.Errorf("best price: got %v want 0.50", est.BestPrice)
 	}
 	if est.TotalSize != 5 {
 		t.Errorf("total size: got %v want 5", est.TotalSize)
 	}
 }
 
-func TestEstimateSweepFromLevelsNoLevels(t *testing.T) {
-	if _, err := EstimateSweepFromLevels(nil, BUY, 0, 10, 0.05); err == nil {
+func TestEstimateFromLevelsNoLevels(t *testing.T) {
+	if _, err := EstimateFromLevels(nil, Buy, 0, 10, 0.05); err == nil {
 		t.Fatal("expected error for empty levels")
 	}
 }
 
-func TestEstimateSweepFromLevelsAvgPrice(t *testing.T) {
-	levels := []PriceLevel{
+func TestEstimateFromLevelsAvgPrice(t *testing.T) {
+	levels := []models.PriceLevel{
 		{Price: 0.50, Size: 5},
 		{Price: 0.52, Size: 5},
 	}
-	est, err := EstimateSweepFromLevels(levels, BUY, 0, 10, 0.5)
+	est, err := EstimateFromLevels(levels, Buy, 0, 10, 0.5)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
