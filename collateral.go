@@ -6,9 +6,7 @@ import (
 	"math/big"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
-
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 )
 
 func wrapToPUSD(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
@@ -17,8 +15,8 @@ func wrapToPUSD(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAdd
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: USDCAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(consts.CollateralOnramp, maxU)},
-		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: encodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
+		{Target: USDCAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CollateralOnramp, maxU)},
+		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: onchain.EncodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -29,18 +27,8 @@ func unwrapToUSDC(ctx context.Context, eoaAddress, privateKeyHex, depositWalletA
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(consts.CollateralOfframp, maxU)},
-		{Target: consts.CollateralOfframp, Value: new(big.Int), Data: encodeOfframpUnwrapCalldata(USDCAddress, depositWalletAddress, amount)},
+		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CollateralOfframp, maxU)},
+		{Target: consts.CollateralOfframp, Value: new(big.Int), Data: onchain.EncodeOfframpUnwrapCalldata(USDCAddress, depositWalletAddress, amount)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
-}
-
-func encodeOfframpUnwrapCalldata(asset, to string, amount *big.Int) []byte {
-	selector := ethutil.Keccak256([]byte("unwrap(address,address,uint256)"))[:4]
-	data := make([]byte, 0, 4+32+32+32)
-	data = append(data, selector...)
-	data = append(data, ethutil.PadTo32(common.HexToAddress(asset).Bytes())...)
-	data = append(data, ethutil.PadTo32(common.HexToAddress(to).Bytes())...)
-	data = append(data, ethutil.PadTo32(amount.Bytes())...)
-	return data
 }

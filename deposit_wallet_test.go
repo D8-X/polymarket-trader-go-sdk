@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,7 +15,7 @@ import (
 const testDepositWallet = "0x000000000000000000000000000000000000d077"
 
 func TestDepositWalletDomainSeparatorGolden(t *testing.T) {
-	got := "0x" + common.Bytes2Hex(depositWalletDomainSeparator(testDepositWallet))
+	got := "0x" + common.Bytes2Hex(onchain.DepositWalletDomainSeparator(testDepositWallet))
 	const want = "0x2e4c72f139823b32bfd3968eae8092eb4e2847319ca7f968938c408fe785281e"
 	if got != want {
 		t.Errorf("domain sep mismatch:\n  got:  %s\n  want: %s", got, want)
@@ -27,7 +28,7 @@ func TestCallStructHashGolden(t *testing.T) {
 		Value:  big.NewInt(0),
 		Data:   []byte{0xde, 0xad, 0xbe, 0xef},
 	}
-	got := "0x" + common.Bytes2Hex(callStructHash(c))
+	got := "0x" + common.Bytes2Hex(onchain.CallStructHash(c))
 	const want = "0x0ef7aee9dac94c4364bc1795529b515b209e1e3ca4b175b71a56ff0cfc9835b3"
 	if got != want {
 		t.Errorf("call struct hash mismatch:\n  got:  %s\n  want: %s", got, want)
@@ -39,7 +40,7 @@ func TestSignBatchGolden(t *testing.T) {
 		{Target: USDCAddress, Value: big.NewInt(0), Data: []byte{0xaa}},
 		{Target: CTFExchange, Value: big.NewInt(0), Data: []byte{0xbb}},
 	}
-	got, err := signBatch(testPrivateKey, testDepositWallet, 7, 1_750_000_000, calls)
+	got, err := onchain.SignBatch(testPrivateKey, testDepositWallet, 7, 1_750_000_000, calls)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}

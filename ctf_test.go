@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestEncodeSplitPositionCalldataGolden(t *testing.T) {
-	got := "0x" + common.Bytes2Hex(encodeSplitPositionCalldata(
+	got := "0x" + common.Bytes2Hex(onchain.EncodeSplitPositionCalldata(
 		PUSDAddress,
 		"0x1fad72fae204143ff1c3035e99e7c0f65ea8d5cd9bd1070987bd1a3316f772be",
 		[]int64{1, 2},
@@ -24,7 +25,7 @@ func TestEncodeSplitPositionCalldataGolden(t *testing.T) {
 }
 
 func TestEncodeMergePositionsCalldataGolden(t *testing.T) {
-	got := "0x" + common.Bytes2Hex(encodeMergePositionsCalldata(
+	got := "0x" + common.Bytes2Hex(onchain.EncodeMergePositionsCalldata(
 		PUSDAddress,
 		"0x1fad72fae204143ff1c3035e99e7c0f65ea8d5cd9bd1070987bd1a3316f772be",
 		[]int64{1, 2},
@@ -37,7 +38,7 @@ func TestEncodeMergePositionsCalldataGolden(t *testing.T) {
 }
 
 func TestEncodeRedeemPositionsCalldataGolden(t *testing.T) {
-	got := "0x" + common.Bytes2Hex(encodeRedeemPositionsCalldata(
+	got := "0x" + common.Bytes2Hex(onchain.EncodeRedeemPositionsCalldata(
 		PUSDAddress,
 		"0x1fad72fae204143ff1c3035e99e7c0f65ea8d5cd9bd1070987bd1a3316f772be",
 		[]int64{1, 2},
@@ -49,7 +50,7 @@ func TestEncodeRedeemPositionsCalldataGolden(t *testing.T) {
 }
 
 func TestParseBytes32HexHandlesShortAndLong(t *testing.T) {
-	short := parseBytes32Hex("0x1234")
+	short := onchain.ParseBytes32Hex("0x1234")
 	if len(short) != 32 {
 		t.Errorf("short len: got %d want 32", len(short))
 	}
@@ -58,7 +59,7 @@ func TestParseBytes32HexHandlesShortAndLong(t *testing.T) {
 	}
 
 	full := "1fad72fae204143ff1c3035e99e7c0f65ea8d5cd9bd1070987bd1a3316f772be"
-	fb := parseBytes32Hex("0x" + full)
+	fb := onchain.ParseBytes32Hex("0x" + full)
 	if "0x"+common.Bytes2Hex(fb) != "0x"+full {
 		t.Errorf("full mismatch: got %s want 0x%s", common.Bytes2Hex(fb), full)
 	}

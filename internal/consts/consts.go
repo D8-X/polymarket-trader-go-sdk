@@ -3,6 +3,10 @@ package consts
 import "time"
 
 const (
+	PolygonChainID = 137
+)
+
+const (
 	CollateralOnramp  = "0x93070a847efEf7F70739046A929D47a521F5B8ee"
 	CollateralOfframp = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854"
 

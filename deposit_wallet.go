@@ -13,11 +13,10 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type ReceiptFetcher interface {
@@ -125,59 +124,6 @@ func depositWalletNonce(ctx context.Context, eoaAddress string, creds *RelayerCr
 	return r.Nonce, nil
 }
 
-func depositWalletDomainSeparator(walletAddress string) []byte {
-	domainTypeHash := ethutil.Keccak256([]byte(consts.EIP712DepositWalletDomainType))
-	return ethutil.Keccak256(ethutil.Concat(
-		ethutil.PadTo32(domainTypeHash),
-		ethutil.PadTo32(ethutil.Keccak256([]byte(consts.EIP712DepositWalletName))),
-		ethutil.PadTo32(ethutil.Keccak256([]byte(consts.EIP712DepositWalletVersion))),
-		ethutil.PadTo32(big.NewInt(PolygonChainID).Bytes()),
-		ethutil.PadTo32(common.HexToAddress(walletAddress).Bytes()),
-	))
-}
-
-func callStructHash(c WalletCall) []byte {
-	value := c.Value
-	if value == nil {
-		value = new(big.Int)
-	}
-	return ethutil.Keccak256(ethutil.Concat(
-		ethutil.PadTo32(ethutil.Keccak256([]byte(consts.EIP712CallType))),
-		ethutil.PadTo32(common.HexToAddress(c.Target).Bytes()),
-		ethutil.PadTo32(value.Bytes()),
-		ethutil.Keccak256(c.Data),
-	))
-}
-
-func signBatch(privateKeyHex, walletAddress string, nonce, deadline int64, calls []WalletCall) (string, error) {
-	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
-	if err != nil {
-		return "", fmt.Errorf("sign batch: invalid private key: %w", err)
-	}
-	domainSep := depositWalletDomainSeparator(walletAddress)
-	var callHashes []byte
-	for _, c := range calls {
-		callHashes = append(callHashes, callStructHash(c)...)
-	}
-	callsArrayHash := ethutil.Keccak256(callHashes)
-	structHash := ethutil.Keccak256(ethutil.Concat(
-		ethutil.PadTo32(ethutil.Keccak256([]byte(consts.EIP712BatchType))),
-		ethutil.PadTo32(common.HexToAddress(walletAddress).Bytes()),
-		ethutil.PadTo32(big.NewInt(nonce).Bytes()),
-		ethutil.PadTo32(big.NewInt(deadline).Bytes()),
-		callsArrayHash,
-	))
-	digest := ethutil.Keccak256Pack([]byte{0x19, 0x01}, domainSep, structHash)
-	sig, err := crypto.Sign(digest, pk)
-	if err != nil {
-		return "", fmt.Errorf("sign batch: sign EIP-712 digest: %w", err)
-	}
-	if sig[64] < 27 {
-		sig[64] += 27
-	}
-	return "0x" + common.Bytes2Hex(sig), nil
-}
-
 func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, calls []WalletCall, deadline time.Duration, creds *RelayerCredentials) (*RelayerResponse, error) {
 	if len(calls) == 0 {
 		return nil, fmt.Errorf("execute deposit wallet batch: no calls provided")
@@ -195,7 +141,7 @@ func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, d
 	if err != nil {
 		return nil, fmt.Errorf("execute deposit wallet batch: parse nonce: %w", err)
 	}
-	signature, err := signBatch(privateKeyHex, depositWalletAddress, nonce, deadlineUnix, calls)
+	signature, err := onchain.SignBatch(privateKeyHex, depositWalletAddress, nonce, deadlineUnix, calls)
 	if err != nil {
 		return nil, fmt.Errorf("execute deposit wallet batch: %w", err)
 	}
@@ -260,16 +206,16 @@ func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, d
 func approveDepositWalletForBuyOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(CTFExchange, maxU)},
-		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(NegRiskCTFExchange, maxU)},
+		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(CTFExchange, maxU)},
+		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(NegRiskCTFExchange, maxU)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
 func approveDepositWalletForSellOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
 	calls := []WalletCall{
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(CTFExchange, true)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(CTFExchange, true)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -279,7 +225,7 @@ func transferFromDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, d
 		return nil, fmt.Errorf("transfer from deposit wallet: amount must be positive")
 	}
 	calls := []WalletCall{
-		{Target: assetAddress, Value: new(big.Int), Data: encodeTransferCalldata(recipientAddress, amount)},
+		{Target: assetAddress, Value: new(big.Int), Data: onchain.EncodeTransferCalldata(recipientAddress, amount)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -290,53 +236,12 @@ func wrapAndApproveDepositWallet(ctx context.Context, eoaAddress, privateKeyHex,
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: USDCAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(consts.CollateralOnramp, maxU)},
-		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: encodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
-		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(CTFExchange, maxU)},
-		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(NegRiskCTFExchange, maxU)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(CTFExchange, true)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: encodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
+		{Target: USDCAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CollateralOnramp, maxU)},
+		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: onchain.EncodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
+		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(CTFExchange, maxU)},
+		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(NegRiskCTFExchange, maxU)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(CTFExchange, true)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
-}
-
-func encodeApproveCalldataAmount(spender string, amount *big.Int) []byte {
-	selector := ethutil.Keccak256([]byte("approve(address,uint256)"))[:4]
-	data := make([]byte, 0, 4+32+32)
-	data = append(data, selector...)
-	data = append(data, ethutil.PadTo32(common.HexToAddress(spender).Bytes())...)
-	data = append(data, ethutil.PadTo32(amount.Bytes())...)
-	return data
-}
-
-func encodeTransferCalldata(to string, amount *big.Int) []byte {
-	selector := ethutil.Keccak256([]byte("transfer(address,uint256)"))[:4]
-	data := make([]byte, 0, 4+32+32)
-	data = append(data, selector...)
-	data = append(data, ethutil.PadTo32(common.HexToAddress(to).Bytes())...)
-	data = append(data, ethutil.PadTo32(amount.Bytes())...)
-	return data
-}
-
-func encodeOnrampWrapCalldata(asset, to string, amount *big.Int) []byte {
-	selector := ethutil.Keccak256([]byte("wrap(address,address,uint256)"))[:4]
-	data := make([]byte, 0, 4+32+32+32)
-	data = append(data, selector...)
-	data = append(data, ethutil.PadTo32(common.HexToAddress(asset).Bytes())...)
-	data = append(data, ethutil.PadTo32(common.HexToAddress(to).Bytes())...)
-	data = append(data, ethutil.PadTo32(amount.Bytes())...)
-	return data
-}
-
-func encodeSetApprovalForAllCalldata(operator string, approved bool) []byte {
-	selector := ethutil.Keccak256([]byte("setApprovalForAll(address,bool)"))[:4]
-	flag := big.NewInt(0)
-	if approved {
-		flag = big.NewInt(1)
-	}
-	data := make([]byte, 0, 4+32+32)
-	data = append(data, selector...)
-	data = append(data, ethutil.PadTo32(common.HexToAddress(operator).Bytes())...)
-	data = append(data, ethutil.PadTo32(flag.Bytes())...)
-	return data
 }
