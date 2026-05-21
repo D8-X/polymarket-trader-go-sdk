@@ -173,16 +173,17 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 		c.mu.Unlock()
 		addr = deployed
 		select {
-		case <-time.After(2 * time.Second):
+		case <-time.After(10 * time.Second): 
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
-	if _, err := wallet.ApproveForBuy(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds); err != nil {
-		return fmt.Errorf("client: bootstrap: approve for buy: %w", err)
+	approveResp, err := wallet.ApproveAll(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds)
+	if err != nil {
+		return fmt.Errorf("client: bootstrap: approvals: %w", err)
 	}
-	if _, err := wallet.ApproveForSell(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds); err != nil {
-		return fmt.Errorf("client: bootstrap: approve for sell: %w", err)
+	if _, err := relayer.WaitForTransaction(ctx, approveResp.TransactionID); err != nil {
+		return fmt.Errorf("client: bootstrap: wait approvals: %w", err)
 	}
 	return nil
 }

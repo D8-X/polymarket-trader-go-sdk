@@ -221,6 +221,17 @@ func ApproveForSell(ctx context.Context, eoaAddress, privateKeyHex, depositWalle
 	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
+func ApproveAll(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *models.RelayerCredentials) (*models.RelayerResponse, error) {
+	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
+	calls := []models.WalletCall{
+		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CTFExchange, maxU)},
+		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskCTFExchange, maxU)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.CTFExchange, true)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskCTFExchange, true)},
+	}
+	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+}
+
 func TransferOut(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress, assetAddress, recipientAddress string, amount *big.Int, creds *models.RelayerCredentials) (*models.RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("transfer from deposit wallet: amount must be positive")
