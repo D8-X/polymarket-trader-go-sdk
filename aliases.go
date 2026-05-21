@@ -55,3 +55,7 @@ type CurrentRewardMarket = models.CurrentRewardMarket
 type OrderScoringResult = models.OrderScoringResult
 
 type PaginatedResponse[T any] = models.PaginatedResponse[T]
+
+type PriceLevel = models.PriceLevel
+type SweepLevel = models.SweepLevel
+type SweepEstimate = models.SweepEstimate
