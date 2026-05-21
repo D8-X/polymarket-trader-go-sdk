@@ -127,7 +127,11 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	c.depositWallet = addr
 	c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex)
 	c.mu.Unlock()
-	time.Sleep(2 * time.Second)
+	select {
+	case <-time.After(2 * time.Second):
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	if wrapAmount != nil {
 		if _, err := wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
 			return fmt.Errorf("client: bootstrap: wrap+approve: %w", err)

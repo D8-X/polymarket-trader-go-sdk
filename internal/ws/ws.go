@@ -15,7 +15,10 @@ var (
 	UserURL   = "wss://ws-subscriptions-clob.polymarket.com/ws/user"
 )
 
-const PingEvery = 10 * time.Second
+const (
+	PingEvery = 10 * time.Second
+	PongWait  = 25 * time.Second
+)
 
 type Event struct {
 	Type string
@@ -154,6 +157,10 @@ func dialAndSubscribe(ctx context.Context, url string, subscribeBody []byte) (*w
 }
 
 func runConnection(ctx context.Context, conn *websocket.Conn, sub *Subscription) {
+	_ = conn.SetReadDeadline(time.Now().Add(PongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(PongWait))
+	})
 	pingCtx, pingCancel := context.WithCancel(ctx)
 	defer pingCancel()
 	go func() {
