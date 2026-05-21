@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"sync"
 	"time"
 
@@ -26,6 +27,10 @@ type Config struct {
 	Creds         *L2Credentials
 	RelayerCreds  *RelayerCredentials
 	Eth           EthClient
+	// SkipCredsDerive disables the auto derivation of L2 CLOB credentials in NewClient.
+	// Needed for "deploy-and-fund" only workflows where we only touch the relayer and on-chain reads.
+	// Trading methods will return errNoCreds until Creds is populated.
+	SkipCredsDerive bool
 }
 
 type Client struct {
@@ -37,6 +42,7 @@ type Client struct {
 	depositWallet string
 	builder       *OrderBuilder
 	heartbeatID   string
+	bootstrapMu   sync.Mutex
 }
 
 var (
@@ -46,7 +52,13 @@ var (
 	errNoDepositWallet = errors.New("client: no deposit wallet; call Bootstrap or set Config.DepositWallet")
 )
 
-func NewClient(cfg Config) (*Client, error) {
+// NewClient constructs a Client from a private key plus optional config.
+// It derives L2 CLOB credentials over the network when Config.Creds is not
+// supplied, so ctx governs that handshake and any failure surfaces here
+// rather than at first use. If Config.DepositWallet is set the order builder
+// is initialized immediately. Otherwise it is created by Bootstrap once the
+// wallet is deployed.
+func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.PrivateKeyHex == "" {
 		return nil, fmt.Errorf("client: PrivateKeyHex is required")
 	}
@@ -55,11 +67,16 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("client: invalid PrivateKeyHex: %w", err)
 	}
 	c := &Client{
-		cfg:           cfg,
-		eoa:           crypto.PubkeyToAddress(pk.PublicKey).Hex(),
-		clob:          NewCLOBClient(),
-		creds:         cfg.Creds,
-		depositWallet: cfg.DepositWallet,
+		cfg:           cfg,                                        // kept for later relayer + RPC access
+		eoa:           crypto.PubkeyToAddress(pk.PublicKey).Hex(), // EOA derived from the private key
+		clob:          NewCLOBClient(),                            // HTTP client for the Polymarket CLOB
+		creds:         cfg.Creds,                                  // may be nil. if nil, derived on startup and kept for reuse
+		depositWallet: cfg.DepositWallet,                          // may be empty. if empty, created on bootstrap and kept for reuse
+	}
+	if c.creds == nil && !cfg.SkipCredsDerive {
+		if err := c.DeriveCreds(ctx); err != nil {
+			return nil, fmt.Errorf("client: derive credentials: %w", err)
+		}
 	}
 	if c.depositWallet != "" {
 		c.builder = NewOrderBuilder(c.depositWallet, CTFExchange, cfg.PrivateKeyHex)
@@ -108,9 +125,15 @@ func (c *Client) requireCreds() (*L2Credentials, error) {
 func (c *Client) DeriveCreds(ctx context.Context) error {
 	creds, err := DeriveL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 	if err != nil {
+		// CLOB returns 400 "Could not derive api key!" when no key exists for this wallet yet 
+		// anything else is a real failure and should surface as is to be properly handled by the caller
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
+			return fmt.Errorf("client: derive L2 credentials: %w", err)
+		}
 		creds, err = CreateL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 		if err != nil {
-			return fmt.Errorf("client: derive/create L2 credentials: %w", err)
+			return fmt.Errorf("client: create L2 credentials: %w", err)
 		}
 	}
 	c.mu.Lock()
@@ -119,33 +142,47 @@ func (c *Client) DeriveCreds(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
+// Bootstrap brings the deposit wallet to a tradeable state. If
+// Config.DepositWallet is empty it deploys a new wallet via the relayer and
+// resolves its address from the on-chain receipt, which is why Config.Eth is
+// required for that path. Either way it sets the BUY and SELL approvals on
+// the resulting wallet, so it is safe to rerun on a returning client to
+// refresh approvals without redeploying.
+// Concurrent calls are serialized so a second goroutine does not waste a
+// relayer submission on the same deploy (CREATE2 would revert it anyway).
+func (c *Client) Bootstrap(ctx context.Context) error {
 	if c.cfg.RelayerCreds == nil {
 		return errNoRelayerCreds
 	}
-	if c.cfg.Eth == nil {
-		return errNoEth
-	}
-	if err := c.DeriveCreds(ctx); err != nil {
-		return err
-	}
-	addr, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
-	if err != nil {
-		return fmt.Errorf("client: bootstrap: %w", err)
-	}
-	c.mu.Lock()
-	c.depositWallet = addr
-	c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex)
-	c.mu.Unlock()
-	select {
-	case <-time.After(2 * time.Second):
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	if wrapAmount != nil {
-		if _, err := wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
-			return fmt.Errorf("client: bootstrap: wrap+approve: %w", err)
+	c.bootstrapMu.Lock()
+	defer c.bootstrapMu.Unlock()
+	c.mu.RLock()
+	addr := c.depositWallet
+	c.mu.RUnlock()
+	if addr == "" {
+		if c.cfg.Eth == nil {
+			return errNoEth
 		}
+		deployed, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
+		if err != nil {
+			return fmt.Errorf("client: bootstrap: %w", err)
+		}
+		c.mu.Lock()
+		c.depositWallet = deployed
+		c.builder = NewOrderBuilder(deployed, CTFExchange, c.cfg.PrivateKeyHex)
+		c.mu.Unlock()
+		addr = deployed
+		select {
+		case <-time.After(2 * time.Second):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	if _, err := wallet.ApproveForBuy(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds); err != nil {
+		return fmt.Errorf("client: bootstrap: approve for buy: %w", err)
+	}
+	if _, err := wallet.ApproveForSell(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds); err != nil {
+		return fmt.Errorf("client: bootstrap: approve for sell: %w", err)
 	}
 	return nil
 }
@@ -247,6 +284,25 @@ func (c *Client) CancelOrder(ctx context.Context, orderID string) (*CancelRespon
 		return nil, err
 	}
 	return c.clob.CancelOrder(ctx, orderID, creds)
+}
+
+func (c *Client) ERC20Balance(ctx context.Context, tokenAddress string) (*big.Int, error) {
+	if c.cfg.Eth == nil {
+		return nil, errNoEth
+	}
+	dw := c.DepositWallet()
+	if dw == "" {
+		return nil, errNoDepositWallet
+	}
+	return onchain.ERC20BalanceOf(ctx, c.cfg.Eth, tokenAddress, dw)
+}
+
+func (c *Client) USDCBalance(ctx context.Context) (*big.Int, error) {
+	return c.ERC20Balance(ctx, USDCAddress)
+}
+
+func (c *Client) PUSDBalance(ctx context.Context) (*big.Int, error) {
+	return c.ERC20Balance(ctx, PUSDAddress)
 }
 
 func (c *Client) ReplaceOrder(ctx context.Context, oldOrderID string, newOrder *SignedOrder) (*CancelResponse, *PlaceOrderResponse, error) {

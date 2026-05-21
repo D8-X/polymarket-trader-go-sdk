@@ -34,7 +34,7 @@ A single `Client` owns the private key, the L2 credentials, the deposit-wallet a
 ctx := context.Background()
 eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
 
-cli, err := polytrade.NewClient(polytrade.Config{
+cli, err := polytrade.NewClient(ctx, polytrade.Config{
     PrivateKeyHex: "your-private-key-hex",
     Eth:           eth,
     RelayerCreds: &polytrade.RelayerCredentials{
@@ -47,13 +47,22 @@ if err != nil {
     log.Fatal(err)
 }
 
-// One-shot onboarding. Derives L2 creds, deploys the deposit wallet,
-// resolves its address from the receipt, wraps + approves in one signed
-// Batch (both BUY and SELL flows).
-if err := cli.Bootstrap(ctx, big.NewInt(1_000_000)); err != nil {
+// Deploys the deposit wallet (if not already) and sets BUY + SELL approvals.
+// Idempotent when Config.DepositWallet is already set.
+if err := cli.Bootstrap(ctx); err != nil {
     log.Fatal(err)
 }
 fmt.Println("Deposit wallet:", cli.DepositWallet())
+
+// Fund the deposit wallet with USDC.e externally, then wrap to pUSD:
+if _, err := cli.WrapToPUSD(ctx, big.NewInt(1_000_000)); err != nil {
+    log.Fatal(err)
+}
+
+// Check balances anytime:
+usdc, _ := cli.USDCBalance(ctx)
+pusd, _ := cli.PUSDBalance(ctx)
+fmt.Println("USDC:", usdc, "pUSD:", pusd)
 
 // Place an order.
 signed, _ := cli.PrepareAndSign(tokenID, polytrade.BUY, polytrade.OrderTypeGTC, 0.55, 10, polytrade.OrderOpts{TickSize: "0.01"})
@@ -147,7 +156,7 @@ func main() {
 	ctx := context.Background()
 	eth, _ := ethclient.DialContext(ctx, "https://polygon-rpc.com")
 
-	cli, err := polytrade.NewClient(polytrade.Config{
+	cli, err := polytrade.NewClient(ctx, polytrade.Config{
 		PrivateKeyHex: "your-private-key-hex",
 		Eth:           eth,
 		RelayerCreds: &polytrade.RelayerCredentials{
@@ -160,7 +169,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := cli.Bootstrap(ctx, big.NewInt(1_000_000)); err != nil {
+	if err := cli.Bootstrap(ctx); err != nil {
+		log.Fatal(err)
+	}
+	if _, err := cli.WrapToPUSD(ctx, big.NewInt(1_000_000)); err != nil {
 		log.Fatal(err)
 	}
 

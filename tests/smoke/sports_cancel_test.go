@@ -22,15 +22,12 @@ func TestSportsOrderCancelBeforeMatch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cli, err := polytrade.NewClient(polytrade.Config{
+	cli, err := polytrade.NewClient(ctx, polytrade.Config{
 		PrivateKeyHex: pk,
 		DepositWallet: dw,
 	})
 	if err != nil {
 		t.Fatalf("new client: %v", err)
-	}
-	if err := cli.DeriveCreds(ctx); err != nil {
-		t.Fatalf("derive creds: %v", err)
 	}
 
 	t.Log("scanning markets for an active sports market (seconds_delay > 0)...")
