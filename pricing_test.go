@@ -21,7 +21,7 @@ func TestGetPricesPostsRequestList(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := NewCLOBClient()
-	c.baseURL = srv.URL
+	c.SetBaseURL(srv.URL)
 
 	got, err := c.GetPrices(context.Background(), []PriceRequest{{TokenID: "tok1", Side: "BUY"}, {TokenID: "tok1", Side: "SELL"}})
 	if err != nil {
@@ -45,7 +45,7 @@ func TestGetSpreadsRoundTrip(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := NewCLOBClient()
-	c.baseURL = srv.URL
+	c.SetBaseURL(srv.URL)
 
 	got, err := c.GetSpreads(context.Background(), []SpreadRequest{{TokenID: "tok1"}})
 	if err != nil {
@@ -65,7 +65,7 @@ func TestGetLastTradePriceRoundTrip(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := NewCLOBClient()
-	c.baseURL = srv.URL
+	c.SetBaseURL(srv.URL)
 
 	got, err := c.GetLastTradePrice(context.Background(), "tok1")
 	if err != nil {
@@ -82,7 +82,7 @@ func TestGetLastTradePricesRoundTrip(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := NewCLOBClient()
-	c.baseURL = srv.URL
+	c.SetBaseURL(srv.URL)
 
 	got, err := c.GetLastTradePrices(context.Background(), []SpreadRequest{{TokenID: "tok1"}})
 	if err != nil {
@@ -103,7 +103,7 @@ func TestGetPricesHistoryRoundTrip(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := NewCLOBClient()
-	c.baseURL = srv.URL
+	c.SetBaseURL(srv.URL)
 
 	got, err := c.GetPricesHistory(context.Background(), PricesHistoryParams{Market: "tok1", Interval: "1d"})
 	if err != nil {

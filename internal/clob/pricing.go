@@ -1,4 +1,4 @@
-package polytrade
+package clob
 
 import (
 	"bytes"
@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 )
 
-func (c *CLOBClient) GetPrices(ctx context.Context, params []PriceRequest) (map[string]map[string]string, error) {
+func (c *Client) GetPrices(ctx context.Context, params []models.PriceRequest) (map[string]map[string]string, error) {
 	body, err := json.Marshal(params)
 	if err != nil {
 		return nil, fmt.Errorf("get prices: marshal: %w", err)
@@ -30,7 +32,7 @@ func (c *CLOBClient) GetPrices(ctx context.Context, params []PriceRequest) (map[
 	return out, nil
 }
 
-func (c *CLOBClient) GetSpreads(ctx context.Context, params []SpreadRequest) (map[string]string, error) {
+func (c *Client) GetSpreads(ctx context.Context, params []models.SpreadRequest) (map[string]string, error) {
 	body, err := json.Marshal(params)
 	if err != nil {
 		return nil, fmt.Errorf("get spreads: marshal: %w", err)
@@ -51,7 +53,7 @@ func (c *CLOBClient) GetSpreads(ctx context.Context, params []SpreadRequest) (ma
 	return out, nil
 }
 
-func (c *CLOBClient) GetLastTradePrice(ctx context.Context, tokenID string) (*LastTradePrice, error) {
+func (c *Client) GetLastTradePrice(ctx context.Context, tokenID string) (*models.LastTradePrice, error) {
 	path := "/last-trade-price?token_id=" + tokenID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -61,14 +63,14 @@ func (c *CLOBClient) GetLastTradePrice(ctx context.Context, tokenID string) (*La
 	if err != nil {
 		return nil, err
 	}
-	var out LastTradePrice
+	var out models.LastTradePrice
 	if err := json.Unmarshal(respBody, &out); err != nil {
 		return nil, fmt.Errorf("get last trade price: unmarshal: %w", err)
 	}
 	return &out, nil
 }
 
-func (c *CLOBClient) GetLastTradePrices(ctx context.Context, params []SpreadRequest) ([]LastTradePrice, error) {
+func (c *Client) GetLastTradePrices(ctx context.Context, params []models.SpreadRequest) ([]models.LastTradePrice, error) {
 	body, err := json.Marshal(params)
 	if err != nil {
 		return nil, fmt.Errorf("get last trades prices: marshal: %w", err)
@@ -82,14 +84,14 @@ func (c *CLOBClient) GetLastTradePrices(ctx context.Context, params []SpreadRequ
 	if err != nil {
 		return nil, err
 	}
-	var out []LastTradePrice
+	var out []models.LastTradePrice
 	if err := json.Unmarshal(respBody, &out); err != nil {
 		return nil, fmt.Errorf("get last trades prices: unmarshal: %w", err)
 	}
 	return out, nil
 }
 
-func (c *CLOBClient) GetPricesHistory(ctx context.Context, p PricesHistoryParams) ([]PriceHistoryEntry, error) {
+func (c *Client) GetPricesHistory(ctx context.Context, p models.PricesHistoryParams) ([]models.PriceHistoryEntry, error) {
 	if p.Interval == "" && (p.StartTs == 0 || p.EndTs == 0) {
 		return nil, fmt.Errorf("get prices history: requires either Interval or both StartTs and EndTs")
 	}
@@ -115,7 +117,7 @@ func (c *CLOBClient) GetPricesHistory(ctx context.Context, p PricesHistoryParams
 		return nil, err
 	}
 	var out struct {
-		History []PriceHistoryEntry `json:"history"`
+		History []models.PriceHistoryEntry `json:"history"`
 	}
 	if err := json.Unmarshal(respBody, &out); err != nil {
 		return nil, fmt.Errorf("get prices history: unmarshal: %w", err)

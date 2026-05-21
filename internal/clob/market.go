@@ -1,4 +1,4 @@
-package polytrade
+package clob
 
 import (
 	"context"
@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 )
 
-func (c *CLOBClient) GetServerTime(ctx context.Context) (int64, error) {
+func (c *Client) GetServerTime(ctx context.Context) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/time", nil)
 	if err != nil {
 		return 0, fmt.Errorf("get server time: build request: %w", err)
@@ -28,7 +30,7 @@ func (c *CLOBClient) GetServerTime(ctx context.Context) (int64, error) {
 	return ts, nil
 }
 
-func (c *CLOBClient) GetOrderBook(ctx context.Context, tokenID string) (*OrderBook, error) {
+func (c *Client) GetOrderBook(ctx context.Context, tokenID string) (*models.OrderBook, error) {
 	path := "/book?token_id=" + tokenID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -40,7 +42,7 @@ func (c *CLOBClient) GetOrderBook(ctx context.Context, tokenID string) (*OrderBo
 		return nil, fmt.Errorf("get order book: %w", err)
 	}
 
-	var book OrderBook
+	var book models.OrderBook
 	if err := json.Unmarshal(respBody, &book); err != nil {
 		return nil, fmt.Errorf("get order book: unmarshal response: %w", err)
 	}
@@ -48,7 +50,7 @@ func (c *CLOBClient) GetOrderBook(ctx context.Context, tokenID string) (*OrderBo
 	return &book, nil
 }
 
-func (c *CLOBClient) GetPrice(ctx context.Context, tokenID, side string) (string, error) {
+func (c *Client) GetPrice(ctx context.Context, tokenID, side string) (string, error) {
 	path := fmt.Sprintf("/price?token_id=%s&side=%s", tokenID, side)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -70,7 +72,7 @@ func (c *CLOBClient) GetPrice(ctx context.Context, tokenID, side string) (string
 	return result.Price.String(), nil
 }
 
-func (c *CLOBClient) GetMidpoint(ctx context.Context, tokenID string) (string, error) {
+func (c *Client) GetMidpoint(ctx context.Context, tokenID string) (string, error) {
 	path := "/midpoint?token_id=" + tokenID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -92,7 +94,7 @@ func (c *CLOBClient) GetMidpoint(ctx context.Context, tokenID string) (string, e
 	return result.Mid, nil
 }
 
-func (c *CLOBClient) GetSpread(ctx context.Context, tokenID string) (string, error) {
+func (c *Client) GetSpread(ctx context.Context, tokenID string) (string, error) {
 	path := "/spread?token_id=" + tokenID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -114,7 +116,7 @@ func (c *CLOBClient) GetSpread(ctx context.Context, tokenID string) (string, err
 	return result.Spread, nil
 }
 
-func (c *CLOBClient) GetTickSize(ctx context.Context, tokenID string) (string, error) {
+func (c *Client) GetTickSize(ctx context.Context, tokenID string) (string, error) {
 	path := "/tick-size?token_id=" + tokenID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -139,7 +141,7 @@ func (c *CLOBClient) GetTickSize(ctx context.Context, tokenID string) (string, e
 // GetClobMarketInfo returns the per-market metadata for a condition ID:
 // minimum tick size, minimum order size, fee details, the outcome tokens,
 // and the RFQ-enabled flag.
-func (c *CLOBClient) GetClobMarketInfo(ctx context.Context, conditionID string) (*ClobMarketInfo, error) {
+func (c *Client) GetClobMarketInfo(ctx context.Context, conditionID string) (*models.ClobMarketInfo, error) {
 	path := "/clob-markets/" + conditionID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -151,7 +153,7 @@ func (c *CLOBClient) GetClobMarketInfo(ctx context.Context, conditionID string) 
 		return nil, fmt.Errorf("get clob market info: %w", err)
 	}
 
-	var info ClobMarketInfo
+	var info models.ClobMarketInfo
 	if err := json.Unmarshal(respBody, &info); err != nil {
 		return nil, fmt.Errorf("get clob market info: unmarshal response: %w", err)
 	}
@@ -160,7 +162,7 @@ func (c *CLOBClient) GetClobMarketInfo(ctx context.Context, conditionID string) 
 
 // Deprecated: fees are now set by operators at match time. Use
 // GetClobMarketInfo and read FeeDetails instead.
-func (c *CLOBClient) GetFeeRate(ctx context.Context, tokenID string) (int, error) {
+func (c *Client) GetFeeRate(ctx context.Context, tokenID string) (int, error) {
 	path := "/fee-rate"
 	if tokenID != "" {
 		path += "?token_id=" + tokenID
@@ -185,7 +187,7 @@ func (c *CLOBClient) GetFeeRate(ctx context.Context, tokenID string) (int, error
 	return result.BaseFee, nil
 }
 
-func (c *CLOBClient) GetNegRisk(ctx context.Context, tokenID string) (bool, error) {
+func (c *Client) GetNegRisk(ctx context.Context, tokenID string) (bool, error) {
 	path := "/neg-risk"
 	if tokenID != "" {
 		path += "?token_id=" + tokenID

@@ -38,7 +38,7 @@ func TestReplaceOrderCancelsThenPlaces(t *testing.T) {
 		DepositWallet: testDepositWallet,
 		Creds:         &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"},
 	})
-	cli.clob.baseURL = srv.URL
+	cli.clob.SetBaseURL(srv.URL)
 
 	signed, err := cli.PrepareAndSign("100", BUY, OrderTypeGTC, 0.5, 5, OrderOpts{TickSize: "0.01"})
 	if err != nil {
@@ -79,7 +79,7 @@ func TestReplaceOrderStopsOnCancelFailure(t *testing.T) {
 		DepositWallet: testDepositWallet,
 		Creds:         &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"},
 	})
-	cli.clob.baseURL = srv.URL
+	cli.clob.SetBaseURL(srv.URL)
 
 	signed, err := cli.PrepareAndSign("100", BUY, OrderTypeGTC, 0.5, 5, OrderOpts{TickSize: "0.01"})
 	if err != nil {

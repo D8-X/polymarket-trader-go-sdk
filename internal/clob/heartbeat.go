@@ -1,4 +1,4 @@
-package polytrade
+package clob
 
 import (
 	"bytes"
@@ -8,6 +8,9 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 )
 
 type heartbeatResponse struct {
@@ -15,7 +18,7 @@ type heartbeatResponse struct {
 	ErrorMsg    string `json:"error_msg,omitempty"`
 }
 
-func (c *CLOBClient) PostHeartbeat(ctx context.Context, heartbeatID string, creds *L2Credentials) (string, error) {
+func (c *Client) PostHeartbeat(ctx context.Context, heartbeatID string, creds *types.L2Credentials) (string, error) {
 	body, err := json.Marshal(map[string]string{"heartbeat_id": heartbeatID})
 	if err != nil {
 		return "", fmt.Errorf("post heartbeat: marshal: %w", err)
@@ -26,11 +29,11 @@ func (c *CLOBClient) PostHeartbeat(ctx context.Context, heartbeatID string, cred
 		return "", fmt.Errorf("post heartbeat: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	headers, err := SignL2Request(creds, http.MethodPost, path, body)
+	headers, err := auth.SignRequest(creds, http.MethodPost, path, body)
 	if err != nil {
 		return "", fmt.Errorf("post heartbeat: sign: %w", err)
 	}
-	ApplyL2Headers(req, headers)
+	auth.ApplyHeaders(req, headers)
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("post heartbeat: http: %w", err)
@@ -55,7 +58,7 @@ func (c *CLOBClient) PostHeartbeat(ctx context.Context, heartbeatID string, cred
 	return out.HeartbeatID, nil
 }
 
-func (c *CLOBClient) RunHeartbeat(ctx context.Context, interval time.Duration, creds *L2Credentials) <-chan error {
+func (c *Client) RunHeartbeat(ctx context.Context, interval time.Duration, creds *types.L2Credentials) <-chan error {
 	errs := make(chan error, 1)
 	go func() {
 		defer close(errs)

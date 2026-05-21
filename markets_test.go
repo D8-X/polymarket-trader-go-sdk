@@ -12,7 +12,7 @@ func newMockCLOBServer(t *testing.T, handler func(w http.ResponseWriter, r *http
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(handler))
 	c := NewCLOBClient()
-	c.baseURL = srv.URL
+	c.SetBaseURL(srv.URL)
 	return c, srv.Close
 }
 

@@ -35,7 +35,7 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cli.clob.dataAPIBaseURL = srv.URL
+	cli.clob.SetDataAPIBaseURL(srv.URL)
 
 	positions, err := cli.GetPositions(context.Background())
 	if err != nil {
@@ -61,7 +61,7 @@ func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
 	defer srv.Close()
 
 	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
-	cli.clob.dataAPIBaseURL = srv.URL
+	cli.clob.SetDataAPIBaseURL(srv.URL)
 
 	other := "0x000000000000000000000000000000000000beef"
 	_, err := cli.GetPositionsOf(context.Background(), other)

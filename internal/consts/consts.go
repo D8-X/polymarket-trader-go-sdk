@@ -26,6 +26,18 @@ const (
 	DefaultTimeout = 10 * time.Second
 	CLOBTimeout    = 15 * time.Second
 	GTDExpiration  = 5 * time.Minute
+
+	DefaultPollInterval       = 200 * time.Millisecond
+	DefaultDelayedPollTimeout = 5 * time.Second
+	DefaultLivePollTimeout    = 60 * time.Second
+)
+
+const (
+	OrderStatusMatched   = "matched"
+	OrderStatusLive      = "live"
+	OrderStatusDelayed   = "delayed"
+	OrderStatusCanceled  = "canceled"
+	OrderStatusUnmatched = "unmatched"
 )
 
 const (

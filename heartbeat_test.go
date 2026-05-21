@@ -27,7 +27,7 @@ func TestPostHeartbeatRoundTrip(t *testing.T) {
 	defer srv.Close()
 
 	clob := NewCLOBClient()
-	clob.baseURL = srv.URL
+	clob.SetBaseURL(srv.URL)
 	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	got, err := clob.PostHeartbeat(context.Background(), "", creds)
@@ -49,7 +49,7 @@ func TestPostHeartbeatPropagatesErrorMsg(t *testing.T) {
 	defer srv.Close()
 
 	clob := NewCLOBClient()
-	clob.baseURL = srv.URL
+	clob.SetBaseURL(srv.URL)
 	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	_, err := clob.PostHeartbeat(context.Background(), "foo", creds)
@@ -69,7 +69,7 @@ func TestPostHeartbeatReturnsServerIdOn400(t *testing.T) {
 	defer srv.Close()
 
 	clob := NewCLOBClient()
-	clob.baseURL = srv.URL
+	clob.SetBaseURL(srv.URL)
 	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	id, err := clob.PostHeartbeat(context.Background(), "", creds)
@@ -91,7 +91,7 @@ func TestRunHeartbeatStopsOnContextCancel(t *testing.T) {
 	defer srv.Close()
 
 	clob := NewCLOBClient()
-	clob.baseURL = srv.URL
+	clob.SetBaseURL(srv.URL)
 	creds := &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
 
 	ctx, cancel := context.WithCancel(context.Background())

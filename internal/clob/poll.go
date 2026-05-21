@@ -1,20 +1,24 @@
-package polytrade
+package clob
 
 import (
 	"context"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 )
 
 // AwaitOrder polls a single placed order until it reaches a terminal status
 // (matched, canceled) or the timeout expires. Pass nil for opts to use
 // defaults (200ms interval, 5s timeout for delayed orders).
-func (c *CLOBClient) AwaitOrder(ctx context.Context, resp *PlaceOrderResponse, creds *L2Credentials, opts *PollOpts) (*PollResult, error) {
+func (c *Client) AwaitOrder(ctx context.Context, resp *models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) (*models.PollResult, error) {
 	if resp == nil {
 		return nil, fmt.Errorf("await order: nil response")
 	}
-	results := c.awaitMany(ctx, []PlaceOrderResponse{*resp}, creds, opts)
+	results := c.awaitMany(ctx, []models.PlaceOrderResponse{*resp}, creds, opts)
 	r := results[0]
 	if r.Err != nil {
 		return &r, r.Err
@@ -24,17 +28,17 @@ func (c *CLOBClient) AwaitOrder(ctx context.Context, resp *PlaceOrderResponse, c
 
 // AwaitOrders polls multiple placed orders concurrently (in a single loop)
 // until all reach a terminal status or the timeout expires.
-func (c *CLOBClient) AwaitOrders(ctx context.Context, responses []PlaceOrderResponse, creds *L2Credentials, opts *PollOpts) []PollResult {
+func (c *Client) AwaitOrders(ctx context.Context, responses []models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) []models.PollResult {
 	return c.awaitMany(ctx, responses, creds, opts)
 }
 
-func (c *CLOBClient) awaitMany(ctx context.Context, responses []PlaceOrderResponse, creds *L2Credentials, opts *PollOpts) []PollResult {
-	results := make([]PollResult, len(responses))
+func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) []models.PollResult {
+	results := make([]models.PollResult, len(responses))
 
 	var pending []int
 
 	for i, r := range responses {
-		results[i] = PollResult{
+		results[i] = models.PollResult{
 			OrderID:     r.OrderID,
 			PlaceStatus: r.Status,
 		}
@@ -52,7 +56,7 @@ func (c *CLOBClient) awaitMany(ctx context.Context, responses []PlaceOrderRespon
 		return results
 	}
 
-	interval := DefaultPollInterval
+	interval := consts.DefaultPollInterval
 	timeout := autoTimeout(responses, pending)
 	if opts != nil {
 		if opts.Interval > 0 {
@@ -101,8 +105,8 @@ func (c *CLOBClient) awaitMany(ctx context.Context, responses []PlaceOrderRespon
 // awaitOne polls a single order until it reaches a terminal status or the
 // context is cancelled. It is used by the async variants; the sync path
 // continues to use awaitMany directly.
-func (c *CLOBClient) awaitOne(ctx context.Context, resp PlaceOrderResponse, creds *L2Credentials, interval time.Duration) PollResult {
-	result := PollResult{
+func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, creds *types.L2Credentials, interval time.Duration) models.PollResult {
+	result := models.PollResult{
 		OrderID:     resp.OrderID,
 		PlaceStatus: resp.Status,
 	}
@@ -139,21 +143,21 @@ func (c *CLOBClient) awaitOne(ctx context.Context, resp PlaceOrderResponse, cred
 }
 
 // AwaitOrderAsync is the channel-based variant of AwaitOrder. It returns a
-// channel that will receive exactly one PollResult and then be closed. The
+// channel that will receive exactly one models.PollResult and then be closed. The
 // caller can continue doing other work while the order is being polled.
-func (c *CLOBClient) AwaitOrderAsync(ctx context.Context, resp *PlaceOrderResponse, creds *L2Credentials, opts *PollOpts) <-chan PollResult {
-	ch := make(chan PollResult, 1)
+func (c *Client) AwaitOrderAsync(ctx context.Context, resp *models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) <-chan models.PollResult {
+	ch := make(chan models.PollResult, 1)
 
 	if resp == nil {
-		ch <- PollResult{Err: fmt.Errorf("await order async: nil response")}
+		ch <- models.PollResult{Err: fmt.Errorf("await order async: nil response")}
 		close(ch)
 		return ch
 	}
 
-	interval := DefaultPollInterval
-	timeout := DefaultDelayedPollTimeout
-	if resp.Status == OrderStatusLive {
-		timeout = DefaultLivePollTimeout
+	interval := consts.DefaultPollInterval
+	timeout := consts.DefaultDelayedPollTimeout
+	if resp.Status == consts.OrderStatusLive {
+		timeout = consts.DefaultLivePollTimeout
 	}
 	if opts != nil {
 		if opts.Interval > 0 {
@@ -175,10 +179,10 @@ func (c *CLOBClient) AwaitOrderAsync(ctx context.Context, resp *PlaceOrderRespon
 }
 
 // AwaitOrdersAsync is the channel-based variant of AwaitOrders. It returns a
-// channel that streams PollResult values as each order independently reaches
+// channel that streams models.PollResult values as each order independently reaches
 // a terminal status. The channel is closed once all results have been sent.
-func (c *CLOBClient) AwaitOrdersAsync(ctx context.Context, responses []PlaceOrderResponse, creds *L2Credentials, opts *PollOpts) <-chan PollResult {
-	ch := make(chan PollResult, len(responses))
+func (c *Client) AwaitOrdersAsync(ctx context.Context, responses []models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) <-chan models.PollResult {
+	ch := make(chan models.PollResult, len(responses))
 
 	if len(responses) == 0 {
 		close(ch)
@@ -192,7 +196,7 @@ func (c *CLOBClient) AwaitOrdersAsync(ctx context.Context, responses []PlaceOrde
 		}
 	}
 
-	interval := DefaultPollInterval
+	interval := consts.DefaultPollInterval
 	timeout := autoTimeout(responses, pending)
 	if opts != nil {
 		if opts.Interval > 0 {
@@ -209,7 +213,7 @@ func (c *CLOBClient) AwaitOrdersAsync(ctx context.Context, responses []PlaceOrde
 	wg.Add(len(responses))
 
 	for _, r := range responses {
-		go func(resp PlaceOrderResponse) {
+		go func(resp models.PlaceOrderResponse) {
 			defer wg.Done()
 			ch <- c.awaitOne(tctx, resp, creds, interval)
 		}(r)
@@ -226,18 +230,18 @@ func (c *CLOBClient) AwaitOrdersAsync(ctx context.Context, responses []PlaceOrde
 
 // autoTimeout picks a default timeout based on the place statuses of the
 // pending orders: 5s if all are delayed, 60s if any are live.
-func autoTimeout(responses []PlaceOrderResponse, pending []int) time.Duration {
+func autoTimeout(responses []models.PlaceOrderResponse, pending []int) time.Duration {
 	for _, i := range pending {
-		if responses[i].Status == OrderStatusLive {
-			return DefaultLivePollTimeout
+		if responses[i].Status == consts.OrderStatusLive {
+			return consts.DefaultLivePollTimeout
 		}
 	}
-	return DefaultDelayedPollTimeout
+	return consts.DefaultDelayedPollTimeout
 }
 
 func isTerminalStatus(status string) bool {
 	switch status {
-	case OrderStatusMatched, OrderStatusCanceled:
+	case consts.OrderStatusMatched, consts.OrderStatusCanceled:
 		return true
 	}
 	return false
