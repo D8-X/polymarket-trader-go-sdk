@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ws"
 	"github.com/gorilla/websocket"
 )
 
@@ -50,9 +51,9 @@ func TestSubscribeMarketReceivesEvents(t *testing.T) {
 	})
 	defer cleanup()
 
-	prev := wsMarketURL
-	wsMarketURL = url
-	defer func() { wsMarketURL = prev }()
+	prev := ws.MarketURL
+	ws.MarketURL = url
+	defer func() { ws.MarketURL = prev }()
 
 	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -109,9 +110,9 @@ func TestSubscribeUserSendsAuth(t *testing.T) {
 	})
 	defer cleanup()
 
-	prev := wsUserURL
-	wsUserURL = url
-	defer func() { wsUserURL = prev }()
+	prev := ws.UserURL
+	ws.UserURL = url
+	defer func() { ws.UserURL = prev }()
 
 	cli, _ := NewClient(Config{
 		PrivateKeyHex: testPrivateKey,
@@ -139,7 +140,7 @@ func TestSubscribeUserSendsAuth(t *testing.T) {
 
 func TestParseWSEventsHandlesBatch(t *testing.T) {
 	msg := []byte(`[{"event_type":"a"},{"event_type":"b"}]`)
-	out := parseWSEvents(msg)
+	out := ws.ParseEvents(msg)
 	if len(out) != 2 || out[0].Type != "a" || out[1].Type != "b" {
 		t.Errorf("got %+v", out)
 	}
@@ -177,9 +178,9 @@ func TestSubscribeMarketReconnectingReplaysSubscribeAfterDisconnect(t *testing.T
 	url := "ws" + strings.TrimPrefix(srv.URL, "http")
 	defer srv.Close()
 
-	prev := wsMarketURL
-	wsMarketURL = url
-	defer func() { wsMarketURL = prev }()
+	prev := ws.MarketURL
+	ws.MarketURL = url
+	defer func() { ws.MarketURL = prev }()
 
 	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -223,9 +224,9 @@ func TestSubscriptionCloseIdempotent(t *testing.T) {
 		time.Sleep(time.Second)
 	})
 	defer cleanup()
-	prev := wsMarketURL
-	wsMarketURL = url
-	defer func() { wsMarketURL = prev }()
+	prev := ws.MarketURL
+	ws.MarketURL = url
+	defer func() { ws.MarketURL = prev }()
 
 	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
 	sub, err := cli.SubscribeMarket(context.Background(), []string{"tok1"})
