@@ -44,13 +44,16 @@ func (c *Client) PostHeartbeat(ctx context.Context, heartbeatID string, creds *t
 		return "", fmt.Errorf("post heartbeat: read body: %w", err)
 	}
 	var out heartbeatResponse
-	_ = json.Unmarshal(respBody, &out)
+	unmarshalErr := json.Unmarshal(respBody, &out)
 	if resp.StatusCode != http.StatusOK {
 		msg := out.ErrorMsg
 		if msg == "" {
 			msg = string(respBody)
 		}
 		return out.HeartbeatID, fmt.Errorf("post heartbeat: status %d: %s", resp.StatusCode, msg)
+	}
+	if unmarshalErr != nil {
+		return "", fmt.Errorf("post heartbeat: unmarshal response: %w", unmarshalErr)
 	}
 	if out.ErrorMsg != "" {
 		return out.HeartbeatID, fmt.Errorf("post heartbeat: %s", out.ErrorMsg)
