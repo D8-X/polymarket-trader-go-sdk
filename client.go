@@ -37,6 +37,7 @@ type Client struct {
 	depositWallet string
 	builder       *OrderBuilder
 	heartbeatID   string
+	bootstrapMu   sync.Mutex
 }
 
 var (
@@ -128,6 +129,8 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	if c.cfg.RelayerCreds == nil {
 		return errNoRelayerCreds
 	}
+	c.bootstrapMu.Lock()
+	defer c.bootstrapMu.Unlock()
 	c.mu.RLock()
 	addr := c.depositWallet
 	c.mu.RUnlock()
