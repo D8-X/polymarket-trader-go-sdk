@@ -273,8 +273,8 @@ type PriceHistoryEntry struct {
 type PricesHistoryParams struct {
 	Market   string
 	Interval string
-	StartTs  int64
-	EndTs    int64
+	StartTS  int64
+	EndTS    int64
 	Fidelity int
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 )
@@ -44,12 +45,12 @@ func (c *Client) GetCurrentRewards(ctx context.Context) ([]models.CurrentRewardM
 // GetEarningsForUserForDay returns the user's reward earnings for a given UTC
 // date (YYYY-MM-DD). The shape of each entry varies and is returned as a raw
 // map so callers can decode the fields they need. Requires L2 auth.
-func (c *Client) GetEarningsForUserForDay(ctx context.Context, date string, sigType int, creds *types.L2Credentials) ([]map[string]any, error) {
+func (c *Client) GetEarningsForUserForDay(ctx context.Context, date string, creds *types.L2Credentials) ([]map[string]any, error) {
 	var all []map[string]any
 	cursor := ""
 	for {
 		path := "/rewards/user"
-		fullPath := fmt.Sprintf("%s?date=%s&signature_type=%d", path, date, sigType)
+		fullPath := fmt.Sprintf("%s?date=%s&signature_type=%d", path, date, consts.SignatureTypePoly1271)
 		if cursor != "" {
 			fullPath += "&next_cursor=" + cursor
 		}
@@ -81,9 +82,9 @@ func (c *Client) GetEarningsForUserForDay(ctx context.Context, date string, sigT
 
 // GetRewardPercentages returns the user's current reward percentage allocations
 // across markets. The shape varies and is returned as a raw map. Requires L2 auth.
-func (c *Client) GetRewardPercentages(ctx context.Context, sigType int, creds *types.L2Credentials) (map[string]any, error) {
+func (c *Client) GetRewardPercentages(ctx context.Context, creds *types.L2Credentials) (map[string]any, error) {
 	path := "/rewards/user/percentages"
-	fullPath := fmt.Sprintf("%s?signature_type=%d", path, sigType)
+	fullPath := fmt.Sprintf("%s?signature_type=%d", path, consts.SignatureTypePoly1271)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+fullPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get reward percentages: build request: %w", err)

@@ -404,9 +404,9 @@ func (c *Client) GetBalances(ctx context.Context, creds *types.L2Credentials) ([
 	return balances, nil
 }
 
-func (c *Client) GetBalanceAllowance(ctx context.Context, assetType string, tokenID string, sigType int, creds *types.L2Credentials) (*models.BalanceAllowanceResponse, error) {
+func (c *Client) GetBalanceAllowance(ctx context.Context, assetType string, tokenID string, creds *types.L2Credentials) (*models.BalanceAllowanceResponse, error) {
 	signPath := "/balance-allowance"
-	fullPath := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, sigType)
+	fullPath := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, consts.SignatureTypePoly1271)
 	if tokenID != "" {
 		fullPath += "&token_id=" + tokenID
 	}
@@ -435,9 +435,9 @@ func (c *Client) GetBalanceAllowance(ctx context.Context, assetType string, toke
 	return &result, nil
 }
 
-func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType string, tokenID string, sigType int, creds *types.L2Credentials) error {
+func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType string, tokenID string, creds *types.L2Credentials) error {
 	signPath := "/balance-allowance/update"
-	fullPath := fmt.Sprintf("/balance-allowance/update?asset_type=%s&signature_type=%d", assetType, sigType)
+	fullPath := fmt.Sprintf("/balance-allowance/update?asset_type=%s&signature_type=%d", assetType, consts.SignatureTypePoly1271)
 	if tokenID != "" {
 		fullPath += "&token_id=" + tokenID
 	}

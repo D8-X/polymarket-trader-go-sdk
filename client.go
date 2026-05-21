@@ -439,7 +439,7 @@ func (c *Client) GetBalanceAllowance(ctx context.Context, assetType, tokenID str
 	if creds == nil {
 		return nil, errNoCreds
 	}
-	return c.clob.GetBalanceAllowance(ctx, assetType, tokenID, SignatureTypePoly1271, creds)
+	return c.clob.GetBalanceAllowance(ctx, assetType, tokenID, creds)
 }
 
 func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType, tokenID string) error {
@@ -449,7 +449,7 @@ func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType, tokenID 
 	if creds == nil {
 		return errNoCreds
 	}
-	return c.clob.UpdateBalanceAllowance(ctx, assetType, tokenID, SignatureTypePoly1271, creds)
+	return c.clob.UpdateBalanceAllowance(ctx, assetType, tokenID, creds)
 }
 
 func (c *Client) CollateralBalanceOf(ctx context.Context) (*big.Int, error) {
@@ -483,7 +483,7 @@ func (c *Client) GetEarningsForUserForDay(ctx context.Context, date string) ([]m
 	if creds == nil {
 		return nil, errNoCreds
 	}
-	return c.clob.GetEarningsForUserForDay(ctx, date, SignatureTypePoly1271, creds)
+	return c.clob.GetEarningsForUserForDay(ctx, date, creds)
 }
 
 func (c *Client) GetRewardPercentages(ctx context.Context) (map[string]any, error) {
@@ -493,7 +493,7 @@ func (c *Client) GetRewardPercentages(ctx context.Context) (map[string]any, erro
 	if creds == nil {
 		return nil, errNoCreds
 	}
-	return c.clob.GetRewardPercentages(ctx, SignatureTypePoly1271, creds)
+	return c.clob.GetRewardPercentages(ctx, creds)
 }
 
 func (c *Client) IsOrderScoring(ctx context.Context, orderID string) (*OrderScoringResult, error) {

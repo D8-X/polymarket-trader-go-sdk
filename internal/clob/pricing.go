@@ -92,18 +92,18 @@ func (c *Client) GetLastTradePrices(ctx context.Context, params []models.SpreadR
 }
 
 func (c *Client) GetPricesHistory(ctx context.Context, p models.PricesHistoryParams) ([]models.PriceHistoryEntry, error) {
-	if p.Interval == "" && (p.StartTs == 0 || p.EndTs == 0) {
-		return nil, fmt.Errorf("get prices history: requires either Interval or both StartTs and EndTs")
+	if p.Interval == "" && (p.StartTS == 0 || p.EndTS == 0) {
+		return nil, fmt.Errorf("get prices history: requires either Interval or both StartTS and EndTS")
 	}
 	q := "?market=" + p.Market
 	if p.Interval != "" {
 		q += "&interval=" + p.Interval
 	}
-	if p.StartTs != 0 {
-		q += "&startTs=" + strconv.FormatInt(p.StartTs, 10)
+	if p.StartTS != 0 {
+		q += "&startTs=" + strconv.FormatInt(p.StartTS, 10)
 	}
-	if p.EndTs != 0 {
-		q += "&endTs=" + strconv.FormatInt(p.EndTs, 10)
+	if p.EndTS != 0 {
+		q += "&endTs=" + strconv.FormatInt(p.EndTS, 10)
 	}
 	if p.Fidelity != 0 {
 		q += "&fidelity=" + strconv.Itoa(p.Fidelity)
