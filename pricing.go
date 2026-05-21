@@ -9,34 +9,6 @@ import (
 	"strconv"
 )
 
-type PriceRequest struct {
-	TokenID string `json:"token_id"`
-	Side    string `json:"side"`
-}
-
-type SpreadRequest struct {
-	TokenID string `json:"token_id"`
-}
-
-type LastTradePrice struct {
-	Price   string `json:"price"`
-	Side    string `json:"side"`
-	TokenID string `json:"token_id,omitempty"`
-}
-
-type PriceHistoryEntry struct {
-	Timestamp int64   `json:"t"`
-	Price     float64 `json:"p"`
-}
-
-type PricesHistoryParams struct {
-	Market   string
-	Interval string
-	StartTs  int64
-	EndTs    int64
-	Fidelity int
-}
-
 func (c *CLOBClient) GetPrices(ctx context.Context, params []PriceRequest) (map[string]map[string]string, error) {
 	body, err := json.Marshal(params)
 	if err != nil {

@@ -65,7 +65,7 @@ func TestWrapPoly1271OrderSignatureGolden(t *testing.T) {
 		Builder:       consts.ZeroBytes32,
 		Side:          BUY,
 		SignatureType: SignatureTypePoly1271,
-		sideNumeric:   consts.SideBuy,
+		SideNumeric:   consts.SideBuy,
 	}
 	got, err := ob.signOrder(order)
 	if err != nil {

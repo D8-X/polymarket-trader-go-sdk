@@ -117,10 +117,10 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		opt = opts[0]
 	}
 
-	sideNumeric := consts.SideBuy
+	SideNumeric := consts.SideBuy
 	sideStr := BUY
 	if side == SELL {
-		sideNumeric = consts.SideSell
+		SideNumeric = consts.SideSell
 		sideStr = SELL
 	}
 
@@ -144,7 +144,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 	amountWei := int64(math.Floor(size*price*amountFactor) / amountFactor * consts.AmountScale)
 
 	var makerAmount, takerAmount int64
-	if sideNumeric == consts.SideBuy {
+	if SideNumeric == consts.SideBuy {
 		makerAmount = amountWei
 		takerAmount = sizeWei
 	} else {
@@ -187,7 +187,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		Builder:       builder,
 		Side:          sideStr,
 		SignatureType: ob.sigType,
-		sideNumeric:   sideNumeric,
+		SideNumeric:   SideNumeric,
 	}
 
 	sig, err := ob.signOrder(order)

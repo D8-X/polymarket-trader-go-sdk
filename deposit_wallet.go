@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -117,7 +118,7 @@ func depositWalletNonce(ctx context.Context, eoaAddress string, creds *RelayerCr
 	if resp.StatusCode != http.StatusOK {
 		return "", &APIError{StatusCode: resp.StatusCode, Endpoint: "GET /nonce", Body: string(body)}
 	}
-	var r nonceResponse
+	var r models.NonceResponse
 	if err := json.Unmarshal(body, &r); err != nil {
 		return "", fmt.Errorf("deposit wallet nonce: unmarshal response: %w", err)
 	}

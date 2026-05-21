@@ -8,13 +8,6 @@ import (
 	"net/http"
 )
 
-// OrderScoringResult reports whether an order qualifies for liquidity rewards.
-type OrderScoringResult struct {
-	Scoring bool `json:"scoring"`
-}
-
-// IsOrderScoring returns whether the given order qualifies for liquidity
-// rewards. Requires L2 auth.
 func (c *CLOBClient) IsOrderScoring(ctx context.Context, orderID string, creds *L2Credentials) (*OrderScoringResult, error) {
 	path := "/order-scoring"
 	fullPath := path + "?order_id=" + orderID

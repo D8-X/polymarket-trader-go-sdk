@@ -46,7 +46,7 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 		ethutil.PadTo32(ethutil.ParseBigInt(order.TokenID)),
 		ethutil.PadTo32(ethutil.ParseBigInt(order.MakerAmount)),
 		ethutil.PadTo32(ethutil.ParseBigInt(order.TakerAmount)),
-		ethutil.PadTo32(big.NewInt(int64(order.sideNumeric)).Bytes()),
+		ethutil.PadTo32(big.NewInt(int64(order.SideNumeric)).Bytes()),
 		ethutil.PadTo32(big.NewInt(int64(order.SignatureType)).Bytes()),
 		ethutil.PadTo32(ethutil.ParseBigInt(order.Timestamp)),
 		ethutil.ParseBytes32(order.Metadata),
