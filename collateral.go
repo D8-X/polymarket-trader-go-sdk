@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -15,8 +17,8 @@ func wrapToPUSD(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAdd
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: USDCAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(collateralOnramp, maxU)},
-		{Target: collateralOnramp, Value: new(big.Int), Data: encodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
+		{Target: USDCAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(consts.CollateralOnramp, maxU)},
+		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: encodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -27,8 +29,8 @@ func unwrapToUSDC(ctx context.Context, eoaAddress, privateKeyHex, depositWalletA
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 	calls := []WalletCall{
-		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(collateralOfframp, maxU)},
-		{Target: collateralOfframp, Value: new(big.Int), Data: encodeOfframpUnwrapCalldata(USDCAddress, depositWalletAddress, amount)},
+		{Target: PUSDAddress, Value: new(big.Int), Data: encodeApproveCalldataAmount(consts.CollateralOfframp, maxU)},
+		{Target: consts.CollateralOfframp, Value: new(big.Int), Data: encodeOfframpUnwrapCalldata(USDCAddress, depositWalletAddress, amount)},
 	}
 	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }

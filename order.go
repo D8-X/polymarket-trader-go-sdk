@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -115,10 +117,10 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		opt = opts[0]
 	}
 
-	sideNumeric := sideBuy
+	sideNumeric := consts.SideBuy
 	sideStr := BUY
 	if side == SELL {
-		sideNumeric = sideSell
+		sideNumeric = consts.SideSell
 		sideStr = SELL
 	}
 
@@ -137,12 +139,12 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 			return nil, fmt.Errorf("prepare order: %w", err)
 		}
 	}
-	sizeWei := int64(size * amountScale)
+	sizeWei := int64(size * consts.AmountScale)
 	amountFactor := math.Pow(10, float64(rc.amount))
-	amountWei := int64(math.Floor(size*price*amountFactor) / amountFactor * amountScale)
+	amountWei := int64(math.Floor(size*price*amountFactor) / amountFactor * consts.AmountScale)
 
 	var makerAmount, takerAmount int64
-	if sideNumeric == sideBuy {
+	if sideNumeric == consts.SideBuy {
 		makerAmount = amountWei
 		takerAmount = sizeWei
 	} else {
@@ -152,7 +154,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 
 	expiration := int64(0)
 	if orderType == OrderTypeGTD {
-		dur := gtdExpiration
+		dur := consts.GTDExpiration
 		if opt.Expiration > 0 {
 			dur = opt.Expiration
 		}
@@ -164,12 +166,12 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		builder = opt.BuilderCode
 	}
 	if builder == "" {
-		builder = zeroBytes32
+		builder = consts.ZeroBytes32
 	}
 
 	metadata := opt.Metadata
 	if metadata == "" {
-		metadata = zeroBytes32
+		metadata = consts.ZeroBytes32
 	}
 
 	order := OrderFields{

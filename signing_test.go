@@ -52,4 +52,3 @@ func TestSignClobAuthGolden(t *testing.T) {
 		t.Errorf("sig mismatch:\n  got:  %s\n  want: %s", got, want)
 	}
 }
-

@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
@@ -18,7 +20,7 @@ func (m *mockReceiptFetcher) TransactionReceipt(ctx context.Context, txHash comm
 }
 
 func TestDepositWalletAddressFromReceiptPicksNonFactoryEmitter(t *testing.T) {
-	factory := common.HexToAddress(depositWalletFactory)
+	factory := common.HexToAddress(consts.DepositWalletFactory)
 	wallet := common.HexToAddress("0xf7d4a87a96c1d4b2bb05b2750ed6a6f9c7eb5e62")
 	mf := &mockReceiptFetcher{
 		receipt: &ethtypes.Receipt{
@@ -39,7 +41,7 @@ func TestDepositWalletAddressFromReceiptPicksNonFactoryEmitter(t *testing.T) {
 }
 
 func TestDepositWalletAddressFromReceiptErrorsWhenOnlyFactoryEmits(t *testing.T) {
-	factory := common.HexToAddress(depositWalletFactory)
+	factory := common.HexToAddress(consts.DepositWalletFactory)
 	mf := &mockReceiptFetcher{
 		receipt: &ethtypes.Receipt{
 			Logs: []*ethtypes.Log{

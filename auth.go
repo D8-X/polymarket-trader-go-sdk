@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -49,7 +51,7 @@ func DeriveL2Credentials(privateKeyHex string, chainID int) (*L2Credentials, err
 	req.Header.Set("POLY_TIMESTAMP", now)
 	req.Header.Set("POLY_NONCE", strconv.FormatInt(nonce, 10))
 
-	client := &http.Client{Timeout: clobTimeout}
+	client := &http.Client{Timeout: consts.CLOBTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("derive credentials: http request: %w", err)
@@ -110,7 +112,7 @@ func CreateL2Credentials(privateKeyHex string, chainID int) (*L2Credentials, err
 	req.Header.Set("POLY_TIMESTAMP", now)
 	req.Header.Set("POLY_NONCE", strconv.FormatInt(nonce, 10))
 
-	client := &http.Client{Timeout: clobTimeout}
+	client := &http.Client{Timeout: consts.CLOBTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("create credentials: http request: %w", err)

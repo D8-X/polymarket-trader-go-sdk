@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum"
 )
@@ -44,8 +46,8 @@ func TestGetOutcomeTokenBalanceCalldata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.EqualFold(mc.lastTo, conditionalTokens) {
-		t.Errorf("called to: got %s want %s", mc.lastTo, conditionalTokens)
+	if !strings.EqualFold(mc.lastTo, consts.ConditionalTokens) {
+		t.Errorf("called to: got %s want %s", mc.lastTo, consts.ConditionalTokens)
 	}
 	gotHex := hex.EncodeToString(mc.lastData)
 	const wantPrefix = "00fdd58e"

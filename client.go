@@ -581,4 +581,3 @@ func (c *Client) SetBuilderCode(code string) {
 		b.SetBuilderCode(code)
 	}
 }
-

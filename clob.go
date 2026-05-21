@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 )
 
 type CLOBClient struct {
@@ -19,7 +21,7 @@ func NewCLOBClient() *CLOBClient {
 	return &CLOBClient{
 		baseURL:        ClobBaseURL,
 		dataAPIBaseURL: DataAPIBaseURL,
-		client:         &http.Client{Timeout: clobTimeout},
+		client:         &http.Client{Timeout: consts.CLOBTimeout},
 	}
 }
 

@@ -147,8 +147,8 @@ func TestParseWSEventsHandlesBatch(t *testing.T) {
 
 func TestSubscribeMarketReconnectingReplaysSubscribeAfterDisconnect(t *testing.T) {
 	var (
-		mu           sync.Mutex
-		connectCount int
+		mu            sync.Mutex
+		connectCount  int
 		subscribeMsgs [][]byte
 	)
 	upgrader := websocket.Upgrader{}

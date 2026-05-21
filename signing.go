@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -17,9 +19,9 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 		return "", fmt.Errorf("sign order: invalid private key: %w", err)
 	}
 
-	domainTypeHash := ethutil.Keccak256([]byte(eip712DomainType))
-	nameHash := ethutil.Keccak256([]byte(eip712OrderDomainName))
-	versionHash := ethutil.Keccak256([]byte(eip712OrderVersion))
+	domainTypeHash := ethutil.Keccak256([]byte(consts.EIP712DomainType))
+	nameHash := ethutil.Keccak256([]byte(consts.EIP712OrderDomainName))
+	versionHash := ethutil.Keccak256([]byte(consts.EIP712OrderVersion))
 	chainID := ethutil.PadTo32(big.NewInt(PolygonChainID).Bytes())
 
 	ctfAddr := new(big.Int)
@@ -35,7 +37,7 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 		ethutil.PadTo32(ctfAddr.Bytes()),
 	))
 
-	orderTypeHash := ethutil.Keccak256([]byte(eip712OrderType))
+	orderTypeHash := ethutil.Keccak256([]byte(consts.EIP712OrderType))
 
 	structHash := ethutil.Keccak256(ethutil.Concat(
 		ethutil.PadTo32(orderTypeHash),
@@ -70,9 +72,9 @@ func (ob *OrderBuilder) signOrder(order OrderFields) (string, error) {
 }
 
 func wrapPoly1271Signature(pk *ecdsa.PrivateKey, depositWallet string, appDomainSep, contentsHash []byte) (string, error) {
-	soladyTypeHash := ethutil.Keccak256([]byte(eip712SoladyTypedDataSignType))
-	dwNameHash := ethutil.Keccak256([]byte(eip712DepositWalletName))
-	dwVersionHash := ethutil.Keccak256([]byte(eip712DepositWalletVersion))
+	soladyTypeHash := ethutil.Keccak256([]byte(consts.EIP712SoladyTypedDataSignType))
+	dwNameHash := ethutil.Keccak256([]byte(consts.EIP712DepositWalletName))
+	dwVersionHash := ethutil.Keccak256([]byte(consts.EIP712DepositWalletVersion))
 
 	tsHash := ethutil.Keccak256(ethutil.Concat(
 		ethutil.PadTo32(soladyTypeHash),
@@ -93,7 +95,7 @@ func wrapPoly1271Signature(pk *ecdsa.PrivateKey, depositWallet string, appDomain
 		innerSig[64] += 27
 	}
 
-	typeBytes := []byte(eip712OrderType)
+	typeBytes := []byte(consts.EIP712OrderType)
 	lenBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(lenBytes, uint16(len(typeBytes)))
 
@@ -102,23 +104,23 @@ func wrapPoly1271Signature(pk *ecdsa.PrivateKey, depositWallet string, appDomain
 }
 
 func hashClobAuthDomain(chainID int) []byte {
-	typeHash := ethutil.Keccak256([]byte(eip712AuthDomainType))
-	nameHash := ethutil.Keccak256([]byte(eip712AuthDomainName))
-	versionHash := ethutil.Keccak256([]byte(eip712AuthVersion))
+	typeHash := ethutil.Keccak256([]byte(consts.EIP712AuthDomainType))
+	nameHash := ethutil.Keccak256([]byte(consts.EIP712AuthDomainName))
+	versionHash := ethutil.Keccak256([]byte(consts.EIP712AuthVersion))
 	chainIDBytes := ethutil.PadTo32(new(big.Int).SetInt64(int64(chainID)).Bytes())
 
 	return ethutil.Keccak256(append(append(append(ethutil.PadTo32(typeHash), ethutil.PadTo32(nameHash)...), ethutil.PadTo32(versionHash)...), chainIDBytes...))
 }
 
 func hashClobAuthStruct(address, timestamp string, nonce int64) []byte {
-	typeHash := ethutil.Keccak256([]byte(eip712ClobAuthType))
+	typeHash := ethutil.Keccak256([]byte(consts.EIP712ClobAuthType))
 	addrBig := new(big.Int)
 	if len(address) > 2 {
 		addrBig.SetString(address[2:], 16)
 	}
 	tsHash := ethutil.Keccak256([]byte(timestamp))
 	nonceBig := new(big.Int).SetInt64(nonce)
-	msgHash := ethutil.Keccak256([]byte(eip712AuthMessage))
+	msgHash := ethutil.Keccak256([]byte(consts.EIP712AuthMessage))
 
 	encoded := make([]byte, 0, 160)
 	encoded = append(encoded, ethutil.PadTo32(typeHash)...)

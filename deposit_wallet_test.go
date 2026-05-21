@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -58,11 +60,11 @@ func TestWrapPoly1271OrderSignatureGolden(t *testing.T) {
 		TakerAmount:   "5000000",
 		Expiration:    "0",
 		Timestamp:     "1716000000000",
-		Metadata:      zeroBytes32,
-		Builder:       zeroBytes32,
+		Metadata:      consts.ZeroBytes32,
+		Builder:       consts.ZeroBytes32,
 		Side:          BUY,
 		SignatureType: SignatureTypePoly1271,
-		sideNumeric:   sideBuy,
+		sideNumeric:   consts.SideBuy,
 	}
 	got, err := ob.signOrder(order)
 	if err != nil {

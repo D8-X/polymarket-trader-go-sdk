@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 )
 
 func signRelayerHMAC(secret string, timestamp int64, method, path string, body []byte) string {
@@ -43,12 +45,12 @@ func applyRelayerHeaders(req *http.Request, creds *RelayerCredentials, method, p
 
 func getRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
 	endpoint := fmt.Sprintf("/transaction?id=%s", transactionID)
-	url := relayerBaseURL + endpoint
+	url := consts.RelayerBaseURL + endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get relayer tx: build request: %w", err)
 	}
-	client := &http.Client{Timeout: defaultTimeout}
+	client := &http.Client{Timeout: consts.DefaultTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("get relayer tx: http request: %w", err)

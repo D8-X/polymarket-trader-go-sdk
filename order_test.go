@@ -28,8 +28,8 @@ func TestCheckPrecision(t *testing.T) {
 
 func TestGetRoundConfig(t *testing.T) {
 	cases := []struct {
-		tick   string
-		want   roundConfig
+		tick string
+		want roundConfig
 	}{
 		{"0.1", roundConfig{price: 1, size: 2, amount: 3}},
 		{"0.01", roundConfig{price: 2, size: 2, amount: 4}},

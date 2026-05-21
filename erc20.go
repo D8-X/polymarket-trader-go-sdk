@@ -3,6 +3,8 @@ package polytrade
 import (
 	"context"
 	"math/big"
+
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 )
 
 // collateralBalanceOf returns the collateral balance available for trading on
@@ -36,7 +38,7 @@ func parseCollateralBalance(s string) *big.Int {
 	if err != nil {
 		return big.NewInt(0)
 	}
-	f.Mul(f, new(big.Float).SetFloat64(amountScale))
+	f.Mul(f, new(big.Float).SetFloat64(consts.AmountScale))
 	raw, _ := f.Int(nil)
 	return raw
 }
