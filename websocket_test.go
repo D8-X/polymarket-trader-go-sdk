@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -141,6 +143,79 @@ func TestParseWSEventsHandlesBatch(t *testing.T) {
 	if len(out) != 2 || out[0].Type != "a" || out[1].Type != "b" {
 		t.Errorf("got %+v", out)
 	}
+}
+
+func TestSubscribeMarketReconnectingReplaysSubscribeAfterDisconnect(t *testing.T) {
+	var (
+		mu           sync.Mutex
+		connectCount int
+		subscribeMsgs [][]byte
+	)
+	upgrader := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, sub, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		mu.Lock()
+		connectCount++
+		attempt := connectCount
+		subscribeMsgs = append(subscribeMsgs, append([]byte{}, sub...))
+		mu.Unlock()
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"event_type":"book","attempt":`+strconv.Itoa(attempt)+`}`))
+		if attempt == 1 {
+			time.Sleep(50 * time.Millisecond)
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}))
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	defer srv.Close()
+
+	prev := wsMarketURL
+	wsMarketURL = url
+	defer func() { wsMarketURL = prev }()
+
+	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sub, err := cli.SubscribeMarketReconnecting(ctx, []string{"tok1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sub.Close()
+
+	got := 0
+	timeout := time.After(3 * time.Second)
+	for got < 2 {
+		select {
+		case e, ok := <-sub.Events():
+			if !ok {
+				t.Fatal("events channel closed before two events")
+			}
+			if e.Type != "book" {
+				t.Errorf("unexpected type %s", e.Type)
+			}
+			got++
+		case <-sub.Errs():
+		case <-timeout:
+			mu.Lock()
+			t.Fatalf("timeout: got %d events, %d connects", got, connectCount)
+		}
+	}
+	mu.Lock()
+	if connectCount < 2 {
+		t.Errorf("expected at least 2 server connects, got %d", connectCount)
+	}
+	if len(subscribeMsgs) < 2 || string(subscribeMsgs[0]) != string(subscribeMsgs[1]) {
+		t.Errorf("subscribe messages differed across reconnects:\n  first: %s\n  second: %s", subscribeMsgs[0], subscribeMsgs[1])
+	}
+	mu.Unlock()
 }
 
 func TestSubscriptionCloseIdempotent(t *testing.T) {
