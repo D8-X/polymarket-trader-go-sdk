@@ -128,21 +128,27 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	if c.cfg.RelayerCreds == nil {
 		return errNoRelayerCreds
 	}
-	if c.cfg.Eth == nil {
-		return errNoEth
-	}
-	addr, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
-	if err != nil {
-		return fmt.Errorf("client: bootstrap: %w", err)
-	}
-	c.mu.Lock()
-	c.depositWallet = addr
-	c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex)
-	c.mu.Unlock()
-	select {
-	case <-time.After(2 * time.Second):
-	case <-ctx.Done():
-		return ctx.Err()
+	c.mu.RLock()
+	addr := c.depositWallet
+	c.mu.RUnlock()
+	if addr == "" {
+		if c.cfg.Eth == nil {
+			return errNoEth
+		}
+		deployed, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
+		if err != nil {
+			return fmt.Errorf("client: bootstrap: %w", err)
+		}
+		c.mu.Lock()
+		c.depositWallet = deployed
+		c.builder = NewOrderBuilder(deployed, CTFExchange, c.cfg.PrivateKeyHex)
+		c.mu.Unlock()
+		addr = deployed
+		select {
+		case <-time.After(2 * time.Second):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	if _, err := wallet.ApproveForBuy(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds); err != nil {
 		return fmt.Errorf("client: bootstrap: approve for buy: %w", err)
