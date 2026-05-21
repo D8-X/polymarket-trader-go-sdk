@@ -1,12 +1,15 @@
 name: smoke
 
 on:
-  pull_request:
+  # pull_request:  # disabled: each PR burns relayer quota (100/day on Unverified tier)
   workflow_dispatch:
 
 jobs:
   auth:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -14,6 +17,7 @@ jobs:
           go-version: '1.25.1'
 
       - name: smoke tests
+        id: tests
         env:
           POLYMARKET_TEST_PK: ${{ secrets.POLYMARKET_TEST_PK }}
           POLYMARKET_TEST_DEPOSIT_WALLET: ${{ secrets.POLYMARKET_TEST_DEPOSIT_WALLET }}
@@ -23,29 +27,72 @@ jobs:
           POLYMARKET_TEST_RELAYER_PASSPHRASE: ${{ secrets.POLYMARKET_TEST_RELAYER_PASSPHRASE }}
         run: |
           set +e
-          go test -tags=smoke -v ./tests/smoke/... | tee /tmp/test.out
-          echo "EXIT=$?" >> "$GITHUB_ENV"
+          go test -tags=smoke -json -v ./tests/smoke/... > /tmp/smoke.json
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: summary
-        if: always()
+      - name: build report
+        if: github.event_name == 'pull_request'
         run: |
-          {
-            echo "## Polymarket smoke"
-            echo ""
-            if grep -q "^--- FAIL" /tmp/test.out 2>/dev/null; then
-              echo "**Status:** failed"
-            elif grep -q "^--- PASS" /tmp/test.out 2>/dev/null; then
-              echo "**Status:** passed"
-            elif grep -q "^--- SKIP" /tmp/test.out 2>/dev/null; then
-              echo "**Status:** all skipped"
-            else
-              echo "**Status:** unknown"
-            fi
-            echo ""
-            echo "Tests:"
-            grep -E "^--- (PASS|FAIL|SKIP):" /tmp/test.out 2>/dev/null \
-              | sed -E 's/^--- ([A-Z]+): ([A-Za-z0-9_]+).*$/- \2: \1/' \
-              || true
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit ${EXIT:-1}
+          python3 <<'PY' > /tmp/body.md
+          import json, os
+          pass_, fail_, skip_, fails = 0, 0, 0, []
+          with open("/tmp/smoke.json") as f:
+              for line in f:
+                  try:
+                      o = json.loads(line)
+                  except Exception:
+                      continue
+                  if not o.get("Test"):
+                      continue
+                  a = o.get("Action")
+                  if a == "pass":
+                      pass_ += 1
+                  elif a == "fail":
+                      fail_ += 1
+                      fails.append(o["Package"] + "." + o["Test"])
+                  elif a == "skip":
+                      skip_ += 1
+          exit_code = os.environ.get("TESTS_EXIT", "1")
+          status = ":white_check_mark: passing" if exit_code == "0" else ":x: failing"
+          print("<!-- bot:smoke-test-report -->")
+          print(f"## Smoke tests — {status}")
+          print()
+          print("| pass | fail | skip |")
+          print("|------|------|------|")
+          print(f"| {pass_} | {fail_} | {skip_} |")
+          if fails:
+              print()
+              print("### Failures")
+              print("```")
+              for n in sorted(set(fails)):
+                  print(n)
+              print("```")
+          print()
+          run = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          print(f"[Full run log]({run})")
+          PY
+        env:
+          TESTS_EXIT: ${{ steps.tests.outputs.exit }}
+
+      - name: find existing comment
+        if: github.event_name == 'pull_request'
+        id: find
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: 'bot:smoke-test-report'
+
+      - name: post or update comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: /tmp/body.md
+          edit-mode: replace
+
+      - name: surface exit code
+        if: always()
+        run: exit ${{ steps.tests.outputs.exit }}
