@@ -1,15 +1,15 @@
-package polytrade
+package auth
 
 import "testing"
 
-func TestSignL2MessageGolden(t *testing.T) {
+func TestSignMessageGolden(t *testing.T) {
 	const (
 		secret = "06iZVHeK0RaXlk1dMfx35xeVYLuw3F1v9XT6RyoWFfQ="
 		ts     = "1716000000"
 		method = "GET"
 		path   = "/balance-allowance"
 	)
-	got, err := signL2Message(secret, ts, method, path, nil)
+	got, err := SignMessage(secret, ts, method, path, nil)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -19,7 +19,7 @@ func TestSignL2MessageGolden(t *testing.T) {
 	}
 }
 
-func TestSignL2MessageGoldenWithBody(t *testing.T) {
+func TestSignMessageGoldenWithBody(t *testing.T) {
 	const (
 		secret = "06iZVHeK0RaXlk1dMfx35xeVYLuw3F1v9XT6RyoWFfQ="
 		ts     = "1716000000"
@@ -27,7 +27,7 @@ func TestSignL2MessageGoldenWithBody(t *testing.T) {
 		path   = "/order"
 	)
 	body := []byte(`{"orderID":"abc"}`)
-	got, err := signL2Message(secret, ts, method, path, body)
+	got, err := SignMessage(secret, ts, method, path, body)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
