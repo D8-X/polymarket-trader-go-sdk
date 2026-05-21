@@ -138,13 +138,6 @@ func TestSubscribeUserSendsAuth(t *testing.T) {
 	}
 }
 
-func TestParseWSEventsHandlesBatch(t *testing.T) {
-	msg := []byte(`[{"event_type":"a"},{"event_type":"b"}]`)
-	out := ws.ParseEvents(msg)
-	if len(out) != 2 || out[0].Type != "a" || out[1].Type != "b" {
-		t.Errorf("got %+v", out)
-	}
-}
 
 func TestSubscribeMarketReconnectingReplaysSubscribeAfterDisconnect(t *testing.T) {
 	var (

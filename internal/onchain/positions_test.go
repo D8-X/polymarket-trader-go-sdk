@@ -1,4 +1,4 @@
-package polytrade
+package onchain
 
 import (
 	"context"
@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
-
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum"
 )
+
+const testCallerDepositWallet = "0x000000000000000000000000000000000000d077"
 
 type mockCaller struct {
 	lastTo   string
@@ -31,7 +32,7 @@ func (m *mockCaller) CallContract(ctx context.Context, msg ethereum.CallMsg, blo
 func TestGetOutcomeTokenBalanceDecodesUint256(t *testing.T) {
 	want := big.NewInt(123_456_789)
 	mc := &mockCaller{result: ethutil.PadTo32(want.Bytes())}
-	got, err := GetOutcomeTokenBalance(context.Background(), mc, testDepositWallet, "42")
+	got, err := GetOutcomeTokenBalance(context.Background(), mc, testCallerDepositWallet, "42")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +43,7 @@ func TestGetOutcomeTokenBalanceDecodesUint256(t *testing.T) {
 
 func TestGetOutcomeTokenBalanceCalldata(t *testing.T) {
 	mc := &mockCaller{result: ethutil.PadTo32(big.NewInt(0).Bytes())}
-	_, err := GetOutcomeTokenBalance(context.Background(), mc, testDepositWallet, "777")
+	_, err := GetOutcomeTokenBalance(context.Background(), mc, testCallerDepositWallet, "777")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func TestGetOutcomeTokenBalanceCalldata(t *testing.T) {
 
 func TestGetOutcomeTokenBalanceRejectsBadTokenID(t *testing.T) {
 	mc := &mockCaller{}
-	_, err := GetOutcomeTokenBalance(context.Background(), mc, testDepositWallet, "not-a-number")
+	_, err := GetOutcomeTokenBalance(context.Background(), mc, testCallerDepositWallet, "not-a-number")
 	if err == nil {
 		t.Fatal("expected error for invalid tokenID")
 	}
@@ -79,12 +80,12 @@ func TestRawBalanceToSize(t *testing.T) {
 		{12_345_678, 12.345678},
 	}
 	for _, c := range cases {
-		got := rawBalanceToSize(big.NewInt(c.balance))
+		got := RawBalanceToSize(big.NewInt(c.balance))
 		if got != c.want {
 			t.Errorf("balance %d: got %g want %g", c.balance, got, c.want)
 		}
 	}
-	if rawBalanceToSize(nil) != 0 {
+	if RawBalanceToSize(nil) != 0 {
 		t.Errorf("nil balance: expected 0")
 	}
 }
