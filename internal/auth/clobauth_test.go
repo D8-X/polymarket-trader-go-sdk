@@ -1,29 +1,16 @@
-package polytrade
+package auth
 
 import (
 	"testing"
 
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-const (
-	testPrivateKey = "0x2222222222222222222222222222222222222222222222222222222222222222"
-	testChainID    = 137
-)
-
-func testEOA(t *testing.T) string {
-	t.Helper()
-	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(testPrivateKey))
-	if err != nil {
-		t.Fatalf("parse key: %v", err)
-	}
-	return crypto.PubkeyToAddress(pk.PublicKey).Hex()
-}
-
 func TestSignClobAuthGolden(t *testing.T) {
+	const testPrivateKey = "0x2222222222222222222222222222222222222222222222222222222222222222"
+	const testChainID = 137
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(testPrivateKey))
 	if err != nil {
 		t.Fatalf("parse key: %v", err)
@@ -35,8 +22,8 @@ func TestSignClobAuthGolden(t *testing.T) {
 		nonce     = int64(0)
 	)
 
-	domainSep := auth.HashClobAuthDomain(testChainID)
-	structHash := auth.HashClobAuthStruct(address, timestamp, nonce)
+	domainSep := HashClobAuthDomain(testChainID)
+	structHash := HashClobAuthStruct(address, timestamp, nonce)
 	digest := ethutil.Keccak256Pack([]byte{0x19, 0x01}, domainSep, structHash)
 
 	sig, err := crypto.Sign(digest, pk)
