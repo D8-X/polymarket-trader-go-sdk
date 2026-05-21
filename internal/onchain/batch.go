@@ -6,7 +6,7 @@ import (
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -22,7 +22,7 @@ func DepositWalletDomainSeparator(walletAddress string) []byte {
 	))
 }
 
-func CallStructHash(c types.WalletCall) []byte {
+func CallStructHash(c models.WalletCall) []byte {
 	value := c.Value
 	if value == nil {
 		value = new(big.Int)
@@ -35,7 +35,7 @@ func CallStructHash(c types.WalletCall) []byte {
 	))
 }
 
-func SignBatch(privateKeyHex, walletAddress string, nonce, deadline int64, calls []types.WalletCall) (string, error) {
+func SignBatch(privateKeyHex, walletAddress string, nonce, deadline int64, calls []models.WalletCall) (string, error) {
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
 		return "", fmt.Errorf("sign batch: invalid private key: %w", err)

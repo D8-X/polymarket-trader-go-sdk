@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 )
 
 const (
@@ -45,7 +45,7 @@ func SignHMAC(secret string, timestamp int64, method, path string, body []byte) 
 	return base64.URLEncoding.EncodeToString(h.Sum(nil))
 }
 
-func ApplyHeaders(req *http.Request, creds *types.RelayerCredentials, method, path string, body []byte) {
+func ApplyHeaders(req *http.Request, creds *models.RelayerCredentials, method, path string, body []byte) {
 	ts := time.Now().Unix()
 	req.Header.Set("POLY_BUILDER_API_KEY", creds.APIKey)
 	req.Header.Set("POLY_BUILDER_PASSPHRASE", creds.Passphrase)
@@ -53,7 +53,7 @@ func ApplyHeaders(req *http.Request, creds *types.RelayerCredentials, method, pa
 	req.Header.Set("POLY_BUILDER_SIGNATURE", SignHMAC(creds.Secret, ts, method, path, body))
 }
 
-func GetTransaction(ctx context.Context, transactionID string) (*types.RelayerTransaction, error) {
+func GetTransaction(ctx context.Context, transactionID string) (*models.RelayerTransaction, error) {
 	endpoint := fmt.Sprintf("/transaction?id=%s", transactionID)
 	url := consts.RelayerBaseURL + endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -71,9 +71,9 @@ func GetTransaction(ctx context.Context, transactionID string) (*types.RelayerTr
 		return nil, fmt.Errorf("get relayer tx: read body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, &types.APIError{StatusCode: resp.StatusCode, Endpoint: "GET /transaction", Body: string(body)}
+		return nil, &models.APIError{StatusCode: resp.StatusCode, Endpoint: "GET /transaction", Body: string(body)}
 	}
-	var txns []types.RelayerTransaction
+	var txns []models.RelayerTransaction
 	if err := json.Unmarshal(body, &txns); err != nil {
 		return nil, fmt.Errorf("get relayer tx: unmarshal response: %w", err)
 	}
@@ -83,8 +83,8 @@ func GetTransaction(ctx context.Context, transactionID string) (*types.RelayerTr
 	return &txns[0], nil
 }
 
-func WaitForTransaction(ctx context.Context, transactionID string) (*types.RelayerTransaction, error) {
-	pollInterval := 2 * time.Second
+func WaitForTransaction(ctx context.Context, transactionID string) (*models.RelayerTransaction, error) {
+	pollInterval := time.Second
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
@@ -93,7 +93,7 @@ func WaitForTransaction(ctx context.Context, transactionID string) (*types.Relay
 			return nil, fmt.Errorf("wait for relayer tx: %w", err)
 		}
 		switch tx.State {
-		case StateMined, StateConfirmed:
+		case StateConfirmed:
 			return tx, nil
 		case StateFailed, StateInvalid:
 			return tx, fmt.Errorf("wait for relayer tx: transaction %s: %s", transactionID, tx.State)
