@@ -16,6 +16,7 @@ jobs:
       - name: smoke tests
         env:
           POLYMARKET_TEST_PK: ${{ secrets.POLYMARKET_TEST_PK }}
+          POLYMARKET_TEST_DEPOSIT_WALLET: ${{ secrets.POLYMARKET_TEST_DEPOSIT_WALLET }}
         run: |
           set +e
           go test -tags=smoke -v ./tests/smoke/... | tee /tmp/test.out
