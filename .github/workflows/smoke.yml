@@ -7,6 +7,9 @@ on:
 jobs:
   auth:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -14,6 +17,7 @@ jobs:
           go-version: '1.25.1'
 
       - name: smoke tests
+        id: tests
         env:
           POLYMARKET_TEST_PK: ${{ secrets.POLYMARKET_TEST_PK }}
           POLYMARKET_TEST_DEPOSIT_WALLET: ${{ secrets.POLYMARKET_TEST_DEPOSIT_WALLET }}
@@ -23,29 +27,57 @@ jobs:
           POLYMARKET_TEST_RELAYER_PASSPHRASE: ${{ secrets.POLYMARKET_TEST_RELAYER_PASSPHRASE }}
         run: |
           set +e
-          go test -tags=smoke -v ./tests/smoke/... | tee /tmp/test.out
-          echo "EXIT=$?" >> "$GITHUB_ENV"
+          go test -tags=smoke -json -v ./tests/smoke/... > /tmp/smoke.json
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: summary
-        if: always()
+      - name: build report
+        if: github.event_name == 'pull_request'
         run: |
+          PASS=$(grep -c '"Action":"pass","Test"' /tmp/smoke.json || true)
+          FAIL=$(grep -c '"Action":"fail","Test"' /tmp/smoke.json || true)
+          SKIP=$(grep -c '"Action":"skip","Test"' /tmp/smoke.json || true)
+          STATUS=":white_check_mark: passing"
+          [ "${{ steps.tests.outputs.exit }}" != "0" ] && STATUS=":x: failing"
+
           {
-            echo "## Polymarket smoke"
+            echo "<!-- bot:smoke-test-report -->"
+            echo "## Smoke tests — $STATUS"
             echo ""
-            if grep -q "^--- FAIL" /tmp/test.out 2>/dev/null; then
-              echo "**Status:** failed"
-            elif grep -q "^--- PASS" /tmp/test.out 2>/dev/null; then
-              echo "**Status:** passed"
-            elif grep -q "^--- SKIP" /tmp/test.out 2>/dev/null; then
-              echo "**Status:** all skipped"
-            else
-              echo "**Status:** unknown"
+            echo "| pass | fail | skip |"
+            echo "|------|------|------|"
+            echo "| $PASS | $FAIL | $SKIP |"
+            if [ "${FAIL:-0}" -gt 0 ]; then
+              echo ""
+              echo "### Failures"
+              echo '```'
+              grep '"Action":"fail","Test"' /tmp/smoke.json \
+                | python3 -c 'import sys, json; [print(o["Package"]+"."+o["Test"]) for o in (json.loads(l) for l in sys.stdin) if o.get("Test")]' \
+                | sort -u
+              echo '```'
             fi
             echo ""
-            echo "Tests:"
-            grep -E "^--- (PASS|FAIL|SKIP):" /tmp/test.out 2>/dev/null \
-              | sed -E 's/^--- ([A-Z]+): ([A-Za-z0-9_]+).*$/- \2: \1/' \
-              || true
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit ${EXIT:-1}
+            echo "[Full run log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > /tmp/body.md
+
+      - name: find existing comment
+        if: github.event_name == 'pull_request'
+        id: find
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: 'bot:smoke-test-report'
+
+      - name: post or update comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: /tmp/body.md
+          edit-mode: replace
+
+      - name: surface exit code
+        if: always()
+        run: exit ${{ steps.tests.outputs.exit }}
