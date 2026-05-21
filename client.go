@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"sync"
 	"time"
 
@@ -26,6 +27,10 @@ type Config struct {
 	Creds         *L2Credentials
 	RelayerCreds  *RelayerCredentials
 	Eth           EthClient
+	// SkipCredsDerive disables the auto derivation of L2 CLOB credentials in NewClient.
+	// Needed for "deploy-and-fund" only workflows where we only touch the relayer and on-chain reads.
+	// Trading methods will return errNoCreds until Creds is populated.
+	SkipCredsDerive bool
 }
 
 type Client struct {
@@ -47,6 +52,12 @@ var (
 	errNoDepositWallet = errors.New("client: no deposit wallet; call Bootstrap or set Config.DepositWallet")
 )
 
+// NewClient constructs a Client from a private key plus optional config.
+// It derives L2 CLOB credentials over the network when Config.Creds is not
+// supplied, so ctx governs that handshake and any failure surfaces here
+// rather than at first use. If Config.DepositWallet is set the order builder
+// is initialized immediately. Otherwise it is created by Bootstrap once the
+// wallet is deployed.
 func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.PrivateKeyHex == "" {
 		return nil, fmt.Errorf("client: PrivateKeyHex is required")
@@ -56,13 +67,13 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("client: invalid PrivateKeyHex: %w", err)
 	}
 	c := &Client{
-		cfg:           cfg,
-		eoa:           crypto.PubkeyToAddress(pk.PublicKey).Hex(),
-		clob:          NewCLOBClient(),
-		creds:         cfg.Creds,
-		depositWallet: cfg.DepositWallet,
+		cfg:           cfg,                                        // kept for later relayer + RPC access
+		eoa:           crypto.PubkeyToAddress(pk.PublicKey).Hex(), // EOA derived from the private key
+		clob:          NewCLOBClient(),                            // HTTP client for the Polymarket CLOB
+		creds:         cfg.Creds,                                  // may be nil. if nil, derived on startup and kept for reuse
+		depositWallet: cfg.DepositWallet,                          // may be empty. if empty, created on bootstrap and kept for reuse
 	}
-	if c.creds == nil {
+	if c.creds == nil && !cfg.SkipCredsDerive {
 		if err := c.DeriveCreds(ctx); err != nil {
 			return nil, fmt.Errorf("client: derive credentials: %w", err)
 		}
@@ -114,9 +125,15 @@ func (c *Client) requireCreds() (*L2Credentials, error) {
 func (c *Client) DeriveCreds(ctx context.Context) error {
 	creds, err := DeriveL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 	if err != nil {
+		// CLOB returns 400 "Could not derive api key!" when no key exists for this wallet yet 
+		// anything else is a real failure and should surface as is to be properly handled by the caller
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
+			return fmt.Errorf("client: derive L2 credentials: %w", err)
+		}
 		creds, err = CreateL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 		if err != nil {
-			return fmt.Errorf("client: derive/create L2 credentials: %w", err)
+			return fmt.Errorf("client: create L2 credentials: %w", err)
 		}
 	}
 	c.mu.Lock()
@@ -125,6 +142,14 @@ func (c *Client) DeriveCreds(ctx context.Context) error {
 	return nil
 }
 
+// Bootstrap brings the deposit wallet to a tradeable state. If
+// Config.DepositWallet is empty it deploys a new wallet via the relayer and
+// resolves its address from the on-chain receipt, which is why Config.Eth is
+// required for that path. Either way it sets the BUY and SELL approvals on
+// the resulting wallet, so it is safe to rerun on a returning client to
+// refresh approvals without redeploying.
+// Concurrent calls are serialized so a second goroutine does not waste a
+// relayer submission on the same deploy (CREATE2 would revert it anyway).
 func (c *Client) Bootstrap(ctx context.Context) error {
 	if c.cfg.RelayerCreds == nil {
 		return errNoRelayerCreds
