@@ -249,6 +249,21 @@ func (c *Client) CancelOrder(ctx context.Context, orderID string) (*CancelRespon
 	return c.clob.CancelOrder(ctx, orderID, creds)
 }
 
+func (c *Client) ReplaceOrder(ctx context.Context, oldOrderID string, newOrder *SignedOrder) (*CancelResponse, *PlaceOrderResponse, error) {
+	if newOrder == nil {
+		return nil, nil, fmt.Errorf("replace order: nil new order")
+	}
+	cancelResp, cancelErr := c.CancelOrder(ctx, oldOrderID)
+	if cancelErr != nil {
+		return cancelResp, nil, fmt.Errorf("replace order: cancel %s: %w", oldOrderID, cancelErr)
+	}
+	placeResp, placeErr := c.PlaceOrder(ctx, newOrder)
+	if placeErr != nil {
+		return cancelResp, placeResp, fmt.Errorf("replace order: place new: %w", placeErr)
+	}
+	return cancelResp, placeResp, nil
+}
+
 func (c *Client) CancelOrders(ctx context.Context, orderIDs []string) (*CancelResponse, error) {
 	c.mu.RLock()
 	creds := c.creds
@@ -359,10 +374,6 @@ func (c *Client) GetTickSize(ctx context.Context, tokenID string) (string, error
 
 func (c *Client) GetClobMarketInfo(ctx context.Context, conditionID string) (*ClobMarketInfo, error) {
 	return c.clob.GetClobMarketInfo(ctx, conditionID)
-}
-
-func (c *Client) GetFeeRate(ctx context.Context, tokenID string) (int, error) {
-	return c.clob.GetFeeRate(ctx, tokenID)
 }
 
 func (c *Client) GetNegRisk(ctx context.Context, tokenID string) (bool, error) {
