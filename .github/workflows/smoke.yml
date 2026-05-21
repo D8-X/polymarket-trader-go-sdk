@@ -1,7 +1,7 @@
 name: smoke
 
 on:
-  pull_request:
+  # pull_request:  # disabled: each PR burns relayer quota (100/day on Unverified tier)
   workflow_dispatch:
 
 jobs:
