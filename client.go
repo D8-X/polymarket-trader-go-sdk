@@ -95,10 +95,10 @@ func (c *Client) snapshot() (*L2Credentials, *OrderBuilder, string, error) {
 	return c.creds, c.builder, c.depositWallet, nil
 }
 
-func (c *Client) DeriveCreds(_ context.Context) error {
-	creds, err := DeriveL2Credentials(c.cfg.PrivateKeyHex, PolygonChainID)
+func (c *Client) DeriveCreds(ctx context.Context) error {
+	creds, err := DeriveL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 	if err != nil {
-		creds, err = CreateL2Credentials(c.cfg.PrivateKeyHex, PolygonChainID)
+		creds, err = CreateL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 		if err != nil {
 			return fmt.Errorf("client: derive/create L2 credentials: %w", err)
 		}

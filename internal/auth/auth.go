@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -19,15 +20,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func DeriveCredentials(privateKeyHex string, chainID int) (*types.L2Credentials, error) {
-	return fetchCredentials(privateKeyHex, chainID, http.MethodGet, "/auth/derive-api-key")
+func DeriveCredentials(ctx context.Context, privateKeyHex string, chainID int) (*types.L2Credentials, error) {
+	return fetchCredentials(ctx, privateKeyHex, chainID, http.MethodGet, "/auth/derive-api-key")
 }
 
-func CreateCredentials(privateKeyHex string, chainID int) (*types.L2Credentials, error) {
-	return fetchCredentials(privateKeyHex, chainID, http.MethodPost, "/auth/api-key")
+func CreateCredentials(ctx context.Context, privateKeyHex string, chainID int) (*types.L2Credentials, error) {
+	return fetchCredentials(ctx, privateKeyHex, chainID, http.MethodPost, "/auth/api-key")
 }
 
-func fetchCredentials(privateKeyHex string, chainID int, method, endpoint string) (*types.L2Credentials, error) {
+func fetchCredentials(ctx context.Context, privateKeyHex string, chainID int, method, endpoint string) (*types.L2Credentials, error) {
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
 		return nil, fmt.Errorf("auth credentials: invalid private key: %w", err)
@@ -50,7 +51,7 @@ func fetchCredentials(privateKeyHex string, chainID int, method, endpoint string
 	}
 
 	url := consts.ClobBaseURL + endpoint
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("auth credentials: build request: %w", err)
 	}

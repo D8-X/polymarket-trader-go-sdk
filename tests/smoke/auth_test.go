@@ -17,7 +17,7 @@ func TestAuthSmoke(t *testing.T) {
 	}
 
 	t.Log("deriving L2 credentials (EIP-712 ClobAuth)")
-	creds, err := polytrade.DeriveL2Credentials(pk, polytrade.PolygonChainID)
+	creds, err := polytrade.DeriveL2Credentials(context.Background(), pk, polytrade.PolygonChainID)
 	if err != nil {
 		t.Fatalf("derive creds: %v", err)
 	}

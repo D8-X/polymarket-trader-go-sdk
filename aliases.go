@@ -81,12 +81,12 @@ type SweepEstimate = models.SweepEstimate
 type ContractCaller = onchain.ContractCaller
 type ReceiptFetcher = wallet.ReceiptFetcher
 
-func DeriveL2Credentials(privateKeyHex string, chainID int) (*L2Credentials, error) {
-	return auth.DeriveCredentials(privateKeyHex, chainID)
+func DeriveL2Credentials(ctx context.Context, privateKeyHex string, chainID int) (*L2Credentials, error) {
+	return auth.DeriveCredentials(ctx, privateKeyHex, chainID)
 }
 
-func CreateL2Credentials(privateKeyHex string, chainID int) (*L2Credentials, error) {
-	return auth.CreateCredentials(privateKeyHex, chainID)
+func CreateL2Credentials(ctx context.Context, privateKeyHex string, chainID int) (*L2Credentials, error) {
+	return auth.CreateCredentials(ctx, privateKeyHex, chainID)
 }
 
 func SignL2Request(creds *L2Credentials, method, path string, body []byte) (*L2Headers, error) {
