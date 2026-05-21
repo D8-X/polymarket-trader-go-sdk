@@ -8,13 +8,12 @@ import (
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 )
 
 // AwaitOrder polls a single placed order until it reaches a terminal status
 // (matched, canceled) or the timeout expires. Pass nil for opts to use
 // defaults (200ms interval, 5s timeout for delayed orders).
-func (c *Client) AwaitOrder(ctx context.Context, resp *models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) (*models.PollResult, error) {
+func (c *Client) AwaitOrder(ctx context.Context, resp *models.PlaceOrderResponse, creds *models.L2Credentials, opts *models.PollOpts) (*models.PollResult, error) {
 	if resp == nil {
 		return nil, fmt.Errorf("await order: nil response")
 	}
@@ -28,11 +27,11 @@ func (c *Client) AwaitOrder(ctx context.Context, resp *models.PlaceOrderResponse
 
 // AwaitOrders polls multiple placed orders concurrently (in a single loop)
 // until all reach a terminal status or the timeout expires.
-func (c *Client) AwaitOrders(ctx context.Context, responses []models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) []models.PollResult {
+func (c *Client) AwaitOrders(ctx context.Context, responses []models.PlaceOrderResponse, creds *models.L2Credentials, opts *models.PollOpts) []models.PollResult {
 	return c.awaitMany(ctx, responses, creds, opts)
 }
 
-func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) []models.PollResult {
+func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderResponse, creds *models.L2Credentials, opts *models.PollOpts) []models.PollResult {
 	results := make([]models.PollResult, len(responses))
 
 	var pending []int
@@ -105,7 +104,7 @@ func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderRes
 // awaitOne polls a single order until it reaches a terminal status or the
 // context is cancelled. It is used by the async variants; the sync path
 // continues to use awaitMany directly.
-func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, creds *types.L2Credentials, interval time.Duration) models.PollResult {
+func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, creds *models.L2Credentials, interval time.Duration) models.PollResult {
 	result := models.PollResult{
 		OrderID:     resp.OrderID,
 		PlaceStatus: resp.Status,
@@ -145,7 +144,7 @@ func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, c
 // AwaitOrderAsync is the channel-based variant of AwaitOrder. It returns a
 // channel that will receive exactly one models.PollResult and then be closed. The
 // caller can continue doing other work while the order is being polled.
-func (c *Client) AwaitOrderAsync(ctx context.Context, resp *models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) <-chan models.PollResult {
+func (c *Client) AwaitOrderAsync(ctx context.Context, resp *models.PlaceOrderResponse, creds *models.L2Credentials, opts *models.PollOpts) <-chan models.PollResult {
 	ch := make(chan models.PollResult, 1)
 
 	if resp == nil {
@@ -181,7 +180,7 @@ func (c *Client) AwaitOrderAsync(ctx context.Context, resp *models.PlaceOrderRes
 // AwaitOrdersAsync is the channel-based variant of AwaitOrders. It returns a
 // channel that streams models.PollResult values as each order independently reaches
 // a terminal status. The channel is closed once all results have been sent.
-func (c *Client) AwaitOrdersAsync(ctx context.Context, responses []models.PlaceOrderResponse, creds *types.L2Credentials, opts *models.PollOpts) <-chan models.PollResult {
+func (c *Client) AwaitOrdersAsync(ctx context.Context, responses []models.PlaceOrderResponse, creds *models.L2Credentials, opts *models.PollOpts) <-chan models.PollResult {
 	ch := make(chan models.PollResult, len(responses))
 
 	if len(responses) == 0 {

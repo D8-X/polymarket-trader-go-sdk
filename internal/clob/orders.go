@@ -11,7 +11,6 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 )
 
 type Client struct {
@@ -31,7 +30,7 @@ func NewClient() *Client {
 func (c *Client) SetBaseURL(url string)        { c.baseURL = url }
 func (c *Client) SetDataAPIBaseURL(url string) { c.dataAPIBaseURL = url }
 
-func (c *Client) PlaceOrder(ctx context.Context, signedOrder *models.SignedOrder, creds *types.L2Credentials) (*models.PlaceOrderResponse, error) {
+func (c *Client) PlaceOrder(ctx context.Context, signedOrder *models.SignedOrder, creds *models.L2Credentials) (*models.PlaceOrderResponse, error) {
 	body, err := json.Marshal(signedOrder)
 	if err != nil {
 		return nil, fmt.Errorf("place order: marshal: %w", err)
@@ -63,7 +62,7 @@ func (c *Client) PlaceOrder(ctx context.Context, signedOrder *models.SignedOrder
 	return &result, nil
 }
 
-func (c *Client) PlaceOrders(ctx context.Context, signedOrders []*models.SignedOrder, creds *types.L2Credentials) ([]models.PlaceOrderResponse, error) {
+func (c *Client) PlaceOrders(ctx context.Context, signedOrders []*models.SignedOrder, creds *models.L2Credentials) ([]models.PlaceOrderResponse, error) {
 	body, err := json.Marshal(signedOrders)
 	if err != nil {
 		return nil, fmt.Errorf("place orders: marshal: %w", err)
@@ -95,7 +94,7 @@ func (c *Client) PlaceOrders(ctx context.Context, signedOrders []*models.SignedO
 	return results, nil
 }
 
-func (c *Client) GetOrder(ctx context.Context, orderID string, creds *types.L2Credentials) (*models.OrderStatus, error) {
+func (c *Client) GetOrder(ctx context.Context, orderID string, creds *models.L2Credentials) (*models.OrderStatus, error) {
 	path := "/data/order/" + orderID
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -121,7 +120,7 @@ func (c *Client) GetOrder(ctx context.Context, orderID string, creds *types.L2Cr
 	return &status, nil
 }
 
-func (c *Client) CancelOrder(ctx context.Context, orderID string, creds *types.L2Credentials) (*models.CancelResponse, error) {
+func (c *Client) CancelOrder(ctx context.Context, orderID string, creds *models.L2Credentials) (*models.CancelResponse, error) {
 	body, err := json.Marshal(map[string]string{"orderID": orderID})
 	if err != nil {
 		return nil, fmt.Errorf("cancel order: marshal: %w", err)
@@ -153,7 +152,7 @@ func (c *Client) CancelOrder(ctx context.Context, orderID string, creds *types.L
 	return &result, nil
 }
 
-func (c *Client) CancelOrders(ctx context.Context, orderIDs []string, creds *types.L2Credentials) (*models.CancelResponse, error) {
+func (c *Client) CancelOrders(ctx context.Context, orderIDs []string, creds *models.L2Credentials) (*models.CancelResponse, error) {
 	body, err := json.Marshal(orderIDs)
 	if err != nil {
 		return nil, fmt.Errorf("cancel orders: marshal: %w", err)
@@ -185,7 +184,7 @@ func (c *Client) CancelOrders(ctx context.Context, orderIDs []string, creds *typ
 	return &result, nil
 }
 
-func (c *Client) CancelAll(ctx context.Context, creds *types.L2Credentials) (*models.CancelResponse, error) {
+func (c *Client) CancelAll(ctx context.Context, creds *models.L2Credentials) (*models.CancelResponse, error) {
 	path := "/cancel-all"
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, nil)
 	if err != nil {
@@ -211,7 +210,7 @@ func (c *Client) CancelAll(ctx context.Context, creds *types.L2Credentials) (*mo
 	return &result, nil
 }
 
-func (c *Client) CancelMarketOrders(ctx context.Context, market, assetID string, creds *types.L2Credentials) (*models.CancelResponse, error) {
+func (c *Client) CancelMarketOrders(ctx context.Context, market, assetID string, creds *models.L2Credentials) (*models.CancelResponse, error) {
 	body, err := json.Marshal(map[string]string{"market": market, "asset_id": assetID})
 	if err != nil {
 		return nil, fmt.Errorf("cancel market orders: marshal: %w", err)
@@ -243,7 +242,7 @@ func (c *Client) CancelMarketOrders(ctx context.Context, market, assetID string,
 	return &result, nil
 }
 
-func (c *Client) GetOpenOrders(ctx context.Context, market, assetID string, creds *types.L2Credentials) ([]models.OrderStatus, error) {
+func (c *Client) GetOpenOrders(ctx context.Context, market, assetID string, creds *models.L2Credentials) ([]models.OrderStatus, error) {
 	var all []models.OrderStatus
 	cursor := ""
 
@@ -296,7 +295,7 @@ func (c *Client) GetOpenOrders(ctx context.Context, market, assetID string, cred
 // GetPreMigrationOrders returns the caller's V1 orders that were still open at
 // the time of the V2 cutover. Use this if you held positions before the
 // migration and want to inspect or reconcile them.
-func (c *Client) GetPreMigrationOrders(ctx context.Context, creds *types.L2Credentials) ([]models.OrderStatus, error) {
+func (c *Client) GetPreMigrationOrders(ctx context.Context, creds *models.L2Credentials) ([]models.OrderStatus, error) {
 	var all []models.OrderStatus
 	cursor := ""
 
@@ -339,7 +338,7 @@ func (c *Client) GetPreMigrationOrders(ctx context.Context, creds *types.L2Crede
 	return all, nil
 }
 
-func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID string, creds *types.L2Credentials) ([]models.Trade, error) {
+func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID string, creds *models.L2Credentials) ([]models.Trade, error) {
 	var all []models.Trade
 	cursor := ""
 
@@ -389,7 +388,7 @@ func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID st
 	return all, nil
 }
 
-func (c *Client) GetBalances(ctx context.Context, creds *types.L2Credentials) ([]models.BalanceEntry, error) {
+func (c *Client) GetBalances(ctx context.Context, creds *models.L2Credentials) ([]models.BalanceEntry, error) {
 	positions, err := c.GetPositions(ctx, creds.Address)
 	if err != nil {
 		return nil, fmt.Errorf("get balances: %w", err)
@@ -404,7 +403,7 @@ func (c *Client) GetBalances(ctx context.Context, creds *types.L2Credentials) ([
 	return balances, nil
 }
 
-func (c *Client) GetBalanceAllowance(ctx context.Context, assetType string, tokenID string, creds *types.L2Credentials) (*models.BalanceAllowanceResponse, error) {
+func (c *Client) GetBalanceAllowance(ctx context.Context, assetType string, tokenID string, creds *models.L2Credentials) (*models.BalanceAllowanceResponse, error) {
 	signPath := "/balance-allowance"
 	fullPath := fmt.Sprintf("/balance-allowance?asset_type=%s&signature_type=%d", assetType, consts.SignatureTypePoly1271)
 	if tokenID != "" {
@@ -435,7 +434,7 @@ func (c *Client) GetBalanceAllowance(ctx context.Context, assetType string, toke
 	return &result, nil
 }
 
-func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType string, tokenID string, creds *types.L2Credentials) error {
+func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType string, tokenID string, creds *models.L2Credentials) error {
 	signPath := "/balance-allowance/update"
 	fullPath := fmt.Sprintf("/balance-allowance/update?asset_type=%s&signature_type=%d", assetType, consts.SignatureTypePoly1271)
 	if tokenID != "" {
@@ -493,7 +492,7 @@ func (c *Client) doRequest(req *http.Request, endpoint string) ([]byte, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, &types.APIError{
+		return nil, &models.APIError{
 			StatusCode: resp.StatusCode,
 			Endpoint:   endpoint,
 			Body:       string(body),
