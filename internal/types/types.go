@@ -15,6 +15,21 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("polymarket api %s returned status %d: %s", e.Endpoint, e.StatusCode, e.Body)
 }
 
+type L2Credentials struct {
+	Address    string `json:"address,omitempty"`
+	APIKey     string `json:"apiKey"`
+	Secret     string `json:"secret"`
+	Passphrase string `json:"passphrase"`
+}
+
+type L2Headers struct {
+	Address    string
+	APIKey     string
+	Passphrase string
+	Signature  string
+	Timestamp  string
+}
+
 type RelayerCredentials struct {
 	APIKey     string
 	Secret     string

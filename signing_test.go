@@ -3,6 +3,7 @@ package polytrade
 import (
 	"testing"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -34,8 +35,8 @@ func TestSignClobAuthGolden(t *testing.T) {
 		nonce     = int64(0)
 	)
 
-	domainSep := hashClobAuthDomain(testChainID)
-	structHash := hashClobAuthStruct(address, timestamp, nonce)
+	domainSep := auth.HashClobAuthDomain(testChainID)
+	structHash := auth.HashClobAuthStruct(address, timestamp, nonce)
 	digest := ethutil.Keccak256Pack([]byte{0x19, 0x01}, domainSep, structHash)
 
 	sig, err := crypto.Sign(digest, pk)

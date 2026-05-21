@@ -102,32 +102,3 @@ func wrapPoly1271Signature(pk *ecdsa.PrivateKey, depositWallet string, appDomain
 	wrapped := ethutil.Concat(innerSig, appDomainSep, contentsHash, typeBytes, lenBytes)
 	return "0x" + common.Bytes2Hex(wrapped), nil
 }
-
-func hashClobAuthDomain(chainID int) []byte {
-	typeHash := ethutil.Keccak256([]byte(consts.EIP712AuthDomainType))
-	nameHash := ethutil.Keccak256([]byte(consts.EIP712AuthDomainName))
-	versionHash := ethutil.Keccak256([]byte(consts.EIP712AuthVersion))
-	chainIDBytes := ethutil.PadTo32(new(big.Int).SetInt64(int64(chainID)).Bytes())
-
-	return ethutil.Keccak256(append(append(append(ethutil.PadTo32(typeHash), ethutil.PadTo32(nameHash)...), ethutil.PadTo32(versionHash)...), chainIDBytes...))
-}
-
-func hashClobAuthStruct(address, timestamp string, nonce int64) []byte {
-	typeHash := ethutil.Keccak256([]byte(consts.EIP712ClobAuthType))
-	addrBig := new(big.Int)
-	if len(address) > 2 {
-		addrBig.SetString(address[2:], 16)
-	}
-	tsHash := ethutil.Keccak256([]byte(timestamp))
-	nonceBig := new(big.Int).SetInt64(nonce)
-	msgHash := ethutil.Keccak256([]byte(consts.EIP712AuthMessage))
-
-	encoded := make([]byte, 0, 160)
-	encoded = append(encoded, ethutil.PadTo32(typeHash)...)
-	encoded = append(encoded, ethutil.PadTo32(addrBig.Bytes())...)
-	encoded = append(encoded, ethutil.PadTo32(tsHash)...)
-	encoded = append(encoded, ethutil.PadTo32(nonceBig.Bytes())...)
-	encoded = append(encoded, ethutil.PadTo32(msgHash)...)
-
-	return ethutil.Keccak256(encoded)
-}

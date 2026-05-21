@@ -18,6 +18,8 @@ const (
 
 const (
 	RelayerBaseURL = "https://relayer-v2.polymarket.com"
+	ClobBaseURL    = "https://clob.polymarket.com"
+	DataAPIBaseURL = "https://data-api.polymarket.com"
 )
 
 const (

@@ -5,21 +5,6 @@ import (
 	"time"
 )
 
-type L2Credentials struct {
-	Address    string `json:"address,omitempty"`
-	APIKey     string `json:"apiKey"`
-	Secret     string `json:"secret"`
-	Passphrase string `json:"passphrase"`
-}
-
-type L2Headers struct {
-	Address    string
-	APIKey     string
-	Passphrase string
-	Signature  string
-	Timestamp  string
-}
-
 // OrderFields is the CLOB order wire body. Expiration and Side (string form)
 // are sent to the API but are not part of the EIP-712 signed struct.
 type OrderFields struct {
