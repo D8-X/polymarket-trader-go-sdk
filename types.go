@@ -2,19 +2,8 @@ package polytrade
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 )
-
-type APIError struct {
-	StatusCode int
-	Endpoint   string
-	Body       string
-}
-
-func (e *APIError) Error() string {
-	return fmt.Sprintf("polymarket api %s returned status %d: %s", e.Endpoint, e.StatusCode, e.Body)
-}
 
 type L2Credentials struct {
 	Address    string `json:"address,omitempty"`
@@ -97,34 +86,6 @@ type PollResult struct {
 	Status      *OrderStatus
 	PlaceStatus string
 	Err         error
-}
-
-type RelayerCredentials struct {
-	APIKey     string
-	Secret     string
-	Passphrase string
-}
-
-type RelayerResponse struct {
-	TransactionID   string `json:"transactionID"`
-	State           string `json:"state"`
-	TransactionHash string `json:"transactionHash"`
-}
-
-type RelayerTransaction struct {
-	TransactionID   string `json:"transactionID"`
-	TransactionHash string `json:"transactionHash"`
-	From            string `json:"from"`
-	To              string `json:"to"`
-	ProxyAddress    string `json:"proxyAddress"`
-	Data            string `json:"data"`
-	Nonce           string `json:"nonce"`
-	Value           string `json:"value"`
-	State           string `json:"state"`
-	Type            string `json:"type"`
-	Metadata        string `json:"metadata"`
-	CreatedAt       string `json:"createdAt"`
-	UpdatedAt       string `json:"updatedAt"`
 }
 
 const (

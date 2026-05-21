@@ -20,12 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-type WalletCall struct {
-	Target string
-	Value  *big.Int
-	Data   []byte
-}
-
 type ReceiptFetcher interface {
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*ethtypes.Receipt, error)
 }
