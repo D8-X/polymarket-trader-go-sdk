@@ -4,12 +4,12 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
-	testBatchPrivateKey   = "0x2222222222222222222222222222222222222222222222222222222222222222"
+	testBatchPrivateKey    = "0x2222222222222222222222222222222222222222222222222222222222222222"
 	testBatchDepositWallet = "0x000000000000000000000000000000000000d077"
 )
 
@@ -22,7 +22,7 @@ func TestDepositWalletDomainSeparatorGolden(t *testing.T) {
 }
 
 func TestCallStructHashGolden(t *testing.T) {
-	c := types.WalletCall{
+	c := models.WalletCall{
 		Target: testUSDC,
 		Value:  big.NewInt(0),
 		Data:   []byte{0xde, 0xad, 0xbe, 0xef},
@@ -35,7 +35,7 @@ func TestCallStructHashGolden(t *testing.T) {
 }
 
 func TestSignBatchGolden(t *testing.T) {
-	calls := []types.WalletCall{
+	calls := []models.WalletCall{
 		{Target: testUSDC, Value: big.NewInt(0), Data: []byte{0xaa}},
 		{Target: testCTFExchange, Value: big.NewInt(0), Data: []byte{0xbb}},
 	}

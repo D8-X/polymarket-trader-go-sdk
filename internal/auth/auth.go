@@ -15,20 +15,20 @@ import (
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func DeriveCredentials(ctx context.Context, privateKeyHex string, chainID int) (*types.L2Credentials, error) {
+func DeriveCredentials(ctx context.Context, privateKeyHex string, chainID int) (*models.L2Credentials, error) {
 	return fetchCredentials(ctx, privateKeyHex, chainID, http.MethodGet, "/auth/derive-api-key")
 }
 
-func CreateCredentials(ctx context.Context, privateKeyHex string, chainID int) (*types.L2Credentials, error) {
+func CreateCredentials(ctx context.Context, privateKeyHex string, chainID int) (*models.L2Credentials, error) {
 	return fetchCredentials(ctx, privateKeyHex, chainID, http.MethodPost, "/auth/api-key")
 }
 
-func fetchCredentials(ctx context.Context, privateKeyHex string, chainID int, method, endpoint string) (*types.L2Credentials, error) {
+func fetchCredentials(ctx context.Context, privateKeyHex string, chainID int, method, endpoint string) (*models.L2Credentials, error) {
 	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
 		return nil, fmt.Errorf("auth credentials: invalid private key: %w", err)
@@ -72,14 +72,14 @@ func fetchCredentials(ctx context.Context, privateKeyHex string, chainID int, me
 		return nil, fmt.Errorf("auth credentials: read body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, &types.APIError{
+		return nil, &models.APIError{
 			StatusCode: resp.StatusCode,
 			Endpoint:   method + " " + endpoint,
 			Body:       string(body),
 		}
 	}
 
-	var creds types.L2Credentials
+	var creds models.L2Credentials
 	if err := json.Unmarshal(body, &creds); err != nil {
 		return nil, fmt.Errorf("auth credentials: unmarshal response: %w", err)
 	}
@@ -87,7 +87,7 @@ func fetchCredentials(ctx context.Context, privateKeyHex string, chainID int, me
 	return &creds, nil
 }
 
-func SignRequest(creds *types.L2Credentials, method, path string, body []byte) (*types.L2Headers, error) {
+func SignRequest(creds *models.L2Credentials, method, path string, body []byte) (*models.L2Headers, error) {
 	if creds == nil {
 		return nil, fmt.Errorf("sign request: credentials are nil")
 	}
@@ -100,7 +100,7 @@ func SignRequest(creds *types.L2Credentials, method, path string, body []byte) (
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
-	return &types.L2Headers{
+	return &models.L2Headers{
 		Address:    creds.Address,
 		APIKey:     creds.APIKey,
 		Passphrase: creds.Passphrase,
@@ -131,7 +131,7 @@ func SignMessage(secret, ts, method, path string, body []byte) (string, error) {
 	return base64.URLEncoding.EncodeToString(mac.Sum(nil)), nil
 }
 
-func ApplyHeaders(req *http.Request, h *types.L2Headers) {
+func ApplyHeaders(req *http.Request, h *models.L2Headers) {
 	req.Header.Set("POLY_ADDRESS", h.Address)
 	req.Header.Set("POLY_API_KEY", h.APIKey)
 	req.Header.Set("POLY_PASSPHRASE", h.Passphrase)

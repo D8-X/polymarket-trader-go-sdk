@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 )
 
 type heartbeatResponse struct {
@@ -18,7 +18,7 @@ type heartbeatResponse struct {
 	ErrorMsg    string `json:"error_msg,omitempty"`
 }
 
-func (c *Client) PostHeartbeat(ctx context.Context, heartbeatID string, creds *types.L2Credentials) (string, error) {
+func (c *Client) PostHeartbeat(ctx context.Context, heartbeatID string, creds *models.L2Credentials) (string, error) {
 	body, err := json.Marshal(map[string]string{"heartbeat_id": heartbeatID})
 	if err != nil {
 		return "", fmt.Errorf("post heartbeat: marshal: %w", err)
@@ -61,7 +61,7 @@ func (c *Client) PostHeartbeat(ctx context.Context, heartbeatID string, creds *t
 	return out.HeartbeatID, nil
 }
 
-func (c *Client) RunHeartbeat(ctx context.Context, interval time.Duration, creds *types.L2Credentials) <-chan error {
+func (c *Client) RunHeartbeat(ctx context.Context, interval time.Duration, creds *models.L2Credentials) <-chan error {
 	errs := make(chan error, 1)
 	go func() {
 		defer close(errs)

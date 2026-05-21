@@ -6,10 +6,10 @@ import (
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/clob"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 )
 
-func CollateralBalance(ctx context.Context, creds *types.L2Credentials) (*big.Int, error) {
+func CollateralBalance(ctx context.Context, creds *models.L2Credentials) (*big.Int, error) {
 	c := clob.NewClient()
 	resp, err := c.GetBalanceAllowance(ctx, "COLLATERAL", "", creds)
 	if err != nil {
@@ -18,7 +18,7 @@ func CollateralBalance(ctx context.Context, creds *types.L2Credentials) (*big.In
 	return parseCollateralBalance(resp.Balance), nil
 }
 
-func RefreshCollateralBalance(ctx context.Context, creds *types.L2Credentials) error {
+func RefreshCollateralBalance(ctx context.Context, creds *models.L2Credentials) error {
 	c := clob.NewClient()
 	return c.UpdateBalanceAllowance(ctx, "COLLATERAL", "", creds)
 }

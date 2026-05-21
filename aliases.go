@@ -12,7 +12,6 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/order"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/sweep"
-	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/wallet"
 )
 
@@ -27,13 +26,13 @@ func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string) *O
 	return order.NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex)
 }
 
-type APIError = types.APIError
-type L2Credentials = types.L2Credentials
-type L2Headers = types.L2Headers
-type RelayerCredentials = types.RelayerCredentials
-type RelayerResponse = types.RelayerResponse
-type RelayerTransaction = types.RelayerTransaction
-type WalletCall = types.WalletCall
+type APIError = models.APIError
+type L2Credentials = models.L2Credentials
+type L2Headers = models.L2Headers
+type RelayerCredentials = models.RelayerCredentials
+type RelayerResponse = models.RelayerResponse
+type RelayerTransaction = models.RelayerTransaction
+type WalletCall = models.WalletCall
 
 type OrderFields = models.OrderFields
 type SignedOrder = models.SignedOrder

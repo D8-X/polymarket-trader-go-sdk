@@ -1,34 +1,4 @@
-package types
-
-import (
-	"fmt"
-	"math/big"
-)
-
-type APIError struct {
-	StatusCode int
-	Endpoint   string
-	Body       string
-}
-
-func (e *APIError) Error() string {
-	return fmt.Sprintf("polymarket api %s returned status %d: %s", e.Endpoint, e.StatusCode, e.Body)
-}
-
-type L2Credentials struct {
-	Address    string `json:"address,omitempty"`
-	APIKey     string `json:"apiKey"`
-	Secret     string `json:"secret"`
-	Passphrase string `json:"passphrase"`
-}
-
-type L2Headers struct {
-	Address    string
-	APIKey     string
-	Passphrase string
-	Signature  string
-	Timestamp  string
-}
+package models
 
 type RelayerCredentials struct {
 	APIKey     string
@@ -56,10 +26,4 @@ type RelayerTransaction struct {
 	Metadata        string `json:"metadata"`
 	CreatedAt       string `json:"createdAt"`
 	UpdatedAt       string `json:"updatedAt"`
-}
-
-type WalletCall struct {
-	Target string
-	Value  *big.Int
-	Data   []byte
 }
