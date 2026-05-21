@@ -37,6 +37,23 @@ func GetOutcomeTokenBalance(ctx context.Context, eth ContractCaller, ownerAddres
 	return new(big.Int).SetBytes(result), nil
 }
 
+func ERC20BalanceOf(ctx context.Context, eth ContractCaller, tokenAddress, ownerAddress string) (*big.Int, error) {
+	if eth == nil {
+		return nil, fmt.Errorf("erc20 balance: nil ContractCaller")
+	}
+	selector := ethutil.Keccak256([]byte("balanceOf(address)"))[:4]
+	data := make([]byte, 0, 4+32)
+	data = append(data, selector...)
+	data = append(data, ethutil.PadTo32(common.HexToAddress(ownerAddress).Bytes())...)
+	tok := common.HexToAddress(tokenAddress)
+	msg := ethereum.CallMsg{To: &tok, Data: data}
+	result, err := eth.CallContract(ctx, msg, nil)
+	if err != nil {
+		return nil, fmt.Errorf("erc20 balance: %w", err)
+	}
+	return new(big.Int).SetBytes(result), nil
+}
+
 func RawBalanceToSize(balance *big.Int) float64 {
 	if balance == nil || balance.Sign() == 0 {
 		return 0

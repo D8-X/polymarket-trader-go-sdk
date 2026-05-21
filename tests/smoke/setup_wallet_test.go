@@ -33,7 +33,7 @@ func TestSetupWalletForTradingSmoke(t *testing.T) {
 	}
 	defer eth.Close()
 
-	cli, err := polytrade.NewClient(polytrade.Config{
+	cli, err := polytrade.NewClient(ctx, polytrade.Config{
 		PrivateKeyHex: pk,
 		DepositWallet: dw,
 		Eth:           eth,
@@ -41,9 +41,6 @@ func TestSetupWalletForTradingSmoke(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("new client: %v", err)
-	}
-	if err := cli.DeriveCreds(ctx); err != nil {
-		t.Fatalf("derive creds: %v", err)
 	}
 
 	dust := big.NewInt(1000) // 0.001 pUSD

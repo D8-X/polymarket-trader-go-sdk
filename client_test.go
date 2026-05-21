@@ -26,21 +26,21 @@ const (
 // --- construction ---
 
 func TestNewClientRequiresPrivateKey(t *testing.T) {
-	_, err := NewClient(Config{})
+	_, err := NewClient(context.Background(), Config{})
 	if err == nil {
 		t.Fatal("expected error for missing PrivateKeyHex")
 	}
 }
 
 func TestNewClientRejectsInvalidPrivateKey(t *testing.T) {
-	_, err := NewClient(Config{PrivateKeyHex: "0xnot-hex"})
+	_, err := NewClient(context.Background(), Config{PrivateKeyHex: "0xnot-hex"})
 	if err == nil {
 		t.Fatal("expected error for invalid PrivateKeyHex")
 	}
 }
 
 func TestNewClientPopulatesEOA(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,13 +50,13 @@ func TestNewClientPopulatesEOA(t *testing.T) {
 	if cli.DepositWallet() != "" {
 		t.Errorf("DepositWallet should be empty without Bootstrap, got %s", cli.DepositWallet())
 	}
-	if cli.Creds() != nil {
-		t.Errorf("Creds should be nil without Bootstrap, got %+v", cli.Creds())
+	if cli.Creds() == nil {
+		t.Errorf("Creds should be populated after NewClient")
 	}
 }
 
 func TestNewClientHonoursConfigDepositWallet(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet, Creds: &L2Credentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,25 +66,14 @@ func TestNewClientHonoursConfigDepositWallet(t *testing.T) {
 }
 
 func TestClientSetBuilderCodeIsSafeWithoutDepositWallet(t *testing.T) {
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	cli.SetBuilderCode("0xabc")
 }
 
 // --- prepare and sign ---
 
-func TestClientPrepareAndSignRequiresCreds(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = cli.PrepareAndSign("100", BUY, OrderTypeGTC, 0.5, 10)
-	if !errors.Is(err, errNoCreds) {
-		t.Errorf("expected errNoCreds, got %v", err)
-	}
-}
-
 func TestClientPrepareAndSignRequiresDepositWallet(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +84,7 @@ func TestClientPrepareAndSignRequiresDepositWallet(t *testing.T) {
 }
 
 func TestClientPrepareAndSignHappyPath(t *testing.T) {
-	cli, err := NewClient(Config{
+	cli, err := NewClient(context.Background(), Config{
 		PrivateKeyHex: testPrivateKey,
 		DepositWallet: testDepositWallet,
 		Creds:         &L2Credentials{APIKey: "k"},
@@ -121,29 +110,29 @@ func TestClientPrepareAndSignHappyPath(t *testing.T) {
 // --- bootstrap ---
 
 func TestClientBootstrapRequiresEth(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey, RelayerCreds: &RelayerCredentials{APIKey: "k"}})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, RelayerCreds: &RelayerCredentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cli.Bootstrap(context.Background(), nil)
+	err = cli.Bootstrap(context.Background())
 	if !errors.Is(err, errNoEth) {
 		t.Errorf("expected errNoEth, got %v", err)
 	}
 }
 
 func TestClientBootstrapRequiresRelayerCreds(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cli.Bootstrap(context.Background(), nil)
+	err = cli.Bootstrap(context.Background())
 	if !errors.Is(err, errNoRelayerCreds) {
 		t.Errorf("expected errNoRelayerCreds, got %v", err)
 	}
 }
 
 func TestClientWrapRequiresRelayerCreds(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet, Creds: &L2Credentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +145,7 @@ func TestClientWrapRequiresRelayerCreds(t *testing.T) {
 // --- setup wallet ---
 
 func TestSetupWalletForTradingRequiresRelayerCreds(t *testing.T) {
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet, Creds: &L2Credentials{APIKey: "k"}})
 	_, err := cli.SetupWalletForTrading(context.Background(), big.NewInt(1_000_000))
 	if !errors.Is(err, errNoRelayerCreds) {
 		t.Errorf("expected errNoRelayerCreds, got %v", err)
@@ -164,7 +153,7 @@ func TestSetupWalletForTradingRequiresRelayerCreds(t *testing.T) {
 }
 
 func TestSetupWalletForTradingRequiresDepositWallet(t *testing.T) {
-	cli, _ := NewClient(Config{
+	cli, _ := NewClient(context.Background(), Config{
 		PrivateKeyHex: testPrivateKey,
 		RelayerCreds:  &RelayerCredentials{APIKey: "k", Secret: "AAAA", Passphrase: "p"},
 	})
@@ -175,7 +164,7 @@ func TestSetupWalletForTradingRequiresDepositWallet(t *testing.T) {
 }
 
 func TestSetupWalletForTradingRejectsBadAmount(t *testing.T) {
-	cli, _ := NewClient(Config{
+	cli, _ := NewClient(context.Background(), Config{
 		PrivateKeyHex: testPrivateKey,
 		DepositWallet: testDepositWallet,
 		RelayerCreds:  &RelayerCredentials{APIKey: "k", Secret: "AAAA", Passphrase: "p"},
@@ -189,7 +178,7 @@ func TestSetupWalletForTradingRejectsBadAmount(t *testing.T) {
 // --- CTF ---
 
 func TestClientSplitPositionRequiresRelayerCreds(t *testing.T) {
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet, Creds: &L2Credentials{APIKey: "k"}})
 	_, err := cli.SplitPosition(context.Background(), "0xc0", big.NewInt(1))
 	if !errors.Is(err, errNoRelayerCreds) {
 		t.Errorf("expected errNoRelayerCreds, got %v", err)
@@ -197,7 +186,7 @@ func TestClientSplitPositionRequiresRelayerCreds(t *testing.T) {
 }
 
 func TestClientSplitPositionRejectsBadAmount(t *testing.T) {
-	cli, _ := NewClient(Config{
+	cli, _ := NewClient(context.Background(), Config{
 		PrivateKeyHex: testPrivateKey,
 		DepositWallet: testDepositWallet,
 		RelayerCreds:  &RelayerCredentials{APIKey: "k", Secret: "AAAA", Passphrase: "p"},
@@ -221,7 +210,7 @@ func TestClientWrappersHitClob(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	cli.clob.SetBaseURL(srv.URL)
 	mkt, err := cli.GetMarket(context.Background(), "0xabc")
 	if err != nil {
@@ -233,7 +222,7 @@ func TestClientWrappersHitClob(t *testing.T) {
 }
 
 func TestClientGetPositionsRequiresDepositWallet(t *testing.T) {
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +242,7 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	cli, err := NewClient(Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet})
+	cli, err := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, DepositWallet: testDepositWallet, Creds: &L2Credentials{APIKey: "k"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +271,7 @@ func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	cli.clob.SetDataAPIBaseURL(srv.URL)
 
 	other := "0x000000000000000000000000000000000000beef"
@@ -298,7 +287,7 @@ func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
 // --- replace order ---
 
 func TestReplaceOrderRejectsNilOrder(t *testing.T) {
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	_, _, err := cli.ReplaceOrder(context.Background(), "0x1", nil)
 	if err == nil || !strings.Contains(err.Error(), "nil new order") {
 		t.Errorf("got %v", err)
@@ -321,7 +310,7 @@ func TestReplaceOrderCancelsThenPlaces(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	cli, _ := NewClient(Config{
+	cli, _ := NewClient(context.Background(), Config{
 		PrivateKeyHex: testPrivateKey,
 		DepositWallet: testDepositWallet,
 		Creds:         &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"},
@@ -362,7 +351,7 @@ func TestReplaceOrderStopsOnCancelFailure(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	cli, _ := NewClient(Config{
+	cli, _ := NewClient(context.Background(), Config{
 		PrivateKeyHex: testPrivateKey,
 		DepositWallet: testDepositWallet,
 		Creds:         &L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"},
@@ -425,7 +414,7 @@ func TestSubscribeMarketReceivesEvents(t *testing.T) {
 	ws.MarketURL = url
 	defer func() { ws.MarketURL = prev }()
 
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	sub, err := cli.SubscribeMarket(ctx, []string{"tok1"})
@@ -448,14 +437,6 @@ func TestSubscribeMarketReceivesEvents(t *testing.T) {
 		case <-timeout:
 			t.Fatalf("timeout: got %d events", got)
 		}
-	}
-}
-
-func TestSubscribeUserRequiresCreds(t *testing.T) {
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
-	_, err := cli.SubscribeUser(context.Background(), []string{"0xc0"})
-	if !errors.Is(err, errNoCreds) {
-		t.Errorf("expected errNoCreds, got %v", err)
 	}
 }
 
@@ -484,7 +465,7 @@ func TestSubscribeUserSendsAuth(t *testing.T) {
 	ws.UserURL = url
 	defer func() { ws.UserURL = prev }()
 
-	cli, _ := NewClient(Config{
+	cli, _ := NewClient(context.Background(), Config{
 		PrivateKeyHex: testPrivateKey,
 		Creds:         &L2Credentials{Address: "0x0", APIKey: "k", Secret: "s", Passphrase: "p"},
 	})
@@ -544,7 +525,7 @@ func TestSubscribeMarketReconnectingReplaysSubscribeAfterDisconnect(t *testing.T
 	ws.MarketURL = url
 	defer func() { ws.MarketURL = prev }()
 
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	sub, err := cli.SubscribeMarketReconnecting(ctx, []string{"tok1"})
@@ -590,7 +571,7 @@ func TestSubscriptionCloseIdempotent(t *testing.T) {
 	ws.MarketURL = url
 	defer func() { ws.MarketURL = prev }()
 
-	cli, _ := NewClient(Config{PrivateKeyHex: testPrivateKey})
+	cli, _ := NewClient(context.Background(), Config{PrivateKeyHex: testPrivateKey, Creds: &L2Credentials{APIKey: "k"}})
 	sub, err := cli.SubscribeMarket(context.Background(), []string{"tok1"})
 	if err != nil {
 		t.Fatal(err)

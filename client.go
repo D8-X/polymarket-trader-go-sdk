@@ -46,7 +46,7 @@ var (
 	errNoDepositWallet = errors.New("client: no deposit wallet; call Bootstrap or set Config.DepositWallet")
 )
 
-func NewClient(cfg Config) (*Client, error) {
+func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.PrivateKeyHex == "" {
 		return nil, fmt.Errorf("client: PrivateKeyHex is required")
 	}
@@ -60,6 +60,11 @@ func NewClient(cfg Config) (*Client, error) {
 		clob:          NewCLOBClient(),
 		creds:         cfg.Creds,
 		depositWallet: cfg.DepositWallet,
+	}
+	if c.creds == nil {
+		if err := c.DeriveCreds(ctx); err != nil {
+			return nil, fmt.Errorf("client: derive credentials: %w", err)
+		}
 	}
 	if c.depositWallet != "" {
 		c.builder = NewOrderBuilder(c.depositWallet, CTFExchange, cfg.PrivateKeyHex)
@@ -119,15 +124,12 @@ func (c *Client) DeriveCreds(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
+func (c *Client) Bootstrap(ctx context.Context) error {
 	if c.cfg.RelayerCreds == nil {
 		return errNoRelayerCreds
 	}
 	if c.cfg.Eth == nil {
 		return errNoEth
-	}
-	if err := c.DeriveCreds(ctx); err != nil {
-		return err
 	}
 	addr, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
 	if err != nil {
@@ -142,10 +144,11 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	if wrapAmount != nil {
-		if _, err := wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
-			return fmt.Errorf("client: bootstrap: wrap+approve: %w", err)
-		}
+	if _, err := wallet.ApproveForBuy(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds); err != nil {
+		return fmt.Errorf("client: bootstrap: approve for buy: %w", err)
+	}
+	if _, err := wallet.ApproveForSell(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds); err != nil {
+		return fmt.Errorf("client: bootstrap: approve for sell: %w", err)
 	}
 	return nil
 }
@@ -247,6 +250,25 @@ func (c *Client) CancelOrder(ctx context.Context, orderID string) (*CancelRespon
 		return nil, err
 	}
 	return c.clob.CancelOrder(ctx, orderID, creds)
+}
+
+func (c *Client) ERC20Balance(ctx context.Context, tokenAddress string) (*big.Int, error) {
+	if c.cfg.Eth == nil {
+		return nil, errNoEth
+	}
+	dw := c.DepositWallet()
+	if dw == "" {
+		return nil, errNoDepositWallet
+	}
+	return onchain.ERC20BalanceOf(ctx, c.cfg.Eth, tokenAddress, dw)
+}
+
+func (c *Client) USDCBalance(ctx context.Context) (*big.Int, error) {
+	return c.ERC20Balance(ctx, USDCAddress)
+}
+
+func (c *Client) PUSDBalance(ctx context.Context) (*big.Int, error) {
+	return c.ERC20Balance(ctx, PUSDAddress)
 }
 
 func (c *Client) ReplaceOrder(ctx context.Context, oldOrderID string, newOrder *SignedOrder) (*CancelResponse, *PlaceOrderResponse, error) {
