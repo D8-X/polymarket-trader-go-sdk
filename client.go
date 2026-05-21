@@ -502,6 +502,22 @@ func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amoun
 	return transferFromDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
 }
 
+func (c *Client) GetRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
+	return getRelayerTransaction(ctx, transactionID)
+}
+
+func (c *Client) WaitForRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
+	return waitForRelayerTransaction(ctx, transactionID)
+}
+
+func (c *Client) SetupWalletForTrading(ctx context.Context, amount *big.Int) (*RelayerResponse, error) {
+	dw, err := c.requireDepositWalletOps()
+	if err != nil {
+		return nil, err
+	}
+	return wrapAndApproveDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+}
+
 func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
 	dw, err := c.requireDepositWalletOps()
 	if err != nil {

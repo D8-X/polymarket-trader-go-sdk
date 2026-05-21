@@ -17,6 +17,10 @@ jobs:
         env:
           POLYMARKET_TEST_PK: ${{ secrets.POLYMARKET_TEST_PK }}
           POLYMARKET_TEST_DEPOSIT_WALLET: ${{ secrets.POLYMARKET_TEST_DEPOSIT_WALLET }}
+          POLYMARKET_TEST_RPC: ${{ secrets.POLYMARKET_TEST_RPC }}
+          POLYMARKET_TEST_RELAYER_API_KEY: ${{ secrets.POLYMARKET_TEST_RELAYER_API_KEY }}
+          POLYMARKET_TEST_RELAYER_SECRET: ${{ secrets.POLYMARKET_TEST_RELAYER_SECRET }}
+          POLYMARKET_TEST_RELAYER_PASSPHRASE: ${{ secrets.POLYMARKET_TEST_RELAYER_PASSPHRASE }}
         run: |
           set +e
           go test -tags=smoke -v ./tests/smoke/... | tee /tmp/test.out
