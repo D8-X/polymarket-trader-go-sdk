@@ -84,7 +84,7 @@ func GetTransaction(ctx context.Context, transactionID string) (*models.RelayerT
 }
 
 func WaitForTransaction(ctx context.Context, transactionID string) (*models.RelayerTransaction, error) {
-	pollInterval := 2 * time.Second
+	pollInterval := time.Second
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
@@ -93,7 +93,7 @@ func WaitForTransaction(ctx context.Context, transactionID string) (*models.Rela
 			return nil, fmt.Errorf("wait for relayer tx: %w", err)
 		}
 		switch tx.State {
-		case StateMined, StateConfirmed:
+		case StateConfirmed:
 			return tx, nil
 		case StateFailed, StateInvalid:
 			return tx, fmt.Errorf("wait for relayer tx: transaction %s: %s", transactionID, tx.State)
