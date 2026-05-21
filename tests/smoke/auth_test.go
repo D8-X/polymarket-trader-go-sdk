@@ -17,7 +17,7 @@ func TestAuthSmoke(t *testing.T) {
 	}
 
 	t.Log("deriving L2 credentials (EIP-712 ClobAuth)")
-	creds, err := polytrade.DeriveL2Credentials(pk, polytrade.PolygonChainID)
+	creds, err := polytrade.DeriveL2Credentials(context.Background(), pk, polytrade.PolygonChainID)
 	if err != nil {
 		t.Fatalf("derive creds: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestAuthSmoke(t *testing.T) {
 
 	t.Log("HMAC L2 auth via GetBalanceAllowance")
 	clob := polytrade.NewCLOBClient()
-	if _, err := clob.GetBalanceAllowance(context.Background(), "COLLATERAL", "", polytrade.SignatureTypeEOA, creds); err != nil {
+	if _, err := clob.GetBalanceAllowance(context.Background(), "COLLATERAL", "", creds); err != nil {
 		t.Fatalf("authed call: %v", err)
 	}
 	t.Log("  HMAC auth OK")

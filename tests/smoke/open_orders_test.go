@@ -16,7 +16,7 @@ func TestOpenOrdersAndTradesSmoke(t *testing.T) {
 		t.Skip("POLYMARKET_TEST_PK not set")
 	}
 
-	creds, err := polytrade.DeriveL2Credentials(pk, polytrade.PolygonChainID)
+	creds, err := polytrade.DeriveL2Credentials(context.Background(), pk, polytrade.PolygonChainID)
 	if err != nil {
 		t.Fatalf("derive creds: %v", err)
 	}

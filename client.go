@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/relayer"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/wallet"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -59,7 +62,7 @@ func NewClient(cfg Config) (*Client, error) {
 		depositWallet: cfg.DepositWallet,
 	}
 	if c.depositWallet != "" {
-		c.builder = NewOrderBuilder(c.depositWallet, CTFExchange, cfg.PrivateKeyHex, SignatureTypePoly1271)
+		c.builder = NewOrderBuilder(c.depositWallet, CTFExchange, cfg.PrivateKeyHex)
 	}
 	return c, nil
 }
@@ -92,10 +95,20 @@ func (c *Client) snapshot() (*L2Credentials, *OrderBuilder, string, error) {
 	return c.creds, c.builder, c.depositWallet, nil
 }
 
-func (c *Client) DeriveCreds(_ context.Context) error {
-	creds, err := DeriveL2Credentials(c.cfg.PrivateKeyHex, PolygonChainID)
+func (c *Client) requireCreds() (*L2Credentials, error) {
+	c.mu.RLock()
+	creds := c.creds
+	c.mu.RUnlock()
+	if creds == nil {
+		return nil, errNoCreds
+	}
+	return creds, nil
+}
+
+func (c *Client) DeriveCreds(ctx context.Context) error {
+	creds, err := DeriveL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 	if err != nil {
-		creds, err = CreateL2Credentials(c.cfg.PrivateKeyHex, PolygonChainID)
+		creds, err = CreateL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
 		if err != nil {
 			return fmt.Errorf("client: derive/create L2 credentials: %w", err)
 		}
@@ -116,17 +129,21 @@ func (c *Client) Bootstrap(ctx context.Context, wrapAmount *big.Int) error {
 	if err := c.DeriveCreds(ctx); err != nil {
 		return err
 	}
-	addr, _, _, err := deployAndResolveDepositWallet(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
+	addr, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
 	if err != nil {
 		return fmt.Errorf("client: bootstrap: %w", err)
 	}
 	c.mu.Lock()
 	c.depositWallet = addr
-	c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex, SignatureTypePoly1271)
+	c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex)
 	c.mu.Unlock()
-	time.Sleep(2 * time.Second)
+	select {
+	case <-time.After(2 * time.Second):
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	if wrapAmount != nil {
-		if _, err := wrapAndApproveDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
+		if _, err := wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, wrapAmount, c.cfg.RelayerCreds); err != nil {
 			return fmt.Errorf("client: bootstrap: wrap+approve: %w", err)
 		}
 	}
@@ -142,21 +159,17 @@ func (c *Client) PrepareAndSign(tokenID, side, orderType string, price, size flo
 }
 
 func (c *Client) PlaceOrder(ctx context.Context, signed *SignedOrder) (*PlaceOrderResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.PlaceOrder(ctx, signed, creds)
 }
 
 func (c *Client) PlaceOrders(ctx context.Context, orders []*SignedOrder) ([]PlaceOrderResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.PlaceOrders(ctx, orders, creds)
 }
@@ -169,95 +182,116 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID string, price float6
 	if c.cfg.Eth == nil {
 		return nil, errNoEth
 	}
-	return c.clob.ClosePosition(ctx, c.cfg.Eth, builder, tokenID, price, creds, opts)
+	balance, err := GetOutcomeTokenBalance(ctx, c.cfg.Eth, builder.MakerAddress(), tokenID)
+	if err != nil {
+		return nil, fmt.Errorf("close position: %w", err)
+	}
+	if balance.Sign() <= 0 {
+		return nil, fmt.Errorf("close position: no position to close for tokenID %s", tokenID)
+	}
+	size := onchain.RawBalanceToSize(balance)
+	orderType := opts.OrderType
+	if orderType == "" {
+		orderType = OrderTypeFOK
+	}
+	tickSize := opts.TickSize
+	if tickSize == "" {
+		tickSize = "0.01"
+	}
+	signed, err := builder.PrepareAndSign(tokenID, SELL, orderType, price, size, creds.APIKey, OrderOpts{
+		TickSize:  tickSize,
+		PostOnly:  opts.PostOnly,
+		DeferExec: opts.DeferExec,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("close position: prepare: %w", err)
+	}
+	return c.clob.PlaceOrder(ctx, signed, creds)
 }
 
 func (c *Client) GetOrder(ctx context.Context, orderID string) (*OrderStatus, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetOrder(ctx, orderID, creds)
 }
 
 func (c *Client) GetOpenOrders(ctx context.Context, market, assetID string) ([]OrderStatus, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetOpenOrders(ctx, market, assetID, creds)
 }
 
 func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID string) ([]Trade, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetTrades(ctx, makerAddress, market, assetID, creds)
 }
 
 func (c *Client) GetPreMigrationOrders(ctx context.Context) ([]OrderStatus, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetPreMigrationOrders(ctx, creds)
 }
 
 func (c *Client) CancelOrder(ctx context.Context, orderID string) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelOrder(ctx, orderID, creds)
 }
 
+func (c *Client) ReplaceOrder(ctx context.Context, oldOrderID string, newOrder *SignedOrder) (*CancelResponse, *PlaceOrderResponse, error) {
+	if newOrder == nil {
+		return nil, nil, fmt.Errorf("replace order: nil new order")
+	}
+	cancelResp, cancelErr := c.CancelOrder(ctx, oldOrderID)
+	if cancelErr != nil {
+		return cancelResp, nil, fmt.Errorf("replace order: cancel %s: %w", oldOrderID, cancelErr)
+	}
+	placeResp, placeErr := c.PlaceOrder(ctx, newOrder)
+	if placeErr != nil {
+		return cancelResp, placeResp, fmt.Errorf("replace order: place new: %w", placeErr)
+	}
+	return cancelResp, placeResp, nil
+}
+
 func (c *Client) CancelOrders(ctx context.Context, orderIDs []string) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelOrders(ctx, orderIDs, creds)
 }
 
 func (c *Client) CancelAll(ctx context.Context) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelAll(ctx, creds)
 }
 
 func (c *Client) CancelMarketOrders(ctx context.Context, market, assetID string) (*CancelResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.CancelMarketOrders(ctx, market, assetID, creds)
 }
 
 func (c *Client) AwaitOrder(ctx context.Context, resp *PlaceOrderResponse, opts *PollOpts) (*PollResult, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.AwaitOrder(ctx, resp, creds, opts)
 }
@@ -334,20 +368,14 @@ func (c *Client) GetClobMarketInfo(ctx context.Context, conditionID string) (*Cl
 	return c.clob.GetClobMarketInfo(ctx, conditionID)
 }
 
-func (c *Client) GetFeeRate(ctx context.Context, tokenID string) (int, error) {
-	return c.clob.GetFeeRate(ctx, tokenID)
-}
-
 func (c *Client) GetNegRisk(ctx context.Context, tokenID string) (bool, error) {
 	return c.clob.GetNegRisk(ctx, tokenID)
 }
 
 func (c *Client) GetBalances(ctx context.Context) ([]BalanceEntry, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.GetBalances(ctx, creds)
 }
@@ -395,43 +423,35 @@ func (c *Client) GetPositionsOf(ctx context.Context, walletAddress string) ([]Po
 }
 
 func (c *Client) GetBalanceAllowance(ctx context.Context, assetType, tokenID string) (*BalanceAllowanceResponse, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
-	return c.clob.GetBalanceAllowance(ctx, assetType, tokenID, SignatureTypePoly1271, creds)
+	return c.clob.GetBalanceAllowance(ctx, assetType, tokenID, creds)
 }
 
 func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType, tokenID string) error {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return err
 	}
-	return c.clob.UpdateBalanceAllowance(ctx, assetType, tokenID, SignatureTypePoly1271, creds)
+	return c.clob.UpdateBalanceAllowance(ctx, assetType, tokenID, creds)
 }
 
 func (c *Client) CollateralBalanceOf(ctx context.Context) (*big.Int, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
-	return collateralBalanceOf(ctx, creds)
+	return wallet.CollateralBalance(ctx, creds)
 }
 
 func (c *Client) RefreshCollateralBalance(ctx context.Context) error {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return err
 	}
-	return refreshCollateralBalance(ctx, creds)
+	return wallet.RefreshCollateralBalance(ctx, creds)
 }
 
 func (c *Client) GetCurrentRewards(ctx context.Context) ([]CurrentRewardMarket, error) {
@@ -439,41 +459,33 @@ func (c *Client) GetCurrentRewards(ctx context.Context) ([]CurrentRewardMarket, 
 }
 
 func (c *Client) GetEarningsForUserForDay(ctx context.Context, date string) ([]map[string]any, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
-	return c.clob.GetEarningsForUserForDay(ctx, date, SignatureTypePoly1271, creds)
+	return c.clob.GetEarningsForUserForDay(ctx, date, creds)
 }
 
 func (c *Client) GetRewardPercentages(ctx context.Context) (map[string]any, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
-	return c.clob.GetRewardPercentages(ctx, SignatureTypePoly1271, creds)
+	return c.clob.GetRewardPercentages(ctx, creds)
 }
 
 func (c *Client) IsOrderScoring(ctx context.Context, orderID string) (*OrderScoringResult, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.IsOrderScoring(ctx, orderID, creds)
 }
 
 func (c *Client) AreOrdersScoring(ctx context.Context, orderIDs []string) (map[string]bool, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return nil, errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
 	}
 	return c.clob.AreOrdersScoring(ctx, orderIDs, creds)
 }
@@ -483,7 +495,7 @@ func (c *Client) WrapToPUSD(ctx context.Context, amount *big.Int) (*RelayerRespo
 	if err != nil {
 		return nil, err
 	}
-	return wrapToPUSD(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.WrapToPUSD(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerResponse, error) {
@@ -491,7 +503,7 @@ func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerRes
 	if err != nil {
 		return nil, err
 	}
-	return unwrapToUSDC(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.UnwrapToUSDC(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amount *big.Int) (*RelayerResponse, error) {
@@ -499,15 +511,15 @@ func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amoun
 	if err != nil {
 		return nil, err
 	}
-	return transferFromDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
+	return wallet.TransferOut(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) GetRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
-	return getRelayerTransaction(ctx, transactionID)
+	return relayer.GetTransaction(ctx, transactionID)
 }
 
 func (c *Client) WaitForRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
-	return waitForRelayerTransaction(ctx, transactionID)
+	return relayer.WaitForTransaction(ctx, transactionID)
 }
 
 func (c *Client) SetupWalletForTrading(ctx context.Context, amount *big.Int) (*RelayerResponse, error) {
@@ -515,7 +527,7 @@ func (c *Client) SetupWalletForTrading(ctx context.Context, amount *big.Int) (*R
 	if err != nil {
 		return nil, err
 	}
-	return wrapAndApproveDepositWallet(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
 }
 
 func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
@@ -523,7 +535,7 @@ func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return approveDepositWalletForBuyOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return wallet.ApproveForBuy(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
 }
 
 func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
@@ -531,7 +543,31 @@ func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return approveDepositWalletForSellOrders(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return wallet.ApproveForSell(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+}
+
+func (c *Client) SplitPosition(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
+	dw, err := c.requireDepositWalletOps()
+	if err != nil {
+		return nil, err
+	}
+	return wallet.SplitPosition(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, amount, c.cfg.RelayerCreds)
+}
+
+func (c *Client) MergePositions(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
+	dw, err := c.requireDepositWalletOps()
+	if err != nil {
+		return nil, err
+	}
+	return wallet.MergePositions(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, amount, c.cfg.RelayerCreds)
+}
+
+func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*RelayerResponse, error) {
+	dw, err := c.requireDepositWalletOps()
+	if err != nil {
+		return nil, err
+	}
+	return wallet.RedeemPositions(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, c.cfg.RelayerCreds)
 }
 
 func (c *Client) requireDepositWalletOps() (string, error) {
@@ -548,11 +584,9 @@ func (c *Client) requireDepositWalletOps() (string, error) {
 }
 
 func (c *Client) PostHeartbeat(ctx context.Context) (string, error) {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	if creds == nil {
-		return "", errNoCreds
+	creds, err := c.requireCreds()
+	if err != nil {
+		return "", err
 	}
 	c.mu.Lock()
 	prev := c.heartbeatID
@@ -581,4 +615,3 @@ func (c *Client) SetBuilderCode(code string) {
 		b.SetBuilderCode(code)
 	}
 }
-

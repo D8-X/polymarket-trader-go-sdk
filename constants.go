@@ -1,132 +1,55 @@
 package polytrade
 
-import "time"
+import "github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 
 const (
-	ClobBaseURL    = "https://clob.polymarket.com"
-	DataAPIBaseURL = "https://data-api.polymarket.com"
-	SafeAPIBaseURL = "https://safe-transaction-polygon.safe.global/api/v1"
+	ClobBaseURL    = consts.ClobBaseURL
+	DataAPIBaseURL = consts.DataAPIBaseURL
 )
 
 const (
-	PolygonChainID = 137
+	PolygonChainID = consts.PolygonChainID
 )
 
 const (
-	sideBuy  = 0
-	sideSell = 1
+	BUY  = consts.BUY
+	SELL = consts.SELL
 )
 
 const (
-	BUY  = "BUY"
-	SELL = "SELL"
+	OrderTypeGTC = consts.OrderTypeGTC
+	OrderTypeGTD = consts.OrderTypeGTD
+	OrderTypeFOK = consts.OrderTypeFOK
+	OrderTypeFAK = consts.OrderTypeFAK
 )
 
 const (
-	OrderTypeGTC = "GTC"
-	OrderTypeGTD = "GTD"
-	OrderTypeFOK = "FOK"
-	OrderTypeFAK = "FAK"
+	SignatureTypePoly1271 = consts.SignatureTypePoly1271
 )
 
 const (
-	SignatureTypeEOA        = 0
-	SignatureTypePolyProxy  = 1
-	SignatureTypeGnosisSafe = 2
-	SignatureTypePoly1271   = 3
+	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+	PUSDAddress        = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB"
+	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B"
+	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59"
+	NegRiskAdapter     = "0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296"
 )
 
 const (
-	ZeroAddress    = "0x0000000000000000000000000000000000000000"
-	relayerBaseURL = "https://relayer-v2.polymarket.com"
+	GTDSecurityThreshold = consts.GTDSecurityThreshold
+	SaltUpperBound       = consts.SaltUpperBound
 )
 
 const (
-	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" // USDC.e
-	PUSDAddress        = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB" // Polymarket USD (pUSD) proxy on Polygon
-	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B" // Polymarket V2 CTF Exchange
-	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59" // for capped loss markets
-	collateralOnramp   = "0x93070a847efEf7F70739046A929D47a521F5B8ee" // wrap USDC.e -> pUSD
-	collateralOfframp  = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854" // unwrap pUSD -> USDC.e
-
-	depositWalletFactory        = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
-	depositWalletImplementation = "0x58ca52ebe0dadfdf531cde7062e76746de4db1eb"
-
-	conditionalTokens = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
+	OrderStatusMatched   = consts.OrderStatusMatched
+	OrderStatusLive      = consts.OrderStatusLive
+	OrderStatusDelayed   = consts.OrderStatusDelayed
+	OrderStatusCanceled  = consts.OrderStatusCanceled
+	OrderStatusUnmatched = consts.OrderStatusUnmatched
 )
 
 const (
-	eip712DepositWalletDomainType = "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-	eip712DepositWalletName       = "DepositWallet"
-	eip712DepositWalletVersion    = "1"
-
-	eip712BatchType = "Batch(address wallet,uint256 nonce,uint256 deadline,Call[] calls)Call(address target,uint256 value,bytes data)"
-	eip712CallType  = "Call(address target,uint256 value,bytes data)"
-
-	eip712SoladyTypedDataSignType = "TypedDataSign(Order contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)Order(uint256 salt,address maker,address signer,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint8 side,uint8 signatureType,uint256 timestamp,bytes32 metadata,bytes32 builder)"
-)
-
-// configuredPUSDAddress is set by SetPUSDAddress; CollateralAddress falls back
-// to USDCAddress until callers configure pUSD.
-var configuredPUSDAddress = PUSDAddress
-
-// SetPUSDAddress overrides the default Polymarket USD (pUSD) Polygon address.
-// CollateralAddress returns this value when non-empty; otherwise it returns
-// USDCAddress (USDC.e).
-func SetPUSDAddress(addr string) {
-	configuredPUSDAddress = addr
-}
-
-// CollateralAddress returns the active collateral ERC-20 — pUSD by default,
-// falling back to USDC.e if pUSD has been explicitly unset via SetPUSDAddress("").
-func CollateralAddress() string {
-	if configuredPUSDAddress != "" {
-		return configuredPUSDAddress
-	}
-	return USDCAddress
-}
-
-const (
-	defaultTimeout = 10 * time.Second
-	clobTimeout    = 15 * time.Second
-)
-
-const (
-	amountScale          = 1e6
-	gtdExpiration        = 5 * time.Minute
-	GTDSecurityThreshold = 60 * time.Second
-	SaltUpperBound       = 1 << 62
-
-	zeroBytes32 = "0x0000000000000000000000000000000000000000000000000000000000000000"
-)
-
-
-// The cancelled status is not in the polumarket doc, but I found it used in the rs client
-const (
-	OrderStatusMatched   = "matched" // Order placed and matched with a resting order
-	OrderStatusLive      = "live" // Order placed and resting on the book
-	OrderStatusDelayed   = "delayed" // Order is marketable but subject to a matching delay
-	OrderStatusCanceled  = "canceled"  // https://github.com/Polymarket/rs-clob-client/blob/main/src/clob/types/mod.rs
-	OrderStatusUnmatched = "unmatched" // Order is marketable but failed to delay — placement still successful
-)
-
-// rate limit of the ledger groups which includes the GET /order have a 900 req/10. 
-// so up to 18 polling simultaneously with 200ms interval
-const (
-	DefaultPollInterval       = 200 * time.Millisecond // that shaould be safe https://docs.polymarket.com/api-reference/rate-limits
-	DefaultDelayedPollTimeout = 5 * time.Second
-	DefaultLivePollTimeout    = 60 * time.Second
-)
-
-const (
-	eip712DomainType      = "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-	eip712AuthDomainType  = "EIP712Domain(string name,string version,uint256 chainId)"
-	eip712ClobAuthType    = "ClobAuth(address address,string timestamp,uint256 nonce,string message)"
-	eip712OrderType       = "Order(uint256 salt,address maker,address signer,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint8 side,uint8 signatureType,uint256 timestamp,bytes32 metadata,bytes32 builder)"
-
-	eip712AuthDomainName  = "ClobAuthDomain"
-	eip712OrderDomainName = "Polymarket CTF Exchange"
-	eip712OrderVersion    = "2"
-	eip712AuthVersion     = "1"
-	eip712AuthMessage     = "This message attests that I control the given wallet"
+	DefaultPollInterval       = consts.DefaultPollInterval
+	DefaultDelayedPollTimeout = consts.DefaultDelayedPollTimeout
+	DefaultLivePollTimeout    = consts.DefaultLivePollTimeout
 )
