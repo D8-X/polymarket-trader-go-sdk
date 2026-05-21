@@ -169,7 +169,31 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID string, price float6
 	if c.cfg.Eth == nil {
 		return nil, errNoEth
 	}
-	return c.clob.ClosePosition(ctx, c.cfg.Eth, builder, tokenID, price, creds, opts)
+	balance, err := GetOutcomeTokenBalance(ctx, c.cfg.Eth, builder.MakerAddress(), tokenID)
+	if err != nil {
+		return nil, fmt.Errorf("close position: %w", err)
+	}
+	if balance.Sign() <= 0 {
+		return nil, fmt.Errorf("close position: no position to close for tokenID %s", tokenID)
+	}
+	size := rawBalanceToSize(balance)
+	orderType := opts.OrderType
+	if orderType == "" {
+		orderType = OrderTypeFOK
+	}
+	tickSize := opts.TickSize
+	if tickSize == "" {
+		tickSize = "0.01"
+	}
+	signed, err := builder.PrepareAndSign(tokenID, SELL, orderType, price, size, creds.APIKey, OrderOpts{
+		TickSize:  tickSize,
+		PostOnly:  opts.PostOnly,
+		DeferExec: opts.DeferExec,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("close position: prepare: %w", err)
+	}
+	return c.clob.PlaceOrder(ctx, signed, creds)
 }
 
 func (c *Client) GetOrder(ctx context.Context, orderID string) (*OrderStatus, error) {

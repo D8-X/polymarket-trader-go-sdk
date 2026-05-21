@@ -3,12 +3,20 @@ package polytrade
 import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/clob"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/order"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 )
 
 type CLOBClient = clob.Client
 
 func NewCLOBClient() *CLOBClient { return clob.NewClient() }
+
+type OrderBuilder = order.Builder
+type OrderOpts = order.Opts
+
+func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *OrderBuilder {
+	return order.NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex, sigType)
+}
 
 type APIError = types.APIError
 type L2Credentials = types.L2Credentials

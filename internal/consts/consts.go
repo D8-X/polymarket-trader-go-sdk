@@ -23,14 +23,36 @@ const (
 )
 
 const (
-	DefaultTimeout = 10 * time.Second
-	CLOBTimeout    = 15 * time.Second
-	GTDExpiration  = 5 * time.Minute
+	DefaultTimeout       = 10 * time.Second
+	CLOBTimeout          = 15 * time.Second
+	GTDExpiration        = 5 * time.Minute
+	GTDSecurityThreshold = 60 * time.Second
 
 	DefaultPollInterval       = 200 * time.Millisecond
 	DefaultDelayedPollTimeout = 5 * time.Second
 	DefaultLivePollTimeout    = 60 * time.Second
 )
+
+const (
+	BUY  = "BUY"
+	SELL = "SELL"
+)
+
+const (
+	OrderTypeGTC = "GTC"
+	OrderTypeGTD = "GTD"
+	OrderTypeFOK = "FOK"
+	OrderTypeFAK = "FAK"
+)
+
+const (
+	SignatureTypeEOA        = 0
+	SignatureTypePolyProxy  = 1
+	SignatureTypeGnosisSafe = 2
+	SignatureTypePoly1271   = 3
+)
+
+const SaltUpperBound = 1 << 62
 
 const (
 	OrderStatusMatched   = "matched"

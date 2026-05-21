@@ -1,34 +1,34 @@
 package polytrade
 
-import "time"
+import "github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 
 const (
-	ClobBaseURL    = "https://clob.polymarket.com"
-	DataAPIBaseURL = "https://data-api.polymarket.com"
+	ClobBaseURL    = consts.ClobBaseURL
+	DataAPIBaseURL = consts.DataAPIBaseURL
 	SafeAPIBaseURL = "https://safe-transaction-polygon.safe.global/api/v1"
 )
 
 const (
-	PolygonChainID = 137
+	PolygonChainID = consts.PolygonChainID
 )
 
 const (
-	BUY  = "BUY"
-	SELL = "SELL"
+	BUY  = consts.BUY
+	SELL = consts.SELL
 )
 
 const (
-	OrderTypeGTC = "GTC"
-	OrderTypeGTD = "GTD"
-	OrderTypeFOK = "FOK"
-	OrderTypeFAK = "FAK"
+	OrderTypeGTC = consts.OrderTypeGTC
+	OrderTypeGTD = consts.OrderTypeGTD
+	OrderTypeFOK = consts.OrderTypeFOK
+	OrderTypeFAK = consts.OrderTypeFAK
 )
 
 const (
-	SignatureTypeEOA        = 0
-	SignatureTypePolyProxy  = 1
-	SignatureTypeGnosisSafe = 2
-	SignatureTypePoly1271   = 3
+	SignatureTypeEOA        = consts.SignatureTypeEOA
+	SignatureTypePolyProxy  = consts.SignatureTypePolyProxy
+	SignatureTypeGnosisSafe = consts.SignatureTypeGnosisSafe
+	SignatureTypePoly1271   = consts.SignatureTypePoly1271
 )
 
 const (
@@ -43,19 +43,12 @@ const (
 	NegRiskAdapter     = "0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296"
 )
 
-// configuredPUSDAddress is set by SetPUSDAddress; CollateralAddress falls back
-// to USDCAddress until callers configure pUSD.
 var configuredPUSDAddress = PUSDAddress
 
-// SetPUSDAddress overrides the default Polymarket USD (pUSD) Polygon address.
-// CollateralAddress returns this value when non-empty; otherwise it returns
-// USDCAddress (USDC.e).
 func SetPUSDAddress(addr string) {
 	configuredPUSDAddress = addr
 }
 
-// CollateralAddress returns the active collateral ERC-20 — pUSD by default,
-// falling back to USDC.e if pUSD has been explicitly unset via SetPUSDAddress("").
 func CollateralAddress() string {
 	if configuredPUSDAddress != "" {
 		return configuredPUSDAddress
@@ -64,20 +57,20 @@ func CollateralAddress() string {
 }
 
 const (
-	GTDSecurityThreshold = 60 * time.Second
-	SaltUpperBound       = 1 << 62
+	GTDSecurityThreshold = consts.GTDSecurityThreshold
+	SaltUpperBound       = consts.SaltUpperBound
 )
 
 const (
-	OrderStatusMatched   = "matched"
-	OrderStatusLive      = "live"
-	OrderStatusDelayed   = "delayed"
-	OrderStatusCanceled  = "canceled"
-	OrderStatusUnmatched = "unmatched"
+	OrderStatusMatched   = consts.OrderStatusMatched
+	OrderStatusLive      = consts.OrderStatusLive
+	OrderStatusDelayed   = consts.OrderStatusDelayed
+	OrderStatusCanceled  = consts.OrderStatusCanceled
+	OrderStatusUnmatched = consts.OrderStatusUnmatched
 )
 
 const (
-	DefaultPollInterval       = 200 * time.Millisecond
-	DefaultDelayedPollTimeout = 5 * time.Second
-	DefaultLivePollTimeout    = 60 * time.Second
+	DefaultPollInterval       = consts.DefaultPollInterval
+	DefaultDelayedPollTimeout = consts.DefaultDelayedPollTimeout
+	DefaultLivePollTimeout    = consts.DefaultLivePollTimeout
 )

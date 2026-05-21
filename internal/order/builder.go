@@ -1,4 +1,4 @@
-package polytrade
+package order
 
 import (
 	"crypto/rand"
@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
-
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/sign"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-type OrderBuilder struct {
+type Builder struct {
 	makerAddress       string
 	signerAddress      string
 	ctfExchangeAddress string
@@ -26,7 +27,7 @@ type OrderBuilder struct {
 	builderCode string
 }
 
-type OrderOpts struct {
+type Opts struct {
 	PostOnly    bool
 	DeferExec   bool
 	Expiration  time.Duration
@@ -63,14 +64,14 @@ func checkPrecision(v float64, decimals int, label string) error {
 	return nil
 }
 
-func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *OrderBuilder {
+func NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, sigType int) *Builder {
 	var signer string
-	if sigType == SignatureTypePoly1271 {
+	if sigType == consts.SignatureTypePoly1271 {
 		signer = funderAddress
 	} else if pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex)); err == nil {
 		signer = crypto.PubkeyToAddress(pk.PublicKey).Hex()
 	}
-	return &OrderBuilder{
+	return &Builder{
 		makerAddress:       funderAddress,
 		signerAddress:      signer,
 		ctfExchangeAddress: ctfExchangeAddress,
@@ -79,52 +80,35 @@ func NewOrderBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string, si
 	}
 }
 
-func (ob *OrderBuilder) MakerAddress() string {
-	return ob.makerAddress
-}
+func (ob *Builder) MakerAddress() string  { return ob.makerAddress }
+func (ob *Builder) SignerAddress() string { return ob.signerAddress }
 
-// SetBuilderCode sets a bytes32 builder code applied to every order built by
-// this OrderBuilder. Individual orders may override via OrderOpts.BuilderCode.
-func (ob *OrderBuilder) SetBuilderCode(code string) {
+func (ob *Builder) SetBuilderCode(code string) {
 	ob.mu.Lock()
 	ob.builderCode = code
 	ob.mu.Unlock()
 }
 
-func (ob *OrderBuilder) getBuilderCode() string {
+func (ob *Builder) getBuilderCode() string {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
 	return ob.builderCode
 }
 
-// PrepareAndSign builds and EIP-712-signs an order for the Polymarket CLOB.
-//
-// Supported order types:
-//   - GTC (Good-Till-Cancelled): rests on the book until filled or cancelled.
-//   - GTD (Good-Till-Date): rests on the book until filled, cancelled, or expired.
-//     Expiration includes a 60-second security threshold required by the API.
-//   - FOK (Fill-or-Kill): must fill entirely in one match or be rejected.
-//   - FAK (Fill-and-Kill): fills as much as possible immediately, remainder is cancelled.
-//
-// PostOnly (GTC/GTD only) rejects the order if it would cross the spread.
-//
-// Sports markets: FOK and FAK orders have a ~3 second placement delay and are
-// automatically cancelled at game start.
-// See https://docs.polymarket.com/sports/overview#order-types
-func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, size float64, apiKey string, opts ...OrderOpts) (*SignedOrder, error) {
-	var opt OrderOpts
+func (ob *Builder) PrepareAndSign(tokenID, side, orderType string, price, size float64, apiKey string, opts ...Opts) (*models.SignedOrder, error) {
+	var opt Opts
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
 
-	SideNumeric := consts.SideBuy
-	sideStr := BUY
-	if side == SELL {
-		SideNumeric = consts.SideSell
-		sideStr = SELL
+	sideNumeric := consts.SideBuy
+	sideStr := consts.BUY
+	if side == consts.SELL {
+		sideNumeric = consts.SideSell
+		sideStr = consts.SELL
 	}
 
-	saltBig, err := rand.Int(rand.Reader, big.NewInt(SaltUpperBound))
+	saltBig, err := rand.Int(rand.Reader, big.NewInt(consts.SaltUpperBound))
 	if err != nil {
 		return nil, fmt.Errorf("prepare order: generate salt: %w", err)
 	}
@@ -144,7 +128,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 	amountWei := int64(math.Floor(size*price*amountFactor) / amountFactor * consts.AmountScale)
 
 	var makerAmount, takerAmount int64
-	if SideNumeric == consts.SideBuy {
+	if sideNumeric == consts.SideBuy {
 		makerAmount = amountWei
 		takerAmount = sizeWei
 	} else {
@@ -153,12 +137,12 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 	}
 
 	expiration := int64(0)
-	if orderType == OrderTypeGTD {
+	if orderType == consts.OrderTypeGTD {
 		dur := consts.GTDExpiration
 		if opt.Expiration > 0 {
 			dur = opt.Expiration
 		}
-		expiration = time.Now().Add(GTDSecurityThreshold + dur).Unix()
+		expiration = time.Now().Add(consts.GTDSecurityThreshold + dur).Unix()
 	}
 
 	builder := ob.getBuilderCode()
@@ -174,7 +158,7 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		metadata = consts.ZeroBytes32
 	}
 
-	order := OrderFields{
+	o := models.OrderFields{
 		Salt:          salt,
 		Maker:         ob.makerAddress,
 		Signer:        ob.signerAddress,
@@ -187,17 +171,17 @@ func (ob *OrderBuilder) PrepareAndSign(tokenID, side, orderType string, price, s
 		Builder:       builder,
 		Side:          sideStr,
 		SignatureType: ob.sigType,
-		SideNumeric:   SideNumeric,
+		SideNumeric:   sideNumeric,
 	}
 
-	sig, err := ob.signOrder(order)
+	sig, err := sign.Order(ob.privateKeyHex, ob.ctfExchangeAddress, o)
 	if err != nil {
 		return nil, fmt.Errorf("prepare order: %w", err)
 	}
-	order.Signature = sig
+	o.Signature = sig
 
-	return &SignedOrder{
-		Order:     order,
+	return &models.SignedOrder{
+		Order:     o,
 		Owner:     apiKey,
 		OrderType: orderType,
 		PostOnly:  opt.PostOnly,
