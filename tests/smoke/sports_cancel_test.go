@@ -99,6 +99,9 @@ func findActiveSportsToken(ctx context.Context, t *testing.T, cli *polytrade.Cli
 			if m.SecondsDelay == 0 {
 				continue
 			}
+			if m.NegRisk {
+				continue
+			}
 			if len(m.Tokens) == 0 {
 				continue
 			}
