@@ -160,33 +160,6 @@ func (c *Client) GetClobMarketInfo(ctx context.Context, conditionID string) (*mo
 	return &info, nil
 }
 
-// Deprecated: fees are now set by operators at match time. Use
-// GetClobMarketInfo and read FeeDetails instead.
-func (c *Client) GetFeeRate(ctx context.Context, tokenID string) (int, error) {
-	path := "/fee-rate"
-	if tokenID != "" {
-		path += "?token_id=" + tokenID
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
-	if err != nil {
-		return 0, fmt.Errorf("get fee rate: build request: %w", err)
-	}
-
-	respBody, err := c.doRequest(req, "GET /fee-rate")
-	if err != nil {
-		return 0, fmt.Errorf("get fee rate: %w", err)
-	}
-
-	var result struct {
-		BaseFee int `json:"base_fee"`
-	}
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return 0, fmt.Errorf("get fee rate: unmarshal response: %w", err)
-	}
-
-	return result.BaseFee, nil
-}
-
 func (c *Client) GetNegRisk(ctx context.Context, tokenID string) (bool, error) {
 	path := "/neg-risk"
 	if tokenID != "" {
