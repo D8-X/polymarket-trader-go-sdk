@@ -2,7 +2,9 @@ package polytrade
 
 import (
 	"context"
+	"math/big"
 	"net/http"
+	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/clob"
@@ -11,6 +13,7 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/relayer"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/sweep"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/wallet"
 )
 
 type CLOBClient = clob.Client
@@ -117,3 +120,67 @@ func EstimateSweep(book *OrderBook, side string, refPrice, size, maxSlippage flo
 func EstimateSweepFromLevels(levels []PriceLevel, side string, refPrice, size, maxSlippage float64) (*SweepEstimate, error) {
 	return sweep.EstimateFromLevels(levels, side, refPrice, size, maxSlippage)
 }
+
+type ReceiptFetcher = wallet.ReceiptFetcher
+
+func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, calls []WalletCall, deadline time.Duration, creds *RelayerCredentials) (*RelayerResponse, error) {
+	return wallet.ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, deadline, creds)
+}
+
+func deployAndResolveDepositWallet(ctx context.Context, eth ReceiptFetcher, eoaAddress string, creds *RelayerCredentials) (string, *RelayerResponse, *RelayerTransaction, error) {
+	return wallet.DeployAndResolve(ctx, eth, eoaAddress, creds)
+}
+
+func wrapAndApproveDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+	return wallet.WrapAndApprove(ctx, eoaAddress, privateKeyHex, depositWalletAddress, amount, creds)
+}
+
+func approveDepositWalletForBuyOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
+	return wallet.ApproveForBuy(ctx, eoaAddress, privateKeyHex, depositWalletAddress, creds)
+}
+
+func approveDepositWalletForSellOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
+	return wallet.ApproveForSell(ctx, eoaAddress, privateKeyHex, depositWalletAddress, creds)
+}
+
+func transferFromDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress, assetAddress, recipientAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+	return wallet.TransferOut(ctx, eoaAddress, privateKeyHex, depositWalletAddress, assetAddress, recipientAddress, amount, creds)
+}
+
+func wrapToPUSD(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+	return wallet.WrapToPUSD(ctx, eoaAddress, privateKeyHex, depositWalletAddress, amount, creds)
+}
+
+func unwrapToUSDC(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+	return wallet.UnwrapToUSDC(ctx, eoaAddress, privateKeyHex, depositWalletAddress, amount, creds)
+}
+
+func collateralBalanceOf(ctx context.Context, creds *L2Credentials) (*big.Int, error) {
+	c := clob.NewClient()
+	resp, err := c.GetBalanceAllowance(ctx, "COLLATERAL", "", SignatureTypeGnosisSafe, creds)
+	if err != nil {
+		return nil, err
+	}
+	return parseCollateralBalance(resp.Balance), nil
+}
+
+func refreshCollateralBalance(ctx context.Context, creds *L2Credentials) error {
+	c := clob.NewClient()
+	return c.UpdateBalanceAllowance(ctx, "COLLATERAL", "", SignatureTypeGnosisSafe, creds)
+}
+
+func parseCollateralBalance(s string) *big.Int {
+	bal, ok := new(big.Int).SetString(s, 10)
+	if ok {
+		return bal
+	}
+	f, _, err := new(big.Float).Parse(s, 10)
+	if err != nil {
+		return big.NewInt(0)
+	}
+	f.Mul(f, new(big.Float).SetFloat64(amountScaleForParse))
+	raw, _ := f.Int(nil)
+	return raw
+}
+
+const amountScaleForParse = 1e6

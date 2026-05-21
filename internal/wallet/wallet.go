@@ -1,4 +1,4 @@
-package polytrade
+package wallet
 
 import (
 	"bytes"
@@ -15,7 +15,8 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
-
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/relayer"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
@@ -24,7 +25,7 @@ type ReceiptFetcher interface {
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*ethtypes.Receipt, error)
 }
 
-func depositWalletAddressFromReceipt(ctx context.Context, eth ReceiptFetcher, txHash string) (string, error) {
+func AddressFromReceipt(ctx context.Context, eth ReceiptFetcher, txHash string) (string, error) {
 	receipt, err := eth.TransactionReceipt(ctx, common.HexToHash(txHash))
 	if err != nil {
 		return "", fmt.Errorf("deposit wallet address from receipt: %w", err)
@@ -41,23 +42,23 @@ func depositWalletAddressFromReceipt(ctx context.Context, eth ReceiptFetcher, tx
 	return "", fmt.Errorf("deposit wallet address from receipt: no log emitter other than the factory")
 }
 
-func deployAndResolveDepositWallet(ctx context.Context, eth ReceiptFetcher, eoaAddress string, creds *RelayerCredentials) (string, *RelayerResponse, *RelayerTransaction, error) {
-	deployResp, err := deployDepositWallet(ctx, eoaAddress, creds)
+func DeployAndResolve(ctx context.Context, eth ReceiptFetcher, eoaAddress string, creds *types.RelayerCredentials) (string, *types.RelayerResponse, *types.RelayerTransaction, error) {
+	deployResp, err := Deploy(ctx, eoaAddress, creds)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	tx, err := waitForRelayerTransaction(ctx, deployResp.TransactionID)
+	tx, err := relayer.WaitForTransaction(ctx, deployResp.TransactionID)
 	if err != nil {
 		return "", deployResp, tx, err
 	}
-	addr, err := depositWalletAddressFromReceipt(ctx, eth, tx.TransactionHash)
+	addr, err := AddressFromReceipt(ctx, eth, tx.TransactionHash)
 	if err != nil {
 		return "", deployResp, tx, err
 	}
 	return addr, deployResp, tx, nil
 }
 
-func deployDepositWallet(ctx context.Context, eoaAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
+func Deploy(ctx context.Context, eoaAddress string, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
 	body, err := json.Marshal(map[string]string{
 		"type": "WALLET-CREATE",
 		"from": eoaAddress,
@@ -73,7 +74,7 @@ func deployDepositWallet(ctx context.Context, eoaAddress string, creds *RelayerC
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if creds != nil {
-		applyRelayerHeaders(req, creds, http.MethodPost, endpoint, body)
+		relayer.ApplyHeaders(req, creds, http.MethodPost, endpoint, body)
 	}
 	httpClient := &http.Client{Timeout: consts.CLOBTimeout}
 	resp, err := httpClient.Do(req)
@@ -86,16 +87,16 @@ func deployDepositWallet(ctx context.Context, eoaAddress string, creds *RelayerC
 		return nil, fmt.Errorf("deploy deposit wallet: read body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, &APIError{StatusCode: resp.StatusCode, Endpoint: "POST " + endpoint, Body: string(out)}
+		return nil, &types.APIError{StatusCode: resp.StatusCode, Endpoint: "POST " + endpoint, Body: string(out)}
 	}
-	var r RelayerResponse
+	var r types.RelayerResponse
 	if err := json.Unmarshal(out, &r); err != nil {
 		return nil, fmt.Errorf("deploy deposit wallet: unmarshal response: %w", err)
 	}
 	return &r, nil
 }
 
-func depositWalletNonce(ctx context.Context, eoaAddress string, creds *RelayerCredentials) (string, error) {
+func Nonce(ctx context.Context, eoaAddress string, creds *types.RelayerCredentials) (string, error) {
 	signPath := "/nonce"
 	fullURL := fmt.Sprintf("%s/nonce?address=%s&type=WALLET", consts.RelayerBaseURL, eoaAddress)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
@@ -103,7 +104,7 @@ func depositWalletNonce(ctx context.Context, eoaAddress string, creds *RelayerCr
 		return "", fmt.Errorf("deposit wallet nonce: build request: %w", err)
 	}
 	if creds != nil {
-		applyRelayerHeaders(req, creds, http.MethodGet, signPath, nil)
+		relayer.ApplyHeaders(req, creds, http.MethodGet, signPath, nil)
 	}
 	httpClient := &http.Client{Timeout: consts.DefaultTimeout}
 	resp, err := httpClient.Do(req)
@@ -116,7 +117,7 @@ func depositWalletNonce(ctx context.Context, eoaAddress string, creds *RelayerCr
 		return "", fmt.Errorf("deposit wallet nonce: read body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", &APIError{StatusCode: resp.StatusCode, Endpoint: "GET /nonce", Body: string(body)}
+		return "", &types.APIError{StatusCode: resp.StatusCode, Endpoint: "GET /nonce", Body: string(body)}
 	}
 	var r models.NonceResponse
 	if err := json.Unmarshal(body, &r); err != nil {
@@ -125,7 +126,7 @@ func depositWalletNonce(ctx context.Context, eoaAddress string, creds *RelayerCr
 	return r.Nonce, nil
 }
 
-func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, calls []WalletCall, deadline time.Duration, creds *RelayerCredentials) (*RelayerResponse, error) {
+func ExecuteBatch(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, calls []types.WalletCall, deadline time.Duration, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
 	if len(calls) == 0 {
 		return nil, fmt.Errorf("execute deposit wallet batch: no calls provided")
 	}
@@ -134,7 +135,7 @@ func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, d
 	}
 	deadlineUnix := time.Now().Add(deadline).Unix()
 
-	nonceStr, err := depositWalletNonce(ctx, eoaAddress, creds)
+	nonceStr, err := Nonce(ctx, eoaAddress, creds)
 	if err != nil {
 		return nil, fmt.Errorf("execute deposit wallet batch: %w", err)
 	}
@@ -182,7 +183,7 @@ func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, d
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if creds != nil {
-		applyRelayerHeaders(req, creds, http.MethodPost, endpoint, body)
+		relayer.ApplyHeaders(req, creds, http.MethodPost, endpoint, body)
 	}
 	httpClient := &http.Client{Timeout: consts.CLOBTimeout}
 	resp, err := httpClient.Do(req)
@@ -195,54 +196,78 @@ func ExecuteDepositWalletBatch(ctx context.Context, eoaAddress, privateKeyHex, d
 		return nil, fmt.Errorf("execute deposit wallet batch: read body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, &APIError{StatusCode: resp.StatusCode, Endpoint: "POST " + endpoint, Body: string(out)}
+		return nil, &types.APIError{StatusCode: resp.StatusCode, Endpoint: "POST " + endpoint, Body: string(out)}
 	}
-	var r RelayerResponse
+	var r types.RelayerResponse
 	if err := json.Unmarshal(out, &r); err != nil {
 		return nil, fmt.Errorf("execute deposit wallet batch: unmarshal response: %w", err)
 	}
 	return &r, nil
 }
 
-func approveDepositWalletForBuyOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
+func ApproveForBuy(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
-	calls := []WalletCall{
-		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(CTFExchange, maxU)},
-		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(NegRiskCTFExchange, maxU)},
+	calls := []types.WalletCall{
+		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CTFExchange, maxU)},
+		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskCTFExchange, maxU)},
 	}
-	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
-func approveDepositWalletForSellOrders(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *RelayerCredentials) (*RelayerResponse, error) {
-	calls := []WalletCall{
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(CTFExchange, true)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
+func ApproveForSell(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
+	calls := []types.WalletCall{
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.CTFExchange, true)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskCTFExchange, true)},
 	}
-	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
-func transferFromDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress, assetAddress, recipientAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+func TransferOut(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress, assetAddress, recipientAddress string, amount *big.Int, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("transfer from deposit wallet: amount must be positive")
 	}
-	calls := []WalletCall{
+	calls := []types.WalletCall{
 		{Target: assetAddress, Value: new(big.Int), Data: onchain.EncodeTransferCalldata(recipientAddress, amount)},
 	}
-	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
 
-func wrapAndApproveDepositWallet(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *RelayerCredentials) (*RelayerResponse, error) {
+func WrapAndApprove(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("wrap and approve deposit wallet: amount must be positive")
 	}
 	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
-	calls := []WalletCall{
-		{Target: USDCAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CollateralOnramp, maxU)},
-		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: onchain.EncodeOnrampWrapCalldata(USDCAddress, depositWalletAddress, amount)},
-		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(CTFExchange, maxU)},
-		{Target: PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(NegRiskCTFExchange, maxU)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(CTFExchange, true)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(NegRiskCTFExchange, true)},
+	calls := []types.WalletCall{
+		{Target: consts.USDCAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CollateralOnramp, maxU)},
+		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: onchain.EncodeOnrampWrapCalldata(consts.USDCAddress, depositWalletAddress, amount)},
+		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CTFExchange, maxU)},
+		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskCTFExchange, maxU)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.CTFExchange, true)},
+		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskCTFExchange, true)},
 	}
-	return ExecuteDepositWalletBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+}
+
+func WrapToPUSD(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
+	if amount == nil || amount.Sign() <= 0 {
+		return nil, fmt.Errorf("wrap to pusd: amount must be positive")
+	}
+	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
+	calls := []types.WalletCall{
+		{Target: consts.USDCAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CollateralOnramp, maxU)},
+		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: onchain.EncodeOnrampWrapCalldata(consts.USDCAddress, depositWalletAddress, amount)},
+	}
+	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
+}
+
+func UnwrapToUSDC(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAddress string, amount *big.Int, creds *types.RelayerCredentials) (*types.RelayerResponse, error) {
+	if amount == nil || amount.Sign() <= 0 {
+		return nil, fmt.Errorf("unwrap to usdc: amount must be positive")
+	}
+	maxU := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
+	calls := []types.WalletCall{
+		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CollateralOfframp, maxU)},
+		{Target: consts.CollateralOfframp, Value: new(big.Int), Data: onchain.EncodeOfframpUnwrapCalldata(consts.USDCAddress, depositWalletAddress, amount)},
+	}
+	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
