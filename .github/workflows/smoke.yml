@@ -34,31 +34,46 @@ jobs:
       - name: build report
         if: github.event_name == 'pull_request'
         run: |
-          PASS=$(grep -c '"Action":"pass","Test"' /tmp/smoke.json || true)
-          FAIL=$(grep -c '"Action":"fail","Test"' /tmp/smoke.json || true)
-          SKIP=$(grep -c '"Action":"skip","Test"' /tmp/smoke.json || true)
-          STATUS=":white_check_mark: passing"
-          [ "${{ steps.tests.outputs.exit }}" != "0" ] && STATUS=":x: failing"
-
-          {
-            echo "<!-- bot:smoke-test-report -->"
-            echo "## Smoke tests — $STATUS"
-            echo ""
-            echo "| pass | fail | skip |"
-            echo "|------|------|------|"
-            echo "| $PASS | $FAIL | $SKIP |"
-            if [ "${FAIL:-0}" -gt 0 ]; then
-              echo ""
-              echo "### Failures"
-              echo '```'
-              grep '"Action":"fail","Test"' /tmp/smoke.json \
-                | python3 -c 'import sys, json; [print(o["Package"]+"."+o["Test"]) for o in (json.loads(l) for l in sys.stdin) if o.get("Test")]' \
-                | sort -u
-              echo '```'
-            fi
-            echo ""
-            echo "[Full run log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
-          } > /tmp/body.md
+          python3 <<'PY' > /tmp/body.md
+          import json, os
+          pass_, fail_, skip_, fails = 0, 0, 0, []
+          with open("/tmp/smoke.json") as f:
+              for line in f:
+                  try:
+                      o = json.loads(line)
+                  except Exception:
+                      continue
+                  if not o.get("Test"):
+                      continue
+                  a = o.get("Action")
+                  if a == "pass":
+                      pass_ += 1
+                  elif a == "fail":
+                      fail_ += 1
+                      fails.append(o["Package"] + "." + o["Test"])
+                  elif a == "skip":
+                      skip_ += 1
+          exit_code = os.environ.get("TESTS_EXIT", "1")
+          status = ":white_check_mark: passing" if exit_code == "0" else ":x: failing"
+          print("<!-- bot:smoke-test-report -->")
+          print(f"## Smoke tests — {status}")
+          print()
+          print("| pass | fail | skip |")
+          print("|------|------|------|")
+          print(f"| {pass_} | {fail_} | {skip_} |")
+          if fails:
+              print()
+              print("### Failures")
+              print("```")
+              for n in sorted(set(fails)):
+                  print(n)
+              print("```")
+          print()
+          run = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          print(f"[Full run log]({run})")
+          PY
+        env:
+          TESTS_EXIT: ${{ steps.tests.outputs.exit }}
 
       - name: find existing comment
         if: github.event_name == 'pull_request'
