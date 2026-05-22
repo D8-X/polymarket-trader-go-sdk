@@ -30,21 +30,19 @@ The EOA only ever signs. The relayer pays every gas cost. The order doesn't touc
 
 A single `Client` owns the private key, the L2 credentials, the deposit-wallet address, and the relayer + RPC handles. Everything else is a method on it.
 
-When `Config.Eth` is set, `NewClient` automatically detects whether the EOA already has a deposit wallet deployed (for example one that polymarket.com created at signup) and populates `Client.DepositWallet()` immediately. You do not need to track or save the address yourself.
+`NewClient` automatically detects whether the EOA already has a deposit wallet deployed (for example one that polymarket.com created at signup) and populates `Client.DepositWallet()` immediately. You do not need to track or save the address yourself.
 
 ```go
 ctx := context.Background()
-eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
 
-cli, err := polytrade.NewClient(ctx, polytrade.Config{
-    PrivateKeyHex: "your-private-key-hex",
-    Eth:           eth,
-    RelayerCreds: &polytrade.RelayerCredentials{
+cli, err := polytrade.NewClient(ctx, "your-private-key-hex",
+    &polytrade.RelayerCredentials{
         APIKey:     "your-relayer-api-key",
         Secret:     "your-relayer-secret",
         Passphrase: "your-relayer-passphrase",
     },
-})
+    polytrade.WithRPCURL(polygonRPCURL),
+)
 if err != nil {
     log.Fatal(err)
 }
@@ -152,22 +150,19 @@ import (
 	"math/big"
 
 	polytrade "github.com/D8-X/polymarket-trader-go-sdk/v2"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func main() {
 	ctx := context.Background()
-	eth, _ := ethclient.DialContext(ctx, "https://polygon-rpc.com")
 
-	cli, err := polytrade.NewClient(ctx, polytrade.Config{
-		PrivateKeyHex: "your-private-key-hex",
-		Eth:           eth,
-		RelayerCreds: &polytrade.RelayerCredentials{
+	cli, err := polytrade.NewClient(ctx, "your-private-key-hex",
+		&polytrade.RelayerCredentials{
 			APIKey:     "your-relayer-api-key",
 			Secret:     "your-relayer-secret",
 			Passphrase: "your-relayer-passphrase",
 		},
-	})
+		polytrade.WithRPCURL("https://polygon-rpc.com"),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -325,7 +320,7 @@ cancelResp, placeResp, err := cli.ReplaceOrder(ctx, oldOrderID, newSigned)
 
 ## WebSocket subscriptions
 
-Two streams. The `market` channel is public and emits order book + price events for the assets you subscribe to. The `user` channel emits your own order + trade updates and requires CLOB credentials (`Client.Bootstrap` or `Config.Creds`).
+Two streams. The `market` channel is public and emits order book + price events for the assets you subscribe to. The `user` channel emits your own order + trade updates and uses the CLOB credentials that `NewClient` derives automatically.
 
 ```go
 sub, err := cli.SubscribeMarket(ctx, []string{tokenID})
