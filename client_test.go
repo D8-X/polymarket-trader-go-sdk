@@ -15,6 +15,9 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ws"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/gorilla/websocket"
 )
 
@@ -62,6 +65,54 @@ func TestNewClientHonoursConfigDepositWallet(t *testing.T) {
 	}
 	if cli.DepositWallet() != testDepositWallet {
 		t.Errorf("got %s want %s", cli.DepositWallet(), testDepositWallet)
+	}
+}
+
+type stubEth struct {
+	code []byte
+}
+
+func (s stubEth) CallContract(ctx context.Context, msg ethereum.CallMsg, blk *big.Int) ([]byte, error) {
+	return nil, nil
+}
+
+func (s stubEth) TransactionReceipt(ctx context.Context, txHash common.Hash) (*ethtypes.Receipt, error) {
+	return nil, nil
+}
+
+func (s stubEth) CodeAt(ctx context.Context, addr common.Address, blk *big.Int) ([]byte, error) {
+	return s.code, nil
+}
+
+func TestNewClientAutoRecoversExistingDepositWallet(t *testing.T) {
+	eth := stubEth{code: []byte{0x36, 0x3d, 0x3d}}
+	cli, err := NewClient(context.Background(), Config{
+		PrivateKeyHex:   testPrivateKey,
+		Eth:             eth,
+		Creds:           &L2Credentials{APIKey: "k"},
+		SkipCredsDerive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cli.DepositWallet() == "" {
+		t.Error("expected DepositWallet to be auto-recovered when Eth reports code at derived address")
+	}
+}
+
+func TestNewClientSkipsRecoveryWhenNoCode(t *testing.T) {
+	eth := stubEth{code: nil}
+	cli, err := NewClient(context.Background(), Config{
+		PrivateKeyHex:   testPrivateKey,
+		Eth:             eth,
+		Creds:           &L2Credentials{APIKey: "k"},
+		SkipCredsDerive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cli.DepositWallet() != "" {
+		t.Errorf("expected empty DepositWallet when no code at derived address; got %s", cli.DepositWallet())
 	}
 }
 

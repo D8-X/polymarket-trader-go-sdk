@@ -13,6 +13,7 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/order"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/sweep"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/wallet"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type CLOBClient = clob.Client
@@ -79,6 +80,16 @@ type SweepEstimate = models.SweepEstimate
 
 type ContractCaller = onchain.ContractCaller
 type ReceiptFetcher = wallet.ReceiptFetcher
+type CodeReader = onchain.CodeReader
+
+func DeriveDepositWallet(eoaHex string) string {
+	return onchain.DeriveDepositWallet(common.HexToAddress(eoaHex)).Hex()
+}
+
+func LookupDepositWallet(ctx context.Context, eth CodeReader, eoaHex string) (depositWallet string, deployed bool, err error) {
+	addr, ok, e := onchain.LookupDepositWallet(ctx, eth, common.HexToAddress(eoaHex))
+	return addr.Hex(), ok, e
+}
 
 func DeriveL2Credentials(ctx context.Context, privateKeyHex string, chainID int) (*L2Credentials, error) {
 	return auth.DeriveCredentials(ctx, privateKeyHex, chainID)
