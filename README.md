@@ -30,7 +30,7 @@ The EOA only ever signs. The relayer pays every gas cost. The order doesn't touc
 
 A single `Client` owns the private key, the L2 credentials, the deposit-wallet address, and the relayer + RPC handles. Everything else is a method on it.
 
-`NewClient` automatically detects whether the EOA already has a deposit wallet deployed (for example one that polymarket.com created at signup) and populates `Client.DepositWallet()` immediately. You do not need to track or save the address yourself.
+`NewClient` automatically detects whether the EOA already has a deposit wallet deployed (for example one that polymarket.com created at signup) and populates `Client.DepositWallet()` immediately. You do not need to track or save the address yourself. The default Polygon RPC is `https://polygon.publicnode.com`; override it with `WithRPCURL` or `WithEthClient`.
 
 ```go
 ctx := context.Background()
@@ -41,7 +41,6 @@ cli, err := polytrade.NewClient(ctx, "your-private-key-hex",
         Secret:     "your-relayer-secret",
         Passphrase: "your-relayer-passphrase",
     },
-    polytrade.WithRPCURL(polygonRPCURL),
 )
 if err != nil {
     log.Fatal(err)
@@ -161,7 +160,6 @@ func main() {
 			Secret:     "your-relayer-secret",
 			Passphrase: "your-relayer-passphrase",
 		},
-		polytrade.WithRPCURL("https://polygon.publicnode.com"),
 	)
 	if err != nil {
 		log.Fatal(err)
