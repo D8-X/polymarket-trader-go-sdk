@@ -161,7 +161,7 @@ func main() {
 			Secret:     "your-relayer-secret",
 			Passphrase: "your-relayer-passphrase",
 		},
-		polytrade.WithRPCURL("https://polygon-rpc.com"),
+		polytrade.WithRPCURL("https://polygon.publicnode.com"),
 	)
 	if err != nil {
 		log.Fatal(err)
