@@ -15,83 +15,121 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/wallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
+
+const DefaultPolygonRPCURL = "https://polygon.publicnode.com"
 
 type EthClient interface {
 	ContractCaller
 	ReceiptFetcher
 }
 
-type Config struct {
-	PrivateKeyHex string
-	DepositWallet string
-	Creds         *L2Credentials
-	RelayerCreds  *RelayerCredentials
-	Eth           EthClient
-	// SkipCredsDerive disables the auto derivation of L2 CLOB credentials in NewClient.
-	// Needed for "deploy-and-fund" only workflows where we only touch the relayer and on-chain reads.
-	// Trading methods will return errNoCreds until Creds is populated.
-	SkipCredsDerive bool
+type Option func(*clientConfig)
+
+type clientConfig struct {
+	rpcURL string
+	eth    EthClient
+}
+
+func WithRPCURL(url string) Option { // default if neither this nor WithEthClient is set
+	return func(cc *clientConfig) { cc.rpcURL = url }
+}
+
+func WithEthClient(eth EthClient) Option { // takes precedence over WithRPCURL
+	return func(cc *clientConfig) { cc.eth = eth }
 }
 
 type Client struct {
-	cfg           Config
-	eoa           string
-	clob          *CLOBClient
-	mu            sync.RWMutex
-	creds         *L2Credentials
-	depositWallet string
-	builder       *OrderBuilder
-	heartbeatID   string
-	bootstrapMu   sync.Mutex
+	privateKeyHex        string
+	eoa                  string
+	clob                 *CLOBClient
+	relayerCreds         *RelayerCredentials
+	eth                  EthClient
+	mu                   sync.RWMutex
+	l2Creds              *L2Credentials
+	depositWalletAddress string
+	builder              *OrderBuilder
+	heartbeatID          string
+	lastRecoveryErr      error
+	bootstrapMu          sync.Mutex
 }
 
 var (
-	errNoCreds         = errors.New("client: no L2 credentials; call Bootstrap or set Config.Creds")
-	errNoRelayerCreds  = errors.New("client: no relayer credentials; set Config.RelayerCreds")
-	errNoEth           = errors.New("client: no EthClient; set Config.Eth")
-	errNoDepositWallet = errors.New("client: no deposit wallet; call Bootstrap or set Config.DepositWallet")
+	errNoCreds         = errors.New("client: no L2 credentials; NewClient should derive them, check CLOB reachability")
+	errNoRelayerCreds  = errors.New("client: no relayer credentials; pass them as the third positional arg to NewClient")
+	errNoEth           = errors.New("client: no EthClient; pass WithRPCURL or WithEthClient")
+	errNoDepositWallet = errors.New("client: no deposit wallet; call Bootstrap to deploy or attach an EthClient so NewClient can auto-recover")
+	errNotApproved     = errors.New("client: deposit wallet approvals not set; call Bootstrap or EnsureApprovals")
 
-	ErrWalletAlreadyDeployed = errors.New("client: deposit wallet already deployed for this EOA, set Config.DepositWallet to the existing address (find it on polymarket.com or in your saved config)")
+	ErrWalletAlreadyDeployed = errors.New("client: deposit wallet already deployed for this EOA, attach an EthClient so NewClient can auto-recover it")
 )
 
-// NewClient constructs a Client from a private key plus optional config.
-// It derives L2 CLOB credentials over the network when Config.Creds is not
-// supplied, so ctx governs that handshake and any failure surfaces here
-// rather than at first use. If Config.DepositWallet is set the order builder
-// is initialized immediately. Otherwise it is created by Bootstrap once the
-// wallet is deployed.
-func NewClient(ctx context.Context, cfg Config) (*Client, error) {
-	if cfg.PrivateKeyHex == "" {
-		return nil, fmt.Errorf("client: PrivateKeyHex is required")
+func NewClient(ctx context.Context, privateKeyHex string, relayerCreds *RelayerCredentials, opts ...Option) (*Client, error) {
+	if privateKeyHex == "" {
+		return nil, errors.New("client: privateKeyHex is required")
 	}
-	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(cfg.PrivateKeyHex))
+	if relayerCreds == nil {
+		return nil, errors.New("client: relayerCreds is required")
+	}
+	pk, err := crypto.HexToECDSA(ethutil.StripHexPrefix(privateKeyHex))
 	if err != nil {
-		return nil, fmt.Errorf("client: invalid PrivateKeyHex: %w", err)
+		return nil, fmt.Errorf("client: invalid privateKeyHex: %w", err)
 	}
+
+	cc := &clientConfig{rpcURL: DefaultPolygonRPCURL}
+	for _, opt := range opts {
+		opt(cc)
+	}
+
 	c := &Client{
-		cfg:           cfg,                                        // kept for later relayer + RPC access
-		eoa:           crypto.PubkeyToAddress(pk.PublicKey).Hex(), // EOA derived from the private key
-		clob:          NewCLOBClient(),                            // HTTP client for the Polymarket CLOB
-		creds:         cfg.Creds,                                  // may be nil. if nil, derived on startup and kept for reuse
-		depositWallet: cfg.DepositWallet,                          // may be empty. if empty, created on bootstrap and kept for reuse
+		privateKeyHex: privateKeyHex,
+		eoa:           crypto.PubkeyToAddress(pk.PublicKey).Hex(),
+		clob:          NewCLOBClient(),
+		relayerCreds:  relayerCreds,
+		eth:           cc.eth,
 	}
-	if c.creds == nil && !cfg.SkipCredsDerive {
-		if err := c.DeriveCreds(ctx); err != nil {
-			return nil, fmt.Errorf("client: derive credentials: %w", err)
+	if c.eth == nil && cc.rpcURL != "" {
+		dialed, err := ethclient.DialContext(ctx, cc.rpcURL)
+		if err != nil {
+			return nil, fmt.Errorf("client: dial RPC %q: %w", cc.rpcURL, err)
 		}
+		c.eth = dialed
 	}
-	if c.depositWallet == "" && cfg.Eth != nil {
-		if reader, ok := cfg.Eth.(CodeReader); ok {
-			if addr, deployed, err := LookupDepositWallet(ctx, reader, c.eoa); err == nil && deployed {
-				c.depositWallet = addr
-			}
-		}
+
+	if err := c.DeriveCreds(ctx); err != nil {
+		return nil, fmt.Errorf("client: derive credentials: %w", err)
 	}
-	if c.depositWallet != "" {
-		c.builder = NewOrderBuilder(c.depositWallet, CTFExchange, cfg.PrivateKeyHex)
-	}
+
+	c.recoverDepositWallet(ctx)
 	return c, nil
+}
+
+func (c *Client) recoverDepositWallet(ctx context.Context) {
+	c.mu.RLock()
+	already := c.depositWalletAddress != ""
+	eth := c.eth
+	c.mu.RUnlock()
+	if already || eth == nil {
+		return
+	}
+	reader, ok := eth.(CodeReader)
+	if !ok {
+		return
+	}
+	addr, deployed, err := LookupDepositWallet(ctx, reader, c.eoa)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err != nil {
+		c.lastRecoveryErr = err
+		return
+	}
+	if !deployed {
+		return
+	}
+	c.depositWalletAddress = addr
+	c.builder = NewOrderBuilder(addr, CTFExchange, c.privateKeyHex)
+	c.lastRecoveryErr = nil
 }
 
 func (c *Client) EOA() string {
@@ -101,30 +139,86 @@ func (c *Client) EOA() string {
 func (c *Client) DepositWallet() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.depositWallet
+	return c.depositWalletAddress
 }
 
 func (c *Client) Creds() *L2Credentials {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.creds
+	return c.l2Creds
+}
+
+func (c *Client) IsReady(ctx context.Context) (bool, error) {
+	c.mu.RLock()
+	creds := c.l2Creds
+	relayerCreds := c.relayerCreds
+	eth := c.eth
+	dw := c.depositWalletAddress
+	recoveryErr := c.lastRecoveryErr
+	c.mu.RUnlock()
+	var errs []error
+	if creds == nil {
+		errs = append(errs, errNoCreds)
+	}
+	if relayerCreds == nil {
+		errs = append(errs, errNoRelayerCreds)
+	}
+	if eth == nil {
+		errs = append(errs, errNoEth)
+	}
+	if dw == "" {
+		errs = append(errs, errNoDepositWallet)
+		if recoveryErr != nil {
+			errs = append(errs, fmt.Errorf("client: deposit wallet recovery failed: %w", recoveryErr))
+		}
+	}
+	if eth != nil && dw != "" {
+		ok, err := onchain.IsFullyApproved(ctx, eth, common.HexToAddress(dw))
+		switch {
+		case err != nil:
+			errs = append(errs, fmt.Errorf("client: check approvals: %w", err))
+		case !ok:
+			errs = append(errs, errNotApproved)
+		}
+	}
+	if len(errs) == 0 {
+		return true, nil
+	}
+	return false, errors.Join(errs...)
+}
+
+func (c *Client) String() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	setStr := func(b bool) string {
+		if b {
+			return "set"
+		}
+		return "unset"
+	}
+	dw := c.depositWalletAddress
+	if dw == "" {
+		dw = "unset"
+	}
+	return fmt.Sprintf("polytrade.Client{eoa:%s, deposit:%s, creds:%s, relayer:%s, eth:%s}",
+		c.eoa, dw, setStr(c.l2Creds != nil), setStr(c.relayerCreds != nil), setStr(c.eth != nil))
 }
 
 func (c *Client) snapshot() (*L2Credentials, *OrderBuilder, string, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	if c.creds == nil {
+	if c.l2Creds == nil {
 		return nil, nil, "", errNoCreds
 	}
 	if c.builder == nil {
 		return nil, nil, "", errNoDepositWallet
 	}
-	return c.creds, c.builder, c.depositWallet, nil
+	return c.l2Creds, c.builder, c.depositWalletAddress, nil
 }
 
 func (c *Client) requireCreds() (*L2Credentials, error) {
 	c.mu.RLock()
-	creds := c.creds
+	creds := c.l2Creds
 	c.mu.RUnlock()
 	if creds == nil {
 		return nil, errNoCreds
@@ -133,7 +227,7 @@ func (c *Client) requireCreds() (*L2Credentials, error) {
 }
 
 func (c *Client) DeriveCreds(ctx context.Context) error {
-	creds, err := DeriveL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
+	creds, err := DeriveL2Credentials(ctx, c.privateKeyHex, PolygonChainID)
 	if err != nil {
 		// CLOB returns 400 "Could not derive api key!" when no key exists for this wallet yet 
 		// anything else is a real failure and should surface as is to be properly handled by the caller
@@ -141,33 +235,33 @@ func (c *Client) DeriveCreds(ctx context.Context) error {
 		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
 			return fmt.Errorf("client: derive L2 credentials: %w", err)
 		}
-		creds, err = CreateL2Credentials(ctx, c.cfg.PrivateKeyHex, PolygonChainID)
+		creds, err = CreateL2Credentials(ctx, c.privateKeyHex, PolygonChainID)
 		if err != nil {
 			return fmt.Errorf("client: create L2 credentials: %w", err)
 		}
 	}
 	c.mu.Lock()
-	c.creds = creds
+	c.l2Creds = creds
 	c.mu.Unlock()
 	return nil
 }
 
 func (c *Client) Deploy(ctx context.Context) (string, error) {
-	if c.cfg.RelayerCreds == nil {
+	if c.relayerCreds == nil {
 		return "", errNoRelayerCreds
 	}
-	if c.cfg.Eth == nil {
+	if c.eth == nil {
 		return "", errNoEth
 	}
 	c.bootstrapMu.Lock()
 	defer c.bootstrapMu.Unlock()
 	c.mu.RLock()
-	addr := c.depositWallet
+	addr := c.depositWalletAddress
 	c.mu.RUnlock()
 	if addr != "" {
 		return addr, nil
 	}
-	deployed, _, tx, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
+	deployed, _, tx, err := wallet.DeployAndResolve(ctx, c.eth, c.eoa, c.relayerCreds)
 	if err != nil {
 		if tx != nil && tx.TransactionHash == "" {
 			return "", fmt.Errorf("%w: %v", ErrWalletAlreadyDeployed, err)
@@ -175,8 +269,8 @@ func (c *Client) Deploy(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("client: deploy: %w", err)
 	}
 	c.mu.Lock()
-	c.depositWallet = deployed
-	c.builder = NewOrderBuilder(deployed, CTFExchange, c.cfg.PrivateKeyHex)
+	c.depositWalletAddress = deployed
+	c.builder = NewOrderBuilder(deployed, CTFExchange, c.privateKeyHex)
 	c.mu.Unlock()
 	select {
 	case <-time.After(10 * time.Second):
@@ -187,7 +281,7 @@ func (c *Client) Deploy(ctx context.Context) (string, error) {
 }
 
 func (c *Client) EnsureApprovals(ctx context.Context) error {
-	if c.cfg.RelayerCreds == nil {
+	if c.relayerCreds == nil {
 		return errNoRelayerCreds
 	}
 	addr := c.DepositWallet()
@@ -196,12 +290,16 @@ func (c *Client) EnsureApprovals(ctx context.Context) error {
 	}
 	c.bootstrapMu.Lock()
 	defer c.bootstrapMu.Unlock()
-	if c.cfg.Eth != nil {
-		if ok, err := onchain.IsFullyApproved(ctx, c.cfg.Eth, common.HexToAddress(addr)); err == nil && ok {
+	if c.eth != nil {
+		ok, err := onchain.IsFullyApproved(ctx, c.eth, common.HexToAddress(addr))
+		if err != nil {
+			return fmt.Errorf("client: ensure approvals: check on-chain: %w", err)
+		}
+		if ok {
 			return nil
 		}
 	}
-	resp, err := wallet.ApproveAll(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds)
+	resp, err := wallet.ApproveAll(ctx, c.eoa, c.privateKeyHex, addr, c.relayerCreds)
 	if err != nil {
 		return fmt.Errorf("client: ensure approvals: %w", err)
 	}
@@ -212,21 +310,8 @@ func (c *Client) EnsureApprovals(ctx context.Context) error {
 }
 
 func (c *Client) Bootstrap(ctx context.Context) error {
-	c.mu.RLock()
-	have := c.depositWallet
-	c.mu.RUnlock()
-	if have == "" && c.cfg.Eth != nil {
-		if reader, ok := c.cfg.Eth.(CodeReader); ok {
-			if addr, deployed, _ := LookupDepositWallet(ctx, reader, c.eoa); deployed {
-				c.mu.Lock()
-				c.depositWallet = addr
-				c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex)
-				c.mu.Unlock()
-				have = addr
-			}
-		}
-	}
-	if have == "" {
+	c.recoverDepositWallet(ctx)
+	if c.DepositWallet() == "" {
 		if _, err := c.Deploy(ctx); err != nil {
 			return err
 		}
@@ -263,10 +348,10 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID string, price float6
 	if err != nil {
 		return nil, err
 	}
-	if c.cfg.Eth == nil {
+	if c.eth == nil {
 		return nil, errNoEth
 	}
-	balance, err := GetOutcomeTokenBalance(ctx, c.cfg.Eth, builder.MakerAddress(), tokenID)
+	balance, err := GetOutcomeTokenBalance(ctx, c.eth, builder.MakerAddress(), tokenID)
 	if err != nil {
 		return nil, fmt.Errorf("close position: %w", err)
 	}
@@ -334,14 +419,14 @@ func (c *Client) CancelOrder(ctx context.Context, orderID string) (*CancelRespon
 }
 
 func (c *Client) ERC20Balance(ctx context.Context, tokenAddress string) (*big.Int, error) {
-	if c.cfg.Eth == nil {
+	if c.eth == nil {
 		return nil, errNoEth
 	}
 	dw := c.DepositWallet()
 	if dw == "" {
 		return nil, errNoDepositWallet
 	}
-	return onchain.ERC20BalanceOf(ctx, c.cfg.Eth, tokenAddress, dw)
+	return onchain.ERC20BalanceOf(ctx, c.eth, tokenAddress, dw)
 }
 
 func (c *Client) USDCBalance(ctx context.Context) (*big.Int, error) {
@@ -401,7 +486,7 @@ func (c *Client) AwaitOrder(ctx context.Context, resp *PlaceOrderResponse, opts 
 
 func (c *Client) AwaitOrders(ctx context.Context, responses []PlaceOrderResponse, opts *PollOpts) []PollResult {
 	c.mu.RLock()
-	creds := c.creds
+	creds := c.l2Creds
 	c.mu.RUnlock()
 	if creds == nil {
 		return nil
@@ -411,14 +496,14 @@ func (c *Client) AwaitOrders(ctx context.Context, responses []PlaceOrderResponse
 
 func (c *Client) AwaitOrderAsync(ctx context.Context, resp *PlaceOrderResponse, opts *PollOpts) <-chan PollResult {
 	c.mu.RLock()
-	creds := c.creds
+	creds := c.l2Creds
 	c.mu.RUnlock()
 	return c.clob.AwaitOrderAsync(ctx, resp, creds, opts)
 }
 
 func (c *Client) AwaitOrdersAsync(ctx context.Context, responses []PlaceOrderResponse, opts *PollOpts) <-chan PollResult {
 	c.mu.RLock()
-	creds := c.creds
+	creds := c.l2Creds
 	c.mu.RUnlock()
 	return c.clob.AwaitOrdersAsync(ctx, responses, creds, opts)
 }
@@ -513,7 +598,7 @@ func (c *Client) GetMarketLiveActivity(ctx context.Context, conditionID string) 
 
 func (c *Client) GetPositions(ctx context.Context) ([]PositionEntry, error) {
 	c.mu.RLock()
-	dw := c.depositWallet
+	dw := c.depositWalletAddress
 	c.mu.RUnlock()
 	if dw == "" {
 		return nil, errNoDepositWallet
@@ -598,7 +683,7 @@ func (c *Client) WrapToPUSD(ctx context.Context, amount *big.Int) (*RelayerRespo
 	if err != nil {
 		return nil, err
 	}
-	return wallet.WrapToPUSD(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.WrapToPUSD(ctx, c.eoa, c.privateKeyHex, dw, amount, c.relayerCreds)
 }
 
 func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerResponse, error) {
@@ -606,7 +691,7 @@ func (c *Client) UnwrapToUSDC(ctx context.Context, amount *big.Int) (*RelayerRes
 	if err != nil {
 		return nil, err
 	}
-	return wallet.UnwrapToUSDC(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.UnwrapToUSDC(ctx, c.eoa, c.privateKeyHex, dw, amount, c.relayerCreds)
 }
 
 func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amount *big.Int) (*RelayerResponse, error) {
@@ -614,7 +699,7 @@ func (c *Client) TransferOut(ctx context.Context, asset, recipient string, amoun
 	if err != nil {
 		return nil, err
 	}
-	return wallet.TransferOut(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, asset, recipient, amount, c.cfg.RelayerCreds)
+	return wallet.TransferOut(ctx, c.eoa, c.privateKeyHex, dw, asset, recipient, amount, c.relayerCreds)
 }
 
 func (c *Client) GetRelayerTransaction(ctx context.Context, transactionID string) (*RelayerTransaction, error) {
@@ -630,7 +715,7 @@ func (c *Client) SetupWalletForTrading(ctx context.Context, amount *big.Int) (*R
 	if err != nil {
 		return nil, err
 	}
-	return wallet.WrapAndApprove(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, amount, c.cfg.RelayerCreds)
+	return wallet.WrapAndApprove(ctx, c.eoa, c.privateKeyHex, dw, amount, c.relayerCreds)
 }
 
 func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
@@ -638,7 +723,7 @@ func (c *Client) ApproveForBuy(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return wallet.ApproveForBuy(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return wallet.ApproveForBuy(ctx, c.eoa, c.privateKeyHex, dw, c.relayerCreds)
 }
 
 func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
@@ -646,7 +731,7 @@ func (c *Client) ApproveForSell(ctx context.Context) (*RelayerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return wallet.ApproveForSell(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, c.cfg.RelayerCreds)
+	return wallet.ApproveForSell(ctx, c.eoa, c.privateKeyHex, dw, c.relayerCreds)
 }
 
 func (c *Client) SplitPosition(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
@@ -654,7 +739,7 @@ func (c *Client) SplitPosition(ctx context.Context, conditionID string, amount *
 	if err != nil {
 		return nil, err
 	}
-	return wallet.SplitPosition(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, amount, c.cfg.RelayerCreds)
+	return wallet.SplitPosition(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, c.relayerCreds)
 }
 
 func (c *Client) MergePositions(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
@@ -662,7 +747,7 @@ func (c *Client) MergePositions(ctx context.Context, conditionID string, amount 
 	if err != nil {
 		return nil, err
 	}
-	return wallet.MergePositions(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, amount, c.cfg.RelayerCreds)
+	return wallet.MergePositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, c.relayerCreds)
 }
 
 func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*RelayerResponse, error) {
@@ -670,15 +755,15 @@ func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*Rela
 	if err != nil {
 		return nil, err
 	}
-	return wallet.RedeemPositions(ctx, c.eoa, c.cfg.PrivateKeyHex, dw, conditionID, c.cfg.RelayerCreds)
+	return wallet.RedeemPositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, c.relayerCreds)
 }
 
 func (c *Client) requireDepositWalletOps() (string, error) {
-	if c.cfg.RelayerCreds == nil {
+	if c.relayerCreds == nil {
 		return "", errNoRelayerCreds
 	}
 	c.mu.RLock()
-	dw := c.depositWallet
+	dw := c.depositWalletAddress
 	c.mu.RUnlock()
 	if dw == "" {
 		return "", errNoDepositWallet
@@ -705,7 +790,7 @@ func (c *Client) PostHeartbeat(ctx context.Context) (string, error) {
 
 func (c *Client) RunHeartbeat(ctx context.Context, interval time.Duration) <-chan error {
 	c.mu.RLock()
-	creds := c.creds
+	creds := c.l2Creds
 	c.mu.RUnlock()
 	return c.clob.RunHeartbeat(ctx, interval, creds)
 }

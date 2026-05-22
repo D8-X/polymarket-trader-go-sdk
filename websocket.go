@@ -27,7 +27,7 @@ func (c *Client) SubscribeMarket(ctx context.Context, assetIDs []string) (*Marke
 
 func (c *Client) SubscribeUser(ctx context.Context, conditionIDs []string) (*UserSubscription, error) {
 	c.mu.RLock()
-	creds := c.creds
+	creds := c.l2Creds
 	c.mu.RUnlock()
 	if creds == nil {
 		return nil, errNoCreds
@@ -61,7 +61,7 @@ func (c *Client) SubscribeMarketReconnecting(ctx context.Context, assetIDs []str
 
 func (c *Client) SubscribeUserReconnecting(ctx context.Context, conditionIDs []string) (*UserSubscription, error) {
 	c.mu.RLock()
-	creds := c.creds
+	creds := c.l2Creds
 	c.mu.RUnlock()
 	if creds == nil {
 		return nil, errNoCreds
