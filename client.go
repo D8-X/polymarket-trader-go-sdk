@@ -13,6 +13,7 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/relayer"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/wallet"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -50,6 +51,8 @@ var (
 	errNoRelayerCreds  = errors.New("client: no relayer credentials; set Config.RelayerCreds")
 	errNoEth           = errors.New("client: no EthClient; set Config.Eth")
 	errNoDepositWallet = errors.New("client: no deposit wallet; call Bootstrap or set Config.DepositWallet")
+
+	ErrWalletAlreadyDeployed = errors.New("client: deposit wallet already deployed for this EOA, set Config.DepositWallet to the existing address (find it on polymarket.com or in your saved config)")
 )
 
 // NewClient constructs a Client from a private key plus optional config.
@@ -76,6 +79,13 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if c.creds == nil && !cfg.SkipCredsDerive {
 		if err := c.DeriveCreds(ctx); err != nil {
 			return nil, fmt.Errorf("client: derive credentials: %w", err)
+		}
+	}
+	if c.depositWallet == "" && cfg.Eth != nil {
+		if reader, ok := cfg.Eth.(CodeReader); ok {
+			if addr, deployed, err := LookupDepositWallet(ctx, reader, c.eoa); err == nil && deployed {
+				c.depositWallet = addr
+			}
 		}
 	}
 	if c.depositWallet != "" {
@@ -142,50 +152,86 @@ func (c *Client) DeriveCreds(ctx context.Context) error {
 	return nil
 }
 
-// Bootstrap brings the deposit wallet to a tradeable state. If
-// Config.DepositWallet is empty it deploys a new wallet via the relayer and
-// resolves its address from the on-chain receipt, which is why Config.Eth is
-// required for that path. Either way it sets the BUY and SELL approvals on
-// the resulting wallet, so it is safe to rerun on a returning client to
-// refresh approvals without redeploying.
-// Concurrent calls are serialized so a second goroutine does not waste a
-// relayer submission on the same deploy (CREATE2 would revert it anyway).
-func (c *Client) Bootstrap(ctx context.Context) error {
+func (c *Client) Deploy(ctx context.Context) (string, error) {
 	if c.cfg.RelayerCreds == nil {
-		return errNoRelayerCreds
+		return "", errNoRelayerCreds
+	}
+	if c.cfg.Eth == nil {
+		return "", errNoEth
 	}
 	c.bootstrapMu.Lock()
 	defer c.bootstrapMu.Unlock()
 	c.mu.RLock()
 	addr := c.depositWallet
 	c.mu.RUnlock()
-	if addr == "" {
-		if c.cfg.Eth == nil {
-			return errNoEth
-		}
-		deployed, _, _, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
-		if err != nil {
-			return fmt.Errorf("client: bootstrap: %w", err)
-		}
-		c.mu.Lock()
-		c.depositWallet = deployed
-		c.builder = NewOrderBuilder(deployed, CTFExchange, c.cfg.PrivateKeyHex)
-		c.mu.Unlock()
-		addr = deployed
-		select {
-		case <-time.After(10 * time.Second): 
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	if addr != "" {
+		return addr, nil
 	}
-	approveResp, err := wallet.ApproveAll(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds)
+	deployed, _, tx, err := wallet.DeployAndResolve(ctx, c.cfg.Eth, c.eoa, c.cfg.RelayerCreds)
 	if err != nil {
-		return fmt.Errorf("client: bootstrap: approvals: %w", err)
+		if tx != nil && tx.TransactionHash == "" {
+			return "", fmt.Errorf("%w: %v", ErrWalletAlreadyDeployed, err)
+		}
+		return "", fmt.Errorf("client: deploy: %w", err)
 	}
-	if _, err := relayer.WaitForTransaction(ctx, approveResp.TransactionID); err != nil {
-		return fmt.Errorf("client: bootstrap: wait approvals: %w", err)
+	c.mu.Lock()
+	c.depositWallet = deployed
+	c.builder = NewOrderBuilder(deployed, CTFExchange, c.cfg.PrivateKeyHex)
+	c.mu.Unlock()
+	select {
+	case <-time.After(10 * time.Second):
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	return deployed, nil
+}
+
+func (c *Client) EnsureApprovals(ctx context.Context) error {
+	if c.cfg.RelayerCreds == nil {
+		return errNoRelayerCreds
+	}
+	addr := c.DepositWallet()
+	if addr == "" {
+		return errNoDepositWallet
+	}
+	c.bootstrapMu.Lock()
+	defer c.bootstrapMu.Unlock()
+	if c.cfg.Eth != nil {
+		if ok, err := onchain.IsFullyApproved(ctx, c.cfg.Eth, common.HexToAddress(addr)); err == nil && ok {
+			return nil
+		}
+	}
+	resp, err := wallet.ApproveAll(ctx, c.eoa, c.cfg.PrivateKeyHex, addr, c.cfg.RelayerCreds)
+	if err != nil {
+		return fmt.Errorf("client: ensure approvals: %w", err)
+	}
+	if _, err := relayer.WaitForTransaction(ctx, resp.TransactionID); err != nil {
+		return fmt.Errorf("client: ensure approvals: wait: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) Bootstrap(ctx context.Context) error {
+	c.mu.RLock()
+	have := c.depositWallet
+	c.mu.RUnlock()
+	if have == "" && c.cfg.Eth != nil {
+		if reader, ok := c.cfg.Eth.(CodeReader); ok {
+			if addr, deployed, _ := LookupDepositWallet(ctx, reader, c.eoa); deployed {
+				c.mu.Lock()
+				c.depositWallet = addr
+				c.builder = NewOrderBuilder(addr, CTFExchange, c.cfg.PrivateKeyHex)
+				c.mu.Unlock()
+				have = addr
+			}
+		}
+	}
+	if have == "" {
+		if _, err := c.Deploy(ctx); err != nil {
+			return err
+		}
+	}
+	return c.EnsureApprovals(ctx)
 }
 
 func (c *Client) PrepareAndSign(tokenID, side, orderType string, price, size float64, opts ...OrderOpts) (*SignedOrder, error) {

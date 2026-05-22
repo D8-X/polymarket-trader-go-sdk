@@ -17,7 +17,11 @@ const (
 	CollateralOnramp  = "0x93070a847efEf7F70739046A929D47a521F5B8ee"
 	CollateralOfframp = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854"
 
-	DepositWalletFactory        = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
+	DepositWalletFactory = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
+	// DepositWalletImplementation feeds the CREATE2 derivation in
+	// onchain.DeriveDepositWallet. Must stay in sync with the implementation
+	// Polymarket actually points its factory at. if they upgrade it ... , derived
+	// addresses for newly deployed wallets will be wrong until we fix this
 	DepositWalletImplementation = "0x58ca52ebe0dadfdf531cde7062e76746de4db1eb"
 
 	ConditionalTokens = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
