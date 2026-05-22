@@ -30,6 +30,8 @@ The EOA only ever signs. The relayer pays every gas cost. The order doesn't touc
 
 A single `Client` owns the private key, the L2 credentials, the deposit-wallet address, and the relayer + RPC handles. Everything else is a method on it.
 
+When `Config.Eth` is set, `NewClient` automatically detects whether the EOA already has a deposit wallet deployed (for example one that polymarket.com created at signup) and populates `Client.DepositWallet()` immediately. You do not need to track or save the address yourself.
+
 ```go
 ctx := context.Background()
 eth, _ := ethclient.DialContext(ctx, polygonRPCURL)
@@ -47,8 +49,9 @@ if err != nil {
     log.Fatal(err)
 }
 
-// Deploys the deposit wallet (if not already) and sets BUY + SELL approvals.
-// Idempotent when Config.DepositWallet is already set.
+// Deploys the deposit wallet if not already on chain, then sets BUY + SELL approvals.
+// Safe to call on every restart. It skips the relayer call when the wallet is
+// already deployed and approvals are already set.
 if err := cli.Bootstrap(ctx); err != nil {
     log.Fatal(err)
 }
