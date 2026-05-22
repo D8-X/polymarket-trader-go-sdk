@@ -106,18 +106,22 @@ func NewClient(ctx context.Context, privateKeyHex string, relayerCreds *RelayerC
 }
 
 func (c *Client) recoverDepositWallet(ctx context.Context) {
-	if c.depositWalletAddress != "" || c.eth == nil {
+	c.mu.RLock()
+	already := c.depositWalletAddress != ""
+	eth := c.eth
+	c.mu.RUnlock()
+	if already || eth == nil {
 		return
 	}
-	reader, ok := c.eth.(CodeReader)
+	reader, ok := eth.(CodeReader)
 	if !ok {
 		return
 	}
 	addr, deployed, err := LookupDepositWallet(ctx, reader, c.eoa)
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if err != nil {
-		c.mu.Lock()
 		c.lastRecoveryErr = err
-		c.mu.Unlock()
 		return
 	}
 	if !deployed {
@@ -125,6 +129,7 @@ func (c *Client) recoverDepositWallet(ctx context.Context) {
 	}
 	c.depositWalletAddress = addr
 	c.builder = NewOrderBuilder(addr, CTFExchange, c.privateKeyHex)
+	c.lastRecoveryErr = nil
 }
 
 func (c *Client) EOA() string {
