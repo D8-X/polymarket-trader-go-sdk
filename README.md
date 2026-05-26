@@ -208,11 +208,11 @@ func main() {
 
 ## Sweep estimation
 
-`EstimateSweep` walks the order book from the best price (or a caller-supplied `refPrice`) until your requested size is filled or slippage exceeds the threshold. It returns the deepest price touched, the total fillable size, the size-weighted average price, and the per-level breakdown. It does NOT sign orders. The matching engine already walks levels for you, so a single limit order at the worst price fills the same way as N orders at each level.
+`EstimateSweep` walks the order book and returns the maximum size you can fill while keeping the volume-weighted average fill price within `maxSlippage` of the book mid. It returns the deepest price touched, the total fillable size, the average price, and the per-level breakdown. It does NOT sign orders. The matching engine already walks levels for you, so a single limit order at the worst price fills the same way as N orders at each level. When no liquidity fits the budget it returns `TotalSize: 0` with `err == nil`.
 
 ```go
 book, _ := cli.GetOrderBook(ctx, tokenID)
-est, err := polytrade.EstimateSweep(book, polytrade.BUY, 0, 100, 0.02)
+est, err := polytrade.EstimateSweep(book, polytrade.BUY, 0.02)
 if err != nil {
 	log.Fatal(err)
 }
