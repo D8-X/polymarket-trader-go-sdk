@@ -15,7 +15,7 @@ func TestEstimateFromLevelsBuyWalksWholeBookWithinBudget(t *testing.T) {
 		{Price: 0.52, Size: 10},
 		{Price: 0.55, Size: 20},
 	}
-	est, err := EstimateFromLevels(levels, Buy, 0.5)
+	est, err := EstimateFromLevels(levels, Buy, 0, 0.5)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestEstimateFromLevelsSellWalksWholeBookWithinBudget(t *testing.T) {
 		{Price: 0.52, Size: 10},
 		{Price: 0.50, Size: 20},
 	}
-	est, err := EstimateFromLevels(levels, Sell, 0.5)
+	est, err := EstimateFromLevels(levels, Sell, 0, 0.5)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestEstimateFromLevelsPartialFillsCrossingLevel(t *testing.T) {
 		{Price: 0.52, Size: 5},
 		{Price: 0.60, Size: 50},
 	}
-	est, err := EstimateFromLevels(levels, Buy, 0.05)
+	est, err := EstimateFromLevels(levels, Buy, 0, 0.05)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestEstimateFromLevelsBudgetTooTightForAnyLevel(t *testing.T) {
 		{Price: 0.50, Size: 5},
 		{Price: 0.51, Size: 100},
 	}
-	est, err := EstimateFromLevels(levels, Buy, 0)
+	est, err := EstimateFromLevels(levels, Buy, 0, 0)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}
@@ -88,22 +88,57 @@ func TestEstimateFromLevelsBudgetTooTightForAnyLevel(t *testing.T) {
 }
 
 func TestEstimateFromLevelsNoLevels(t *testing.T) {
-	if _, err := EstimateFromLevels(nil, Buy, 0.05); err == nil {
-		t.Fatal("expected error for empty levels")
+	est, err := EstimateFromLevels(nil, Buy, 0, 0.05)
+	if err != nil {
+		t.Fatalf("expected nil error for empty levels, got %v", err)
+	}
+	if est.TotalSize != 0 || len(est.Levels) != 0 {
+		t.Errorf("expected empty estimate, got %+v", est)
 	}
 }
 
 func TestEstimateFromLevelsInvalidSide(t *testing.T) {
 	levels := []models.PriceLevel{{Price: 0.50, Size: 5}}
-	if _, err := EstimateFromLevels(levels, "BAD", 0.05); err == nil {
+	if _, err := EstimateFromLevels(levels, "BAD", 0, 0.05); err == nil {
 		t.Fatal("expected error for invalid side")
 	}
 }
 
 func TestEstimateFromLevelsNegativeSlippage(t *testing.T) {
 	levels := []models.PriceLevel{{Price: 0.50, Size: 5}}
-	if _, err := EstimateFromLevels(levels, Buy, -0.01); err == nil {
+	if _, err := EstimateFromLevels(levels, Buy, 0, -0.01); err == nil {
 		t.Fatal("expected error for negative slippage")
+	}
+}
+
+func TestEstimateFromLevelsNoFillReturnsZero(t *testing.T) {
+	levels := []models.PriceLevel{
+		{Price: 0.50, Size: 5},
+		{Price: 0.60, Size: 100},
+	}
+	est, err := EstimateFromLevels(levels, Buy, 0, 0)
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if est.TotalSize == 0 {
+		return
+	}
+	if est.TotalSize != 5 {
+		t.Errorf("expected first level fills, got %v", est.TotalSize)
+	}
+}
+
+func TestEstimateFromLevelsUsesRefPrice(t *testing.T) {
+	levels := []models.PriceLevel{
+		{Price: 0.55, Size: 5},
+		{Price: 0.60, Size: 10},
+	}
+	est, err := EstimateFromLevels(levels, Buy, 0.50, 0.10)
+	if err != nil {
+		t.Fatalf("estimate: %v", err)
+	}
+	if est.TotalSize == 0 {
+		t.Errorf("expected non-zero fill, got %+v", est)
 	}
 }
 
@@ -112,7 +147,7 @@ func TestEstimateFromLevelsAvgPriceWhenFullyConsumed(t *testing.T) {
 		{Price: 0.50, Size: 5},
 		{Price: 0.52, Size: 5},
 	}
-	est, err := EstimateFromLevels(levels, Buy, 0.5)
+	est, err := EstimateFromLevels(levels, Buy, 0, 0.5)
 	if err != nil {
 		t.Fatalf("estimate: %v", err)
 	}

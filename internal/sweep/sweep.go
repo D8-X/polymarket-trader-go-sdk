@@ -21,13 +21,11 @@ func Estimate(book *models.OrderBook, side string, maxSlippage float64) (*models
 	if err != nil {
 		return nil, err
 	}
-	return EstimateFromLevels(levels, side, maxSlippage)
+	refPrice := bookMid(book)
+	return EstimateFromLevels(levels, side, refPrice, maxSlippage)
 }
 
-func EstimateFromLevels(levels []models.PriceLevel, side string, maxSlippage float64) (*models.SweepEstimate, error) {
-	if len(levels) == 0 {
-		return nil, fmt.Errorf("estimate sweep: no levels provided")
-	}
+func EstimateFromLevels(levels []models.PriceLevel, side string, refPrice, maxSlippage float64) (*models.SweepEstimate, error) {
 	if side != Buy && side != Sell {
 		return nil, fmt.Errorf("estimate sweep: invalid side %q (want BUY or SELL)", side)
 	}
@@ -35,17 +33,24 @@ func EstimateFromLevels(levels []models.PriceLevel, side string, maxSlippage flo
 		return nil, fmt.Errorf("estimate sweep: maxSlippage must be non-negative")
 	}
 
+	est := &models.SweepEstimate{Side: side}
+	if len(levels) == 0 {
+		return est, nil
+	}
 	best := levels[0].Price
+	if refPrice <= 0 {
+		refPrice = best
+	}
+	est.BestPrice = best
+
 	var limit float64
 	if side == Buy {
-		limit = best * (1 + maxSlippage)
+		limit = refPrice * (1 + maxSlippage)
 	} else {
-		limit = best * (1 - maxSlippage)
+		limit = refPrice * (1 - maxSlippage)
 	}
 
-	est := &models.SweepEstimate{BestPrice: best, Side: side}
 	var vol, size float64
-
 	for _, lvl := range levels {
 		newVol := vol + lvl.Price*lvl.Size
 		newSize := size + lvl.Size
@@ -57,7 +62,7 @@ func EstimateFromLevels(levels []models.PriceLevel, side string, maxSlippage flo
 			est.Levels = append(est.Levels, models.SweepLevel{
 				Price:    lvl.Price,
 				Size:     lvl.Size,
-				Slippage: relSlippage(lvl.Price, best),
+				Slippage: relSlippage(lvl.Price, refPrice),
 			})
 			est.WorstPrice = lvl.Price
 			continue
@@ -69,30 +74,57 @@ func EstimateFromLevels(levels []models.PriceLevel, side string, maxSlippage flo
 			est.Levels = append(est.Levels, models.SweepLevel{
 				Price:    lvl.Price,
 				Size:     d,
-				Slippage: relSlippage(lvl.Price, best),
+				Slippage: relSlippage(lvl.Price, refPrice),
 			})
 			est.WorstPrice = lvl.Price
 		}
 		break
 	}
 
-	if len(est.Levels) == 0 {
-		return nil, fmt.Errorf("estimate sweep: no levels within %.4f%% slippage", maxSlippage*100)
+	if size > 0 {
+		est.TotalSize = size
+		est.AvgPrice = vol / size
 	}
-	est.TotalSize = size
-	est.AvgPrice = vol / size
 	return est, nil
 }
 
-func relSlippage(price, best float64) float64 {
-	if best == 0 {
+func relSlippage(price, ref float64) float64 {
+	if ref == 0 {
 		return 0
 	}
-	diff := price - best
+	diff := price - ref
 	if diff < 0 {
 		diff = -diff
 	}
-	return diff / best
+	return diff / ref
+}
+
+func bookMid(book *models.OrderBook) float64 {
+	if book == nil || len(book.Bids) == 0 || len(book.Asks) == 0 {
+		return 0
+	}
+	bestBid, bidOK := bestPrice(book.Bids, true)
+	bestAsk, askOK := bestPrice(book.Asks, false)
+	if !bidOK || !askOK {
+		return 0
+	}
+	return (bestBid + bestAsk) / 2
+}
+
+func bestPrice(raw []models.OrderBookLevel, highest bool) (float64, bool) {
+	var best float64
+	first := true
+	for _, lvl := range raw {
+		p, err := strconv.ParseFloat(lvl.Price, 64)
+		if err != nil {
+			continue
+		}
+		if first || (highest && p > best) || (!highest && p < best) {
+			best = p
+			first = false
+		}
+	}
+	return best, !first
 }
 
 func parseLevels(book *models.OrderBook, side string) ([]models.PriceLevel, error) {

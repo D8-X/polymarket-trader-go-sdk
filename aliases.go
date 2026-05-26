@@ -111,8 +111,8 @@ func EstimateSweep(book *OrderBook, side string, maxSlippage float64) (*SweepEst
 	return sweep.Estimate(book, side, maxSlippage)
 }
 
-func EstimateSweepFromLevels(levels []PriceLevel, side string, maxSlippage float64) (*SweepEstimate, error) {
-	return sweep.EstimateFromLevels(levels, side, maxSlippage)
+func EstimateSweepFromLevels(levels []PriceLevel, side string, refPrice, maxSlippage float64) (*SweepEstimate, error) {
+	return sweep.EstimateFromLevels(levels, side, refPrice, maxSlippage)
 }
 
 func GetOutcomeTokenBalance(ctx context.Context, eth ContractCaller, ownerAddress, tokenID string) (*big.Int, error) {
