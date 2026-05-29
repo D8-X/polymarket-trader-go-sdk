@@ -1,6 +1,9 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 type OrderBook struct {
 	Market         string           `json:"market"`
@@ -13,6 +16,40 @@ type OrderBook struct {
 	TickSize       string           `json:"tick_size"`
 	NegRisk        bool             `json:"neg_risk"`
 	LastTradePrice string           `json:"last_trade_price"`
+}
+
+func (b *OrderBook) BestBid() (price, size float64, ok bool) {
+	return bestLevel(b.Bids, true)
+}
+
+func (b *OrderBook) BestAsk() (price, size float64, ok bool) {
+	return bestLevel(b.Asks, false)
+}
+
+func (b *OrderBook) Mid() (float64, bool) {
+	bp, _, bok := b.BestBid()
+	ap, _, aok := b.BestAsk()
+	if !bok || !aok {
+		return 0, false
+	}
+	return (bp + ap) / 2, true
+}
+
+func bestLevel(levels []OrderBookLevel, highest bool) (float64, float64, bool) {
+	var bestP, bestS float64
+	first := true
+	for _, lvl := range levels {
+		p, err := strconv.ParseFloat(lvl.Price, 64)
+		if err != nil {
+			continue
+		}
+		s, _ := strconv.ParseFloat(lvl.Size, 64)
+		if first || (highest && p > bestP) || (!highest && p < bestP) {
+			bestP, bestS = p, s
+			first = false
+		}
+	}
+	return bestP, bestS, !first
 }
 
 type OrderBookLevel struct {
