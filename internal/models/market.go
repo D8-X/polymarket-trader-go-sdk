@@ -18,10 +18,14 @@ type OrderBook struct {
 	LastTradePrice string           `json:"last_trade_price"`
 }
 
+// BestBid returns the highest bid price and its size.
+// Assumes the CLOB returns sorted levels asc or desc
 func (b *OrderBook) BestBid() (price, size float64, ok bool) {
 	return bestLevel(b.Bids, true)
 }
 
+// BestAsk returns the lowest ask price and its size.
+// Assumes the CLOB returns sorted levels asc or desc
 func (b *OrderBook) BestAsk() (price, size float64, ok bool) {
 	return bestLevel(b.Asks, false)
 }
@@ -35,21 +39,65 @@ func (b *OrderBook) Mid() (float64, bool) {
 	return (bp + ap) / 2, true
 }
 
+// IsSorted reports whether each side is monotonic, ascending or descending.
+func (b *OrderBook) IsSorted() bool {
+	return isMonotonic(b.Bids) && isMonotonic(b.Asks)
+}
+
 func bestLevel(levels []OrderBookLevel, highest bool) (float64, float64, bool) {
-	var bestP, bestS float64
+	if len(levels) == 0 {
+		return 0, 0, false
+	}
+	firstPrice, firstSize, firstOK := parseLevel(levels[0])
+	if len(levels) == 1 {
+		return firstPrice, firstSize, firstOK
+	}
+	lastPrice, lastSize, lastOK := parseLevel(levels[len(levels)-1])
+	switch {
+	case !firstOK && !lastOK:
+		return 0, 0, false
+	case !firstOK:
+		return lastPrice, lastSize, true
+	case !lastOK:
+		return firstPrice, firstSize, true
+	}
+	firstIsBetter := (highest && firstPrice > lastPrice) || (!highest && firstPrice < lastPrice)
+	if firstIsBetter {
+		return firstPrice, firstSize, true
+	}
+	return lastPrice, lastSize, true
+}
+
+func parseLevel(level OrderBookLevel) (price, size float64, ok bool) {
+	price, err := strconv.ParseFloat(level.Price, 64)
+	if err != nil {
+		return 0, 0, false
+	}
+	size, _ = strconv.ParseFloat(level.Size, 64)
+	return price, size, true
+}
+
+func isMonotonic(levels []OrderBookLevel) bool {
+	asc, desc := true, true
+	prev := 0.0
 	first := true
 	for _, lvl := range levels {
 		p, err := strconv.ParseFloat(lvl.Price, 64)
 		if err != nil {
-			continue
+			return false
 		}
-		s, _ := strconv.ParseFloat(lvl.Size, 64)
-		if first || (highest && p > bestP) || (!highest && p < bestP) {
-			bestP, bestS = p, s
-			first = false
+		if !first {
+			if p < prev {
+				asc = false
+			}
+			if p > prev {
+				desc = false
+			}
 		}
+		prev = p
+		first = false
 	}
-	return bestP, bestS, !first
+	return asc || desc
 }
 
 type OrderBookLevel struct {
