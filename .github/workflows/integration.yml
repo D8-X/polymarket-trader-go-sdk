@@ -2,9 +2,7 @@ name: integration
 
 on:
   schedule:
-    # Daily at 12:00 UTC. Hits live Polymarket CLOB to confirm the SDK's
-    # assumptions (currently: orderbook sortedness) still hold.
-    - cron: '0 12 * * *'
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 jobs:
