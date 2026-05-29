@@ -776,6 +776,17 @@ func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*Rela
 	return wallet.RedeemPositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, negRisk, c.relayerCreds)
 }
 
+func (c *Client) RedeemPayout(ctx context.Context, txHash string) (*big.Int, error) {
+	if c.eth == nil {
+		return nil, errNoEth
+	}
+	dw := c.DepositWallet()
+	if dw == "" {
+		return nil, errNoDepositWallet
+	}
+	return onchain.PayoutFromRedeemReceipt(ctx, c.eth, txHash, dw)
+}
+
 func (c *Client) resolveNegRisk(ctx context.Context, conditionID string) (bool, error) {
 	mkt, err := c.GetMarket(ctx, conditionID)
 	if err != nil {
