@@ -14,6 +14,13 @@ const (
 	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59"
 	NegRiskAdapter     = "0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296"
 
+	// Targets for Split / Merge / Redeem. Polymarket's positions live in these
+	// adapters, not directly in the ConditionalTokens vault, so calling the
+	// vault would happily execute and pay out zero. Pick CollateralAdapter for
+	// standard binary markets and NegRiskCollateralAdapter for neg-risk ones.
+	CollateralAdapter        = "0xAdA100Db00Ca00073811820692005400218FcE1f"
+	NegRiskCollateralAdapter = "0xadA2005600Dec949baf300f4C6120000bDB6eAab"
+
 	CollateralOnramp  = "0x93070a847efEf7F70739046A929D47a521F5B8ee"
 	CollateralOfframp = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854"
 

@@ -739,7 +739,14 @@ func (c *Client) SplitPosition(ctx context.Context, conditionID string, amount *
 	if err != nil {
 		return nil, err
 	}
-	return wallet.SplitPosition(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, c.relayerCreds)
+	if amount == nil || amount.Sign() <= 0 {
+		return nil, fmt.Errorf("client: split position: amount must be positive")
+	}
+	negRisk, err := c.resolveNegRisk(ctx, conditionID)
+	if err != nil {
+		return nil, err
+	}
+	return wallet.SplitPosition(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, negRisk, c.relayerCreds)
 }
 
 func (c *Client) MergePositions(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
@@ -747,7 +754,14 @@ func (c *Client) MergePositions(ctx context.Context, conditionID string, amount 
 	if err != nil {
 		return nil, err
 	}
-	return wallet.MergePositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, c.relayerCreds)
+	if amount == nil || amount.Sign() <= 0 {
+		return nil, fmt.Errorf("client: merge positions: amount must be positive")
+	}
+	negRisk, err := c.resolveNegRisk(ctx, conditionID)
+	if err != nil {
+		return nil, err
+	}
+	return wallet.MergePositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, negRisk, c.relayerCreds)
 }
 
 func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*RelayerResponse, error) {
@@ -755,7 +769,19 @@ func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*Rela
 	if err != nil {
 		return nil, err
 	}
-	return wallet.RedeemPositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, c.relayerCreds)
+	negRisk, err := c.resolveNegRisk(ctx, conditionID)
+	if err != nil {
+		return nil, err
+	}
+	return wallet.RedeemPositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, negRisk, c.relayerCreds)
+}
+
+func (c *Client) resolveNegRisk(ctx context.Context, conditionID string) (bool, error) {
+	mkt, err := c.GetMarket(ctx, conditionID)
+	if err != nil {
+		return false, fmt.Errorf("client: resolve neg risk: %w", err)
+	}
+	return mkt.NegRisk, nil
 }
 
 func (c *Client) requireDepositWalletOps() (string, error) {
