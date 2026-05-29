@@ -115,6 +115,10 @@ func EstimateSweepFromLevels(levels []PriceLevel, side string, refPrice, maxSlip
 	return sweep.EstimateFromLevels(levels, side, refPrice, maxSlippage)
 }
 
+func BestFillablePrice(book *OrderBook, side string, size float64) (float64, error) {
+	return sweep.BestFillablePrice(book, side, size)
+}
+
 func GetOutcomeTokenBalance(ctx context.Context, eth ContractCaller, ownerAddress, tokenID string) (*big.Int, error) {
 	return onchain.GetOutcomeTokenBalance(ctx, eth, ownerAddress, tokenID)
 }

@@ -88,6 +88,27 @@ func EstimateFromLevels(levels []models.PriceLevel, side string, refPrice, maxSl
 	return est, nil
 }
 
+func BestFillablePrice(book *models.OrderBook, side string, size float64) (float64, error) {
+	if book == nil {
+		return 0, fmt.Errorf("best fillable price: nil order book")
+	}
+	if size <= 0 {
+		return 0, fmt.Errorf("best fillable price: size must be positive")
+	}
+	levels, err := parseLevels(book, side)
+	if err != nil {
+		return 0, err
+	}
+	remaining := size
+	for _, lvl := range levels {
+		if lvl.Size >= remaining {
+			return lvl.Price, nil
+		}
+		remaining -= lvl.Size
+	}
+	return 0, fmt.Errorf("best fillable price: book has only %.4f size available for size %.4f", size-remaining, size)
+}
+
 func relSlippage(price, ref float64) float64 {
 	if ref == 0 {
 		return 0

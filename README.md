@@ -302,10 +302,18 @@ _, _ = cli.SplitPosition(ctx, conditionID, big.NewInt(5_000_000))
 _, _ = cli.MergePositions(ctx, conditionID, big.NewInt(5_000_000))
 
 // Redeem winning outcome tokens after resolution.
-_, _ = cli.RedeemPositions(ctx, conditionID)
+resp, _ := cli.RedeemPositions(ctx, conditionID)
+
+// Decode the actual pUSD paid out by reading the PayoutRedemption log.
+// The relayer's STATE_EXECUTED only means "submitted", not "received this much".
+payout, _ := cli.RedeemPayout(ctx, resp.TxHash)
+fmt.Println("redeemed pUSD (6-decimal):", payout)
+
+// Verify outcome-token balances directly (useful before and after redeem).
+bal, _ := polytrade.GetOutcomeTokenBalance(ctx, eth, cli.DepositWallet(), tokenID)
 ```
 
-Only binary markets are supported. Neg-risk markets route through a different adapter and are not covered here.
+Split / Merge / Redeem auto-detect whether a market is neg-risk via `GetMarket` and route through `CollateralAdapter` or `NegRiskCollateralAdapter` accordingly. Binary markets only.
 
 ## Replace an order
 
