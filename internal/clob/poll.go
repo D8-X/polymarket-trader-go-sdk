@@ -48,7 +48,8 @@ func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderRes
 			results[i].Err = fmt.Errorf("order %s placement failed: %s", r.OrderID, r.ErrorMsg)
 			continue
 		}
-		if isTerminalStatus(r.Status) || r.OrderID == "" || r.ErrorMsg != "" {
+		if resolvedAtPlacement(r) {
+			results[i].Status = placementStatus(r)
 			continue
 		}
 		pending = append(pending, i)
@@ -121,7 +122,8 @@ func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, c
 		return result
 	}
 
-	if isTerminalStatus(resp.Status) || resp.OrderID == "" || resp.ErrorMsg != "" {
+	if resolvedAtPlacement(resp) {
+		result.Status = placementStatus(resp)
 		return result
 	}
 
@@ -196,7 +198,7 @@ func (c *Client) AwaitOrdersAsync(ctx context.Context, responses []models.PlaceO
 
 	pending := make([]int, 0, len(responses))
 	for i, r := range responses {
-		if r.Success && r.OrderID != "" && r.ErrorMsg == "" && !isTerminalStatus(r.Status) {
+		if r.Success && !resolvedAtPlacement(r) {
 			pending = append(pending, i)
 		}
 	}
@@ -250,4 +252,20 @@ func isTerminalStatus(status string) bool {
 		return true
 	}
 	return false
+}
+
+func placementFilled(r models.PlaceOrderResponse) bool {
+	return (r.TakingAmount != "" && r.TakingAmount != "0") || (r.MakingAmount != "" && r.MakingAmount != "0")
+}
+
+func resolvedAtPlacement(r models.PlaceOrderResponse) bool {
+	return r.OrderID == "" || (r.ErrorMsg != "" && !placementFilled(r))
+}
+
+func placementStatus(r models.PlaceOrderResponse) *models.OrderStatus {
+	status := r.Status
+	if status == "" {
+		status = consts.OrderStatusUnmatched
+	}
+	return &models.OrderStatus{ID: r.OrderID, Status: status, SizeMatched: "0"}
 }
