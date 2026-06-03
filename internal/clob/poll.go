@@ -38,14 +38,17 @@ func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderRes
 
 	for i, r := range responses {
 		results[i] = models.PollResult{
-			OrderID:     r.OrderID,
-			PlaceStatus: r.Status,
+			OrderID:      r.OrderID,
+			PlaceStatus:  r.Status,
+			MakingAmount: r.MakingAmount,
+			TakingAmount: r.TakingAmount,
+			ErrorMsg:     r.ErrorMsg,
 		}
 		if !r.Success {
 			results[i].Err = fmt.Errorf("order %s placement failed: %s", r.OrderID, r.ErrorMsg)
 			continue
 		}
-		if isTerminalStatus(r.Status) {
+		if isTerminalStatus(r.Status) || r.OrderID == "" || r.ErrorMsg != "" {
 			continue
 		}
 		pending = append(pending, i)
@@ -106,8 +109,11 @@ func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderRes
 // continues to use awaitMany directly.
 func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, creds *models.L2Credentials, interval time.Duration) models.PollResult {
 	result := models.PollResult{
-		OrderID:     resp.OrderID,
-		PlaceStatus: resp.Status,
+		OrderID:      resp.OrderID,
+		PlaceStatus:  resp.Status,
+		MakingAmount: resp.MakingAmount,
+		TakingAmount: resp.TakingAmount,
+		ErrorMsg:     resp.ErrorMsg,
 	}
 
 	if !resp.Success {
@@ -115,7 +121,7 @@ func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, c
 		return result
 	}
 
-	if isTerminalStatus(resp.Status) {
+	if isTerminalStatus(resp.Status) || resp.OrderID == "" || resp.ErrorMsg != "" {
 		return result
 	}
 
@@ -190,7 +196,7 @@ func (c *Client) AwaitOrdersAsync(ctx context.Context, responses []models.PlaceO
 
 	pending := make([]int, 0, len(responses))
 	for i, r := range responses {
-		if r.Success && !isTerminalStatus(r.Status) {
+		if r.Success && r.OrderID != "" && r.ErrorMsg == "" && !isTerminalStatus(r.Status) {
 			pending = append(pending, i)
 		}
 	}
@@ -240,7 +246,7 @@ func autoTimeout(responses []models.PlaceOrderResponse, pending []int) time.Dura
 
 func isTerminalStatus(status string) bool {
 	switch status {
-	case consts.OrderStatusMatched, consts.OrderStatusCanceled:
+	case consts.OrderStatusMatched, consts.OrderStatusCanceled, consts.OrderStatusUnmatched:
 		return true
 	}
 	return false

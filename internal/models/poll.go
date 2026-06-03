@@ -8,8 +8,11 @@ type PollOpts struct {
 }
 
 type PollResult struct {
-	OrderID     string
-	Status      *OrderStatus
-	PlaceStatus string
-	Err         error
+	OrderID      string
+	Status       *OrderStatus
+	PlaceStatus  string
+	MakingAmount string
+	TakingAmount string
+	ErrorMsg     string
+	Err          error
 }
