@@ -38,8 +38,11 @@ func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderRes
 
 	for i, r := range responses {
 		results[i] = models.PollResult{
-			OrderID:     r.OrderID,
-			PlaceStatus: r.Status,
+			OrderID:      r.OrderID,
+			PlaceStatus:  r.Status,
+			MakingAmount: r.MakingAmount,
+			TakingAmount: r.TakingAmount,
+			ErrorMsg:     r.ErrorMsg,
 		}
 		if !r.Success {
 			results[i].Err = fmt.Errorf("order %s placement failed: %s", r.OrderID, r.ErrorMsg)
@@ -106,8 +109,11 @@ func (c *Client) awaitMany(ctx context.Context, responses []models.PlaceOrderRes
 // continues to use awaitMany directly.
 func (c *Client) awaitOne(ctx context.Context, resp models.PlaceOrderResponse, creds *models.L2Credentials, interval time.Duration) models.PollResult {
 	result := models.PollResult{
-		OrderID:     resp.OrderID,
-		PlaceStatus: resp.Status,
+		OrderID:      resp.OrderID,
+		PlaceStatus:  resp.Status,
+		MakingAmount: resp.MakingAmount,
+		TakingAmount: resp.TakingAmount,
+		ErrorMsg:     resp.ErrorMsg,
 	}
 
 	if !resp.Success {

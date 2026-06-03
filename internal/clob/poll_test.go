@@ -28,7 +28,7 @@ func TestIsTerminalStatus(t *testing.T) {
 func TestAwaitManyReturnsOnUnmatchedOrEmptyID(t *testing.T) {
 	c := &Client{}
 	responses := []models.PlaceOrderResponse{
-		{Success: true, Status: consts.OrderStatusUnmatched, OrderID: "0xabc"},
+		{Success: true, Status: consts.OrderStatusMatched, OrderID: "0xabc", MakingAmount: "1", TakingAmount: "10"},
 		{Success: true, Status: consts.OrderStatusDelayed, OrderID: ""},
 		{Success: true, Status: "", OrderID: "0xdef", ErrorMsg: "no orders found to match with FAK order."},
 	}
@@ -45,6 +45,12 @@ func TestAwaitManyReturnsOnUnmatchedOrEmptyID(t *testing.T) {
 			if r.Err != nil {
 				t.Errorf("result %d unexpected err: %v", i, r.Err)
 			}
+		}
+		if results[0].TakingAmount != "10" || results[0].MakingAmount != "1" {
+			t.Errorf("matched fill not surfaced: making=%q taking=%q", results[0].MakingAmount, results[0].TakingAmount)
+		}
+		if results[2].ErrorMsg == "" {
+			t.Errorf("kill reason not surfaced for result 2")
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("awaitMany hung instead of returning immediately for unmatched/empty-id orders")
