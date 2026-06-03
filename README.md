@@ -64,12 +64,13 @@ usdc, _ := cli.USDCBalance(ctx)
 pusd, _ := cli.PUSDBalance(ctx)
 fmt.Println("USDC:", usdc, "pUSD:", pusd)
 
-// Place an order.
-signed, _ := cli.PrepareAndSign(tokenID, polytrade.BUY, polytrade.OrderTypeGTC, 0.55, 10, polytrade.OrderOpts{TickSize: "0.01"})
+// Place an order. price and size are decimal strings; the tick size is fetched
+// automatically when OrderOpts.TickSize is left empty.
+signed, _ := cli.PrepareAndSign(ctx, tokenID, polytrade.BUY, polytrade.OrderTypeGTC, "0.55", "10")
 resp, _ := cli.PlaceOrder(ctx, signed)
 
-// Close a position (auto-fetches held quantity on-chain).
-closed, _ := cli.ClosePosition(ctx, tokenID, 0.50, polytrade.ClosePositionOpts{})
+// Close a position (auto-fetches held quantity on-chain). price is a decimal string.
+closed, _ := cli.ClosePosition(ctx, tokenID, "0.50", polytrade.ClosePositionOpts{})
 ```
 
 ## Collateral
@@ -180,13 +181,11 @@ func main() {
 	book, _ := cli.GetOrderBook(ctx, tokenID)
 	fmt.Printf("best bid: %s  best ask: %s\n", book.Bids[0].Price, book.Asks[0].Price)
 
-	info, _ := cli.GetClobMarketInfo(ctx, "your-condition-id")
-	tickSize := info.MinTickSize.String()
-
+	// price and size are decimal strings. The tick size is fetched automatically
+	// when OrderOpts.TickSize is omitted; pass it explicitly to skip the lookup.
 	signed, err := cli.PrepareAndSign(
-		tokenID, polytrade.BUY, polytrade.OrderTypeFOK,
-		0.55, 10,
-		polytrade.OrderOpts{TickSize: tickSize},
+		ctx, tokenID, polytrade.BUY, polytrade.OrderTypeFOK,
+		"0.55", "10",
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -221,8 +220,8 @@ for _, lvl := range est.Levels {
 }
 
 signed, _ := cli.PrepareAndSign(
-	tokenID, polytrade.BUY, polytrade.OrderTypeFAK,
-	est.WorstPrice, est.TotalSize,
+	ctx, tokenID, polytrade.BUY, polytrade.OrderTypeFAK,
+	fmt.Sprintf("%.2f", est.WorstPrice), fmt.Sprintf("%.2f", est.TotalSize),
 	polytrade.OrderOpts{TickSize: book.TickSize},
 )
 resp, _ := cli.PlaceOrder(ctx, signed)
@@ -243,12 +242,16 @@ fmt.Printf("order %s: %s matched=%s/%s\n",
 responses, _ := cli.PlaceOrders(ctx, signedOrders)
 results := cli.AwaitOrders(ctx, responses, nil)
 for _, r := range results {
-    if r.Status != nil {
-        fmt.Printf("order %s: %s matched=%s/%s\n",
-            r.OrderID, r.Status.Status, r.Status.SizeMatched, r.Status.OriginalSize)
-    }
+    // Status is set for every order: matched orders carry the filled size,
+    // an unfilled FAK reports "unmatched" with size_matched "0".
+    fmt.Printf("order %s: %s matched=%s/%s\n",
+        r.OrderID, r.Status.Status, r.Status.SizeMatched, r.Status.OriginalSize)
 }
+```
 
+A fill-and-kill (FAK) order that finds no liquidity is resolved at placement, not rested, so `AwaitOrders` returns it immediately rather than polling to timeout. Each `PollResult` also carries the placement outcome - `MakingAmount`, `TakingAmount`, and `ErrorMsg` (the kill reason) - alongside `Status`.
+
+```go
 // Custom poll options
 results = cli.AwaitOrders(ctx, responses, &polytrade.PollOpts{
     Interval: 1 * time.Second,
@@ -320,7 +323,7 @@ Split / Merge / Redeem auto-detect whether a market is neg-risk via `GetMarket` 
 Polymarket doesn't expose a native replace endpoint, so this is a sequenced cancel-then-place. Bails out before placing if the cancel fails.
 
 ```go
-newSigned, _ := cli.PrepareAndSign(tokenID, polytrade.BUY, polytrade.OrderTypeGTC, 0.21, 5, polytrade.OrderOpts{TickSize: "0.01"})
+newSigned, _ := cli.PrepareAndSign(ctx, tokenID, polytrade.BUY, polytrade.OrderTypeGTC, "0.21", "5")
 cancelResp, placeResp, err := cli.ReplaceOrder(ctx, oldOrderID, newSigned)
 ```
 
