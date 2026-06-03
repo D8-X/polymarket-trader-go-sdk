@@ -12,23 +12,31 @@ const (
 	testCTFExchange   = "0xE111180000d2663C0091e4f400237545B87B996B"
 )
 
-func TestCheckPrecision(t *testing.T) {
+func TestParseDecimal(t *testing.T) {
 	cases := []struct {
-		name     string
-		value    float64
-		decimals int
-		wantErr  bool
+		name        string
+		in          string
+		maxDecimals int
+		wantErr     bool
 	}{
-		{"two-decimals ok", 0.55, 2, false},
-		{"two-decimals over", 0.555, 2, true},
-		{"one-decimal ok", 0.5, 1, false},
-		{"three-decimals ok", 0.555, 3, false},
-		{"four-decimals over", 0.55555, 4, true},
-		{"integer at low precision", 5.0, 2, false},
+		{"two-decimals ok", "0.55", 2, false},
+		{"two-decimals over", "0.555", 2, true},
+		{"one-decimal ok", "0.5", 1, false},
+		{"three-decimals ok", "0.555", 3, false},
+		{"integer ok", "5", 2, false},
+		{"trailing zeros ok", "0.50", 2, false},
+		{"empty", "", 2, true},
+		{"negative", "-0.5", 2, true},
+		{"zero", "0", 2, true},
+		{"leading dot", ".5", 2, true},
+		{"trailing dot", "10.", 2, true},
+		{"multiple dots", "1.2.3", 4, true},
+		{"letters", "1a", 2, true},
+		{"exponent", "1e3", 6, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := checkPrecision(tc.value, tc.decimals, "v")
+			_, _, err := parseDecimal(tc.in, "v", tc.maxDecimals)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("got err=%v wantErr=%v", err, tc.wantErr)
 			}
@@ -64,21 +72,25 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 	cases := []struct {
 		name      string
 		side      string
+		orderType string
 		tick      string
-		price     float64
-		size      float64
+		price     string
+		size      string
 		wantMaker string
 		wantTaker string
 	}{
-		{"buy tick 0.01", consts.BUY, "0.01", 0.55, 10, "5500000", "10000000"},
-		{"sell tick 0.01", consts.SELL, "0.01", 0.55, 10, "10000000", "5500000"},
-		{"buy tick 0.001", consts.BUY, "0.001", 0.555, 10, "5550000", "10000000"},
-		{"buy tick 0.0001", consts.BUY, "0.0001", 0.5555, 10, "5555000", "10000000"},
-		{"buy tick 0.1", consts.BUY, "0.1", 0.5, 5, "2500000", "5000000"},
+		{"buy GTC tick 0.01", consts.BUY, consts.OrderTypeGTC, "0.01", "0.55", "10", "5500000", "10000000"},
+		{"sell GTC tick 0.01", consts.SELL, consts.OrderTypeGTC, "0.01", "0.55", "10", "10000000", "5500000"},
+		{"buy GTC tick 0.001", consts.BUY, consts.OrderTypeGTC, "0.001", "0.555", "10", "5550000", "10000000"},
+		{"buy GTC tick 0.0001", consts.BUY, consts.OrderTypeGTC, "0.0001", "0.5555", "10", "5555000", "10000000"},
+		{"buy GTC tick 0.1", consts.BUY, consts.OrderTypeGTC, "0.1", "0.5", "5", "2500000", "5000000"},
+		{"buy GTC fractional keeps 4dp maker", consts.BUY, consts.OrderTypeGTC, "0.01", "0.07", "14.28", "999600", "14280000"},
+		{"buy FAK fractional floors maker to 2dp", consts.BUY, consts.OrderTypeFAK, "0.01", "0.07", "14.28", "990000", "14280000"},
+		{"buy FOK fractional floors maker to 2dp", consts.BUY, consts.OrderTypeFOK, "0.01", "0.07", "14.28", "990000", "14280000"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			signed, err := ob.PrepareAndSign("100", tc.side, consts.OrderTypeGTC, tc.price, tc.size, "k", Opts{TickSize: tc.tick})
+			signed, err := ob.PrepareAndSign("100", tc.side, tc.orderType, tc.price, tc.size, "k", Opts{TickSize: tc.tick})
 			if err != nil {
 				t.Fatalf("prepare: %v", err)
 			}
@@ -94,7 +106,7 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 
 func TestPrepareAndSignRejectsSubTickPrice(t *testing.T) {
 	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
-	_, err := ob.PrepareAndSign("100", consts.BUY, consts.OrderTypeGTC, 0.555, 10, "k", Opts{TickSize: "0.01"})
+	_, err := ob.PrepareAndSign("100", consts.BUY, consts.OrderTypeGTC, "0.555", "10", "k", Opts{TickSize: "0.01"})
 	if err == nil {
 		t.Fatal("expected error for sub-tick price")
 	}

@@ -18,8 +18,8 @@ import (
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ws"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/websocket"
 )
 
@@ -193,7 +193,7 @@ func TestClientSetBuilderCodeIsSafeWithoutDepositWallet(t *testing.T) {
 
 func TestClientPrepareAndSignRequiresDepositWallet(t *testing.T) {
 	cli := newClientForTest(t)
-	_, err := cli.PrepareAndSign("100", BUY, OrderTypeGTC, 0.5, 10)
+	_, err := cli.PrepareAndSign(context.Background(), "100", BUY, OrderTypeGTC, "0.5", "10")
 	if !errors.Is(err, errNoDepositWallet) {
 		t.Errorf("expected errNoDepositWallet, got %v", err)
 	}
@@ -202,7 +202,7 @@ func TestClientPrepareAndSignRequiresDepositWallet(t *testing.T) {
 func TestClientPrepareAndSignHappyPath(t *testing.T) {
 	cli := newClientForTest(t)
 	presetTestDepositWallet(cli)
-	signed, err := cli.PrepareAndSign("100", BUY, OrderTypeGTC, 0.55, 10, OrderOpts{TickSize: "0.01"})
+	signed, err := cli.PrepareAndSign(context.Background(), "100", BUY, OrderTypeGTC, "0.55", "10", OrderOpts{TickSize: "0.01"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +369,7 @@ func TestReplaceOrderCancelsThenPlaces(t *testing.T) {
 	presetTestDepositWallet(cli)
 	cli.clob.SetBaseURL(srv.URL)
 
-	signed, err := cli.PrepareAndSign("100", BUY, OrderTypeGTC, 0.5, 5, OrderOpts{TickSize: "0.01"})
+	signed, err := cli.PrepareAndSign(context.Background(), "100", BUY, OrderTypeGTC, "0.5", "5", OrderOpts{TickSize: "0.01"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,7 +407,7 @@ func TestReplaceOrderStopsOnCancelFailure(t *testing.T) {
 	presetTestDepositWallet(cli)
 	cli.clob.SetBaseURL(srv.URL)
 
-	signed, err := cli.PrepareAndSign("100", BUY, OrderTypeGTC, 0.5, 5, OrderOpts{TickSize: "0.01"})
+	signed, err := cli.PrepareAndSign(context.Background(), "100", BUY, OrderTypeGTC, "0.5", "5", OrderOpts{TickSize: "0.01"})
 	if err != nil {
 		t.Fatal(err)
 	}

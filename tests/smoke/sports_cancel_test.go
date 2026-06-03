@@ -39,10 +39,11 @@ func TestSportsOrderCancelBeforeMatch(t *testing.T) {
 
 	t.Log("placing GTC BUY 5 @ 0.01 (rests on book, below any market, no fill risk)...")
 	signed, err := cli.PrepareAndSign(
+		ctx,
 		tokenID,
 		polytrade.BUY,
 		polytrade.OrderTypeGTC,
-		0.01, 5,
+		"0.01", "5",
 		polytrade.OrderOpts{TickSize: tickSize},
 	)
 	if err != nil {

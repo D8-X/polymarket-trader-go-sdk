@@ -229,7 +229,7 @@ func (c *Client) requireCreds() (*L2Credentials, error) {
 func (c *Client) DeriveCreds(ctx context.Context) error {
 	creds, err := DeriveL2Credentials(ctx, c.privateKeyHex, PolygonChainID)
 	if err != nil {
-		// CLOB returns 400 "Could not derive api key!" when no key exists for this wallet yet 
+		// CLOB returns 400 "Could not derive api key!" when no key exists for this wallet yet
 		// anything else is a real failure and should surface as is to be properly handled by the caller
 		var apiErr *APIError
 		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
@@ -319,12 +319,23 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	return c.EnsureApprovals(ctx)
 }
 
-func (c *Client) PrepareAndSign(tokenID, side, orderType string, price, size float64, opts ...OrderOpts) (*SignedOrder, error) {
+func (c *Client) PrepareAndSign(ctx context.Context, tokenID, side, orderType, price, size string, opts ...OrderOpts) (*SignedOrder, error) {
 	creds, builder, _, err := c.snapshot()
 	if err != nil {
 		return nil, err
 	}
-	return builder.PrepareAndSign(tokenID, side, orderType, price, size, creds.APIKey, opts...)
+	var opt OrderOpts
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+	if opt.TickSize == "" {
+		tick, err := c.GetTickSize(ctx, tokenID)
+		if err != nil {
+			return nil, fmt.Errorf("prepare and sign: resolve tick size: %w", err)
+		}
+		opt.TickSize = tick
+	}
+	return builder.PrepareAndSign(tokenID, side, orderType, price, size, creds.APIKey, opt)
 }
 
 func (c *Client) PlaceOrder(ctx context.Context, signed *SignedOrder) (*PlaceOrderResponse, error) {
@@ -343,7 +354,7 @@ func (c *Client) PlaceOrders(ctx context.Context, orders []*SignedOrder) ([]Plac
 	return c.clob.PlaceOrders(ctx, orders, creds)
 }
 
-func (c *Client) ClosePosition(ctx context.Context, tokenID string, price float64, opts ClosePositionOpts) (*PlaceOrderResponse, error) {
+func (c *Client) ClosePosition(ctx context.Context, tokenID, price string, opts ClosePositionOpts) (*PlaceOrderResponse, error) {
 	creds, builder, _, err := c.snapshot()
 	if err != nil {
 		return nil, err
@@ -358,14 +369,18 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID string, price float6
 	if balance.Sign() <= 0 {
 		return nil, fmt.Errorf("close position: no position to close for tokenID %s", tokenID)
 	}
-	size := onchain.RawBalanceToSize(balance)
+	hundredths := new(big.Int).Quo(balance, big.NewInt(10000))
+	size := fmt.Sprintf("%s.%02d", new(big.Int).Quo(hundredths, big.NewInt(100)).String(), new(big.Int).Mod(hundredths, big.NewInt(100)).Int64())
 	orderType := opts.OrderType
 	if orderType == "" {
 		orderType = OrderTypeFOK
 	}
 	tickSize := opts.TickSize
 	if tickSize == "" {
-		tickSize = "0.01"
+		tickSize, err = c.GetTickSize(ctx, tokenID)
+		if err != nil {
+			return nil, fmt.Errorf("close position: resolve tick size: %w", err)
+		}
 	}
 	signed, err := builder.PrepareAndSign(tokenID, SELL, orderType, price, size, creds.APIKey, OrderOpts{
 		TickSize:  tickSize,
