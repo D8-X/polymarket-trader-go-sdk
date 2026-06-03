@@ -95,7 +95,17 @@ func ratToMicroFloor(v *big.Rat, decimals int) int64 {
 	return new(big.Int).Mul(floored, pow(6-decimals)).Int64()
 }
 
-func makerAmountDecimals(sideNumeric int, orderType string, rc roundConfig) int {
+func ratToMicroCeil(v *big.Rat, decimals int) int64 {
+	pow := func(n int) *big.Int { return new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(n)), nil) }
+	scaled := new(big.Rat).Mul(v, new(big.Rat).SetInt(pow(decimals)))
+	q := new(big.Int).Quo(scaled.Num(), scaled.Denom())
+	if new(big.Int).Mul(q, scaled.Denom()).Cmp(scaled.Num()) != 0 {
+		q.Add(q, big.NewInt(1))
+	}
+	return new(big.Int).Mul(q, pow(6-decimals)).Int64()
+}
+
+func usdcAmountDecimals(sideNumeric int, orderType string, rc roundConfig) int {
 	if sideNumeric == consts.SideBuy && (orderType == consts.OrderTypeFAK || orderType == consts.OrderTypeFOK) {
 		return 2
 	}
@@ -150,21 +160,25 @@ func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey 
 	if err != nil {
 		return nil, fmt.Errorf("prepare order: %w", err)
 	}
+	if priceRat.Cmp(new(big.Rat).SetInt64(1)) >= 0 {
+		return nil, fmt.Errorf("prepare order: price %s must be below 1", price)
+	}
 	sizeRat, _, err := parseDecimal(size, "size", rc.size)
 	if err != nil {
 		return nil, fmt.Errorf("prepare order: %w", err)
 	}
 
 	sizeWei := ratToMicroFloor(sizeRat, rc.size)
-	amountWei := ratToMicroFloor(new(big.Rat).Mul(sizeRat, priceRat), makerAmountDecimals(sideNumeric, orderType, rc))
+	usdc := new(big.Rat).Mul(sizeRat, priceRat)
+	amountDecimals := usdcAmountDecimals(sideNumeric, orderType, rc)
 
 	var makerAmount, takerAmount int64
 	if sideNumeric == consts.SideBuy {
-		makerAmount = amountWei
+		makerAmount = ratToMicroCeil(usdc, amountDecimals)
 		takerAmount = sizeWei
 	} else {
 		makerAmount = sizeWei
-		takerAmount = amountWei
+		takerAmount = ratToMicroFloor(usdc, amountDecimals)
 	}
 
 	expiration := int64(0)

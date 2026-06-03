@@ -85,8 +85,8 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 		{"buy GTC tick 0.0001", consts.BUY, consts.OrderTypeGTC, "0.0001", "0.5555", "10", "5555000", "10000000"},
 		{"buy GTC tick 0.1", consts.BUY, consts.OrderTypeGTC, "0.1", "0.5", "5", "2500000", "5000000"},
 		{"buy GTC fractional keeps 4dp maker", consts.BUY, consts.OrderTypeGTC, "0.01", "0.07", "14.28", "999600", "14280000"},
-		{"buy FAK fractional floors maker to 2dp", consts.BUY, consts.OrderTypeFAK, "0.01", "0.07", "14.28", "990000", "14280000"},
-		{"buy FOK fractional floors maker to 2dp", consts.BUY, consts.OrderTypeFOK, "0.01", "0.07", "14.28", "990000", "14280000"},
+		{"buy FAK fractional rounds maker up to 2dp", consts.BUY, consts.OrderTypeFAK, "0.01", "0.07", "14.28", "1000000", "14280000"},
+		{"buy FOK fractional rounds maker up to 2dp", consts.BUY, consts.OrderTypeFOK, "0.01", "0.07", "14.28", "1000000", "14280000"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

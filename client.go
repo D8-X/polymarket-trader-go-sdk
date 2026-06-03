@@ -370,6 +370,9 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID, price string, opts 
 		return nil, fmt.Errorf("close position: no position to close for tokenID %s", tokenID)
 	}
 	hundredths := new(big.Int).Quo(balance, big.NewInt(10000))
+	if hundredths.Sign() == 0 {
+		return nil, fmt.Errorf("close position: balance below minimum tradable size for tokenID %s", tokenID)
+	}
 	size := fmt.Sprintf("%s.%02d", new(big.Int).Quo(hundredths, big.NewInt(100)).String(), new(big.Int).Mod(hundredths, big.NewInt(100)).Int64())
 	orderType := opts.OrderType
 	if orderType == "" {
