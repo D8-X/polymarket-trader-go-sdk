@@ -3,9 +3,9 @@ package order
 import (
 	"crypto/rand"
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -52,13 +52,64 @@ func getRoundConfig(tickSize string) roundConfig {
 	}
 }
 
-func checkPrecision(v float64, decimals int, label string) error {
-	factor := math.Pow(10, float64(decimals))
-	rounded := math.Floor(v*factor) / factor
-	if math.Abs(v-rounded) > 1e-12 {
-		return fmt.Errorf("%s %v exceeds tick-size precision (%d decimals)", label, v, decimals)
+func decimalPlaces(s string) int {
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		return len(s) - i - 1
 	}
-	return nil
+	return 0
+}
+
+func parseDecimal(s, label string, maxDecimals int) (*big.Rat, int, error) {
+	body := strings.TrimPrefix(s, "-")
+	dot := -1
+	for i := 0; i < len(body); i++ {
+		switch c := body[i]; {
+		case c >= '0' && c <= '9':
+		case c == '.' && dot < 0:
+			dot = i
+		default:
+			return nil, 0, fmt.Errorf("%s %q must be a plain decimal number", label, s)
+		}
+	}
+	if body == "" || dot == 0 || dot == len(body)-1 {
+		return nil, 0, fmt.Errorf("%s %q is not a valid decimal", label, s)
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return nil, 0, fmt.Errorf("%s %q is not a valid decimal", label, s)
+	}
+	if r.Sign() <= 0 {
+		return nil, 0, fmt.Errorf("%s must be positive, got %q", label, s)
+	}
+	dp := decimalPlaces(s)
+	if dp > maxDecimals {
+		return nil, 0, fmt.Errorf("%s %q exceeds %d decimal places", label, s, maxDecimals)
+	}
+	return r, dp, nil
+}
+
+func ratToMicroFloor(v *big.Rat, decimals int) int64 {
+	pow := func(n int) *big.Int { return new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(n)), nil) }
+	scaled := new(big.Rat).Mul(v, new(big.Rat).SetInt(pow(decimals)))
+	floored := new(big.Int).Quo(scaled.Num(), scaled.Denom())
+	return new(big.Int).Mul(floored, pow(6-decimals)).Int64()
+}
+
+func ratToMicroCeil(v *big.Rat, decimals int) int64 {
+	pow := func(n int) *big.Int { return new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(n)), nil) }
+	scaled := new(big.Rat).Mul(v, new(big.Rat).SetInt(pow(decimals)))
+	q := new(big.Int).Quo(scaled.Num(), scaled.Denom())
+	if new(big.Int).Mul(q, scaled.Denom()).Cmp(scaled.Num()) != 0 {
+		q.Add(q, big.NewInt(1))
+	}
+	return new(big.Int).Mul(q, pow(6-decimals)).Int64()
+}
+
+func usdcAmountDecimals(sideNumeric int, orderType string, rc roundConfig) int {
+	if sideNumeric == consts.SideBuy && (orderType == consts.OrderTypeFAK || orderType == consts.OrderTypeFOK) {
+		return 2
+	}
+	return rc.amount
 }
 
 func NewBuilder(funderAddress, ctfExchangeAddress, privateKeyHex string) *Builder {
@@ -85,7 +136,7 @@ func (ob *Builder) getBuilderCode() string {
 	return ob.builderCode
 }
 
-func (ob *Builder) PrepareAndSign(tokenID, side, orderType string, price, size float64, apiKey string, opts ...Opts) (*models.SignedOrder, error) {
+func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey string, opts ...Opts) (*models.SignedOrder, error) {
 	var opt Opts
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -105,25 +156,29 @@ func (ob *Builder) PrepareAndSign(tokenID, side, orderType string, price, size f
 	salt := saltBig.Int64()
 
 	rc := getRoundConfig(opt.TickSize)
-	if opt.TickSize != "" {
-		if err := checkPrecision(price, rc.price, "price"); err != nil {
-			return nil, fmt.Errorf("prepare order: %w", err)
-		}
-		if err := checkPrecision(size, rc.size, "size"); err != nil {
-			return nil, fmt.Errorf("prepare order: %w", err)
-		}
+	priceRat, _, err := parseDecimal(price, "price", rc.price)
+	if err != nil {
+		return nil, fmt.Errorf("prepare order: %w", err)
 	}
-	sizeWei := int64(size * consts.AmountScale)
-	amountFactor := math.Pow(10, float64(rc.amount))
-	amountWei := int64(math.Floor(size*price*amountFactor) / amountFactor * consts.AmountScale)
+	if priceRat.Cmp(new(big.Rat).SetInt64(1)) >= 0 {
+		return nil, fmt.Errorf("prepare order: price %s must be below 1", price)
+	}
+	sizeRat, _, err := parseDecimal(size, "size", rc.size)
+	if err != nil {
+		return nil, fmt.Errorf("prepare order: %w", err)
+	}
+
+	sizeWei := ratToMicroFloor(sizeRat, rc.size)
+	usdc := new(big.Rat).Mul(sizeRat, priceRat)
+	amountDecimals := usdcAmountDecimals(sideNumeric, orderType, rc)
 
 	var makerAmount, takerAmount int64
 	if sideNumeric == consts.SideBuy {
-		makerAmount = amountWei
+		makerAmount = ratToMicroCeil(usdc, amountDecimals)
 		takerAmount = sizeWei
 	} else {
 		makerAmount = sizeWei
-		takerAmount = amountWei
+		takerAmount = ratToMicroFloor(usdc, amountDecimals)
 	}
 
 	expiration := int64(0)
