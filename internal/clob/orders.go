@@ -58,7 +58,9 @@ func (c *Client) PlaceOrder(ctx context.Context, signedOrder *models.SignedOrder
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("place order: unmarshal response: %w", err)
 	}
-	result.RemainingSize = fakRemainingSize(signedOrder, &result)
+	if rem, rerr := fakRemainingSize(signedOrder, &result); rerr == nil {
+		result.RemainingSize = rem
+	}
 
 	return &result, nil
 }
@@ -93,7 +95,9 @@ func (c *Client) PlaceOrders(ctx context.Context, signedOrders []*models.SignedO
 	}
 	for i := range results {
 		if i < len(signedOrders) {
-			results[i].RemainingSize = fakRemainingSize(signedOrders[i], &results[i])
+			if rem, rerr := fakRemainingSize(signedOrders[i], &results[i]); rerr == nil {
+				results[i].RemainingSize = rem
+			}
 		}
 	}
 

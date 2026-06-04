@@ -34,8 +34,18 @@ func TestFakRemainingSize(t *testing.T) {
 			Order:     models.OrderFields{Side: tc.side, MakerAmount: tc.maker, TakerAmount: tc.taker},
 		}
 		resp := &models.PlaceOrderResponse{Status: tc.status, MakingAmount: tc.making, TakingAmount: tc.taking}
-		if got := fakRemainingSize(signed, resp); got != tc.want {
+		got, err := fakRemainingSize(signed, resp)
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", tc.name, err)
+		}
+		if got != tc.want {
 			t.Errorf("%s: got %q want %q", tc.name, got, tc.want)
 		}
+	}
+
+	bad := &models.SignedOrder{OrderType: consts.OrderTypeFAK, Order: models.OrderFields{Side: consts.BUY, TakerAmount: "13000000"}}
+	badResp := &models.PlaceOrderResponse{Status: consts.OrderStatusMatched, TakingAmount: "not-a-number"}
+	if _, err := fakRemainingSize(bad, badResp); err == nil {
+		t.Error("expected an error for a malformed filled amount, got nil")
 	}
 }
