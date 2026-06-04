@@ -34,6 +34,7 @@ type PlaceOrderResponse struct {
 	Status            string   `json:"status,omitempty"`
 	TakingAmount      string   `json:"takingAmount,omitempty"`
 	MakingAmount      string   `json:"makingAmount,omitempty"`
+	RemainingSize     string   `json:"remainingSize,omitempty"`
 }
 
 type OrderStatus struct {
