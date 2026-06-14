@@ -200,8 +200,20 @@ func TestClientPrepareAndSignRequiresDepositWallet(t *testing.T) {
 }
 
 func TestClientPrepareAndSignHappyPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/neg-risk" {
+			_ = json.NewEncoder(w).Encode(struct {
+				NegRisk bool `json:"neg_risk"`
+			}{})
+		} else {
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
 	cli := newClientForTest(t)
 	presetTestDepositWallet(cli)
+	cli.clob.SetBaseURL(srv.URL)
 	signed, err := cli.PrepareAndSign(context.Background(), "100", BUY, OrderTypeGTC, "0.55", "10", OrderOpts{TickSize: "0.01"})
 	if err != nil {
 		t.Fatal(err)
@@ -353,6 +365,10 @@ func TestReplaceOrderCancelsThenPlaces(t *testing.T) {
 	var sequence []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
+		case r.URL.Path == "/neg-risk":
+			_ = json.NewEncoder(w).Encode(struct {
+				NegRisk bool `json:"neg_risk"`
+			}{})
 		case r.Method == http.MethodDelete && r.URL.Path == "/order":
 			sequence = append(sequence, "cancel")
 			_ = json.NewEncoder(w).Encode(CancelResponse{Canceled: []string{"old-1"}})
@@ -392,6 +408,10 @@ func TestReplaceOrderStopsOnCancelFailure(t *testing.T) {
 	var sequence []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
+		case r.URL.Path == "/neg-risk":
+			_ = json.NewEncoder(w).Encode(struct {
+				NegRisk bool `json:"neg_risk"`
+			}{})
 		case r.Method == http.MethodDelete && r.URL.Path == "/order":
 			sequence = append(sequence, "cancel")
 			w.WriteHeader(http.StatusBadRequest)

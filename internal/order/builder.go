@@ -27,6 +27,7 @@ type Builder struct {
 type Opts struct {
 	PostOnly    bool
 	DeferExec   bool
+	NegRisk     *bool // nil = let Client auto-detect; &true = neg-risk exchange; &false = standard exchange
 	Expiration  time.Duration
 	TickSize    string
 	BuilderCode string
@@ -219,7 +220,11 @@ func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey 
 		SideNumeric:   sideNumeric,
 	}
 
-	sig, err := sign.Order(ob.privateKeyHex, ob.ctfExchangeAddress, o)
+	ctfExchange := ob.ctfExchangeAddress
+	if opt.NegRisk != nil && *opt.NegRisk {
+		ctfExchange = consts.NegRiskCTFExchange
+	}
+	sig, err := sign.Order(ob.privateKeyHex, ctfExchange, o)
 	if err != nil {
 		return nil, fmt.Errorf("prepare order: %w", err)
 	}

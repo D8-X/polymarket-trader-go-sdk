@@ -335,6 +335,13 @@ func (c *Client) PrepareAndSign(ctx context.Context, tokenID, side, orderType, p
 		}
 		opt.TickSize = tick
 	}
+	if opt.NegRisk == nil {
+		negRisk, err := c.GetNegRisk(ctx, tokenID)
+		if err != nil {
+			return nil, fmt.Errorf("prepare and sign: resolve neg risk: %w", err)
+		}
+		opt.NegRisk = &negRisk
+	}
 	return builder.PrepareAndSign(tokenID, side, orderType, price, size, creds.APIKey, opt)
 }
 
@@ -385,8 +392,17 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID, price string, opts 
 			return nil, fmt.Errorf("close position: resolve tick size: %w", err)
 		}
 	}
+	negRisk := opts.NegRisk
+	if negRisk == nil {
+		detected, err := c.GetNegRisk(ctx, tokenID)
+		if err != nil {
+			return nil, fmt.Errorf("close position: resolve neg risk: %w", err)
+		}
+		negRisk = &detected
+	}
 	signed, err := builder.PrepareAndSign(tokenID, SELL, orderType, price, size, creds.APIKey, OrderOpts{
 		TickSize:  tickSize,
+		NegRisk:   negRisk,
 		PostOnly:  opts.PostOnly,
 		DeferExec: opts.DeferExec,
 	})
