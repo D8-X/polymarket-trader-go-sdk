@@ -319,7 +319,22 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	return c.EnsureApprovals(ctx)
 }
 
-func (c *Client) PrepareAndSign(ctx context.Context, tokenID, side, orderType, price, size string, opts ...OrderOpts) (*SignedOrder, error) {
+// PrepareAndSign builds a CLOB order for a single outcome token and signs it
+// with the deposit wallet, returning a SignedOrder ready to hand to PlaceOrder
+// or PlaceOrders. It does not submit anything to the exchange.
+//
+// The negRisk argument is required and decides which exchange the order is signed
+// against, because that address is baked into the EIP-712 signature as the
+// verifyingContract:
+//
+//   - negRisk == true  -> NegRiskCTFExchange 
+//   - negRisk == false -> the standard CTFExchange 
+//
+// price and size are decimal strings (e.g. "0.55", "10"). orderType is one of
+// the OrderType* constants. An optional OrderOpts may be supplied. When its
+// TickSize is empty it is fetched once via GetTickSize, and PostOnly / DeferExec
+// are forwarded as is. Only the first OrderOpts is used.
+func (c *Client) PrepareAndSign(ctx context.Context, tokenID, side, orderType, price, size string, negRisk bool, opts ...OrderOpts) (*SignedOrder, error) {
 	creds, builder, _, err := c.snapshot()
 	if err != nil {
 		return nil, err
@@ -335,7 +350,7 @@ func (c *Client) PrepareAndSign(ctx context.Context, tokenID, side, orderType, p
 		}
 		opt.TickSize = tick
 	}
-	return builder.PrepareAndSign(tokenID, side, orderType, price, size, creds.APIKey, opt)
+	return builder.PrepareAndSign(tokenID, side, orderType, price, size, creds.APIKey, negRisk, opt)
 }
 
 func (c *Client) PlaceOrder(ctx context.Context, signed *SignedOrder) (*PlaceOrderResponse, error) {
@@ -354,7 +369,7 @@ func (c *Client) PlaceOrders(ctx context.Context, orders []*SignedOrder) ([]Plac
 	return c.clob.PlaceOrders(ctx, orders, creds)
 }
 
-func (c *Client) ClosePosition(ctx context.Context, tokenID, price string, opts ClosePositionOpts) (*PlaceOrderResponse, error) {
+func (c *Client) ClosePosition(ctx context.Context, tokenID, price string, negRisk bool, opts ClosePositionOpts) (*PlaceOrderResponse, error) {
 	creds, builder, _, err := c.snapshot()
 	if err != nil {
 		return nil, err
@@ -385,7 +400,7 @@ func (c *Client) ClosePosition(ctx context.Context, tokenID, price string, opts 
 			return nil, fmt.Errorf("close position: resolve tick size: %w", err)
 		}
 	}
-	signed, err := builder.PrepareAndSign(tokenID, SELL, orderType, price, size, creds.APIKey, OrderOpts{
+	signed, err := builder.PrepareAndSign(tokenID, SELL, orderType, price, size, creds.APIKey, negRisk, OrderOpts{
 		TickSize:  tickSize,
 		PostOnly:  opts.PostOnly,
 		DeferExec: opts.DeferExec,

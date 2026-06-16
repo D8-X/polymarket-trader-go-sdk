@@ -66,11 +66,14 @@ fmt.Println("USDC:", usdc, "pUSD:", pusd)
 
 // Place an order. price and size are decimal strings; the tick size is fetched
 // automatically when OrderOpts.TickSize is left empty.
-signed, _ := cli.PrepareAndSign(ctx, tokenID, polytrade.BUY, polytrade.OrderTypeGTC, "0.55", "10")
+// The neg-risk flag is required and selects which exchange the order is signed
+// against
+negRisk, _ := cli.GetNegRisk(ctx, tokenID)
+signed, _ := cli.PrepareAndSign(ctx, tokenID, polytrade.BUY, polytrade.OrderTypeGTC, "0.55", "10", negRisk)
 resp, _ := cli.PlaceOrder(ctx, signed)
 
 // Close a position (auto-fetches held quantity on-chain). price is a decimal string.
-closed, _ := cli.ClosePosition(ctx, tokenID, "0.50", polytrade.ClosePositionOpts{})
+closed, _ := cli.ClosePosition(ctx, tokenID, "0.50", negRisk, polytrade.ClosePositionOpts{})
 ```
 
 ## Collateral
@@ -183,9 +186,11 @@ func main() {
 
 	// price and size are decimal strings. The tick size is fetched automatically
 	// when OrderOpts.TickSize is omitted; pass it explicitly to skip the lookup.
+	// The required neg-risk flag is read straight off the order book we just
+	// fetched (book.NegRisk), so no extra lookup is needed.
 	signed, err := cli.PrepareAndSign(
 		ctx, tokenID, polytrade.BUY, polytrade.OrderTypeFOK,
-		"0.55", "10",
+		"0.55", "10", book.NegRisk,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -222,6 +227,7 @@ for _, lvl := range est.Levels {
 signed, _ := cli.PrepareAndSign(
 	ctx, tokenID, polytrade.BUY, polytrade.OrderTypeFAK,
 	fmt.Sprintf("%.2f", est.WorstPrice), fmt.Sprintf("%.2f", est.TotalSize),
+	book.NegRisk,
 	polytrade.OrderOpts{TickSize: book.TickSize},
 )
 resp, _ := cli.PlaceOrder(ctx, signed)

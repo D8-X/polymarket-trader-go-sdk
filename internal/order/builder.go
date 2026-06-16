@@ -136,7 +136,7 @@ func (ob *Builder) getBuilderCode() string {
 	return ob.builderCode
 }
 
-func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey string, opts ...Opts) (*models.SignedOrder, error) {
+func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey string, negRisk bool, opts ...Opts) (*models.SignedOrder, error) {
 	var opt Opts
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -219,7 +219,11 @@ func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey 
 		SideNumeric:   sideNumeric,
 	}
 
-	sig, err := sign.Order(ob.privateKeyHex, ob.ctfExchangeAddress, o)
+	ctfExchange := ob.ctfExchangeAddress
+	if negRisk {
+		ctfExchange = consts.NegRiskCTFExchange
+	}
+	sig, err := sign.Order(ob.privateKeyHex, ctfExchange, o)
 	if err != nil {
 		return nil, fmt.Errorf("prepare order: %w", err)
 	}

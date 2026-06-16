@@ -90,7 +90,7 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			signed, err := ob.PrepareAndSign("100", tc.side, tc.orderType, tc.price, tc.size, "k", Opts{TickSize: tc.tick})
+			signed, err := ob.PrepareAndSign("100", tc.side, tc.orderType, tc.price, tc.size, "k", false, Opts{TickSize: tc.tick})
 			if err != nil {
 				t.Fatalf("prepare: %v", err)
 			}
@@ -106,7 +106,7 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 
 func TestPrepareAndSignRejectsSubTickPrice(t *testing.T) {
 	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
-	_, err := ob.PrepareAndSign("100", consts.BUY, consts.OrderTypeGTC, "0.555", "10", "k", Opts{TickSize: "0.01"})
+	_, err := ob.PrepareAndSign("100", consts.BUY, consts.OrderTypeGTC, "0.555", "10", "k", false, Opts{TickSize: "0.01"})
 	if err == nil {
 		t.Fatal("expected error for sub-tick price")
 	}
