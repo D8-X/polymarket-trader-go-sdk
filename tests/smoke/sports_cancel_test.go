@@ -44,6 +44,7 @@ func TestSportsOrderCancelBeforeMatch(t *testing.T) {
 		polytrade.BUY,
 		polytrade.OrderTypeGTC,
 		"0.01", "5",
+		false, 
 		polytrade.OrderOpts{TickSize: tickSize},
 	)
 	if err != nil {

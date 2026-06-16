@@ -104,5 +104,4 @@ type ClosePositionOpts struct {
 	TickSize  string
 	PostOnly  bool
 	DeferExec bool
-	NegRisk   *bool
 }

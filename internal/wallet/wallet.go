@@ -209,7 +209,6 @@ func ApproveForBuy(ctx context.Context, eoaAddress, privateKeyHex, depositWallet
 	calls := []models.WalletCall{
 		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CTFExchange, maxU)},
 		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskCTFExchange, maxU)},
-		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskAdapter, maxU)},
 	}
 	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -218,7 +217,6 @@ func ApproveForSell(ctx context.Context, eoaAddress, privateKeyHex, depositWalle
 	calls := []models.WalletCall{
 		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.CTFExchange, true)},
 		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskCTFExchange, true)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskAdapter, true)},
 	}
 	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -228,10 +226,8 @@ func ApproveAll(ctx context.Context, eoaAddress, privateKeyHex, depositWalletAdd
 	calls := []models.WalletCall{
 		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CTFExchange, maxU)},
 		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskCTFExchange, maxU)},
-		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskAdapter, maxU)},
 		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.CTFExchange, true)},
 		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskCTFExchange, true)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskAdapter, true)},
 	}
 	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
@@ -256,10 +252,8 @@ func WrapAndApprove(ctx context.Context, eoaAddress, privateKeyHex, depositWalle
 		{Target: consts.CollateralOnramp, Value: new(big.Int), Data: onchain.EncodeOnrampWrapCalldata(consts.USDCAddress, depositWalletAddress, amount)},
 		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.CTFExchange, maxU)},
 		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskCTFExchange, maxU)},
-		{Target: consts.PUSDAddress, Value: new(big.Int), Data: onchain.EncodeApproveCalldata(consts.NegRiskAdapter, maxU)},
 		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.CTFExchange, true)},
 		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskCTFExchange, true)},
-		{Target: consts.ConditionalTokens, Value: new(big.Int), Data: onchain.EncodeSetApprovalForAllCalldata(consts.NegRiskAdapter, true)},
 	}
 	return ExecuteBatch(ctx, eoaAddress, privateKeyHex, depositWalletAddress, calls, 0, creds)
 }
