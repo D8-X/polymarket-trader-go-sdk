@@ -43,6 +43,7 @@ type PollOpts = models.PollOpts
 type PollResult = models.PollResult
 type BalanceEntry = models.BalanceEntry
 type PositionEntry = models.PositionEntry
+type PositionsOpts = models.PositionsOpts
 type CancelResponse = models.CancelResponse
 type Trade = models.Trade
 type MakerOrder = models.MakerOrder

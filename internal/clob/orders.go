@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
@@ -469,8 +471,40 @@ func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType string, t
 	return nil
 }
 
+// GetPositions returns the server default page of 100, largest first, silently truncated beyond that.
 func (c *Client) GetPositions(ctx context.Context, walletAddress string) ([]models.PositionEntry, error) {
-	fullURL := fmt.Sprintf("%s/positions?user=%s&sizeThreshold=0", c.dataAPIBaseURL, walletAddress)
+	return c.GetPositionsWithOpts(ctx, walletAddress, nil) // archived stays excluded, as before
+}
+
+// GetPositionsWithOpts is GetPositions with optional query params. nil opts uses the defaults.
+// Limit clamps at 500. Offset dies at 10000 and repeats the same page forever, so stop there
+// rather than looping on a short page, and narrow with SizeThreshold for bigger wallets.
+// Note: currently Offset apparently dies at 10000 and the CLOB API repeats the same page forever, so anything past that 10000th position is unreliable.
+// Archived markets are excluded by default, but can be included with opts.IncludeArchived.
+func (c *Client) GetPositionsWithOpts(ctx context.Context, walletAddress string, opts *models.PositionsOpts) ([]models.PositionEntry, error) {
+	sizeThreshold := 0.0
+
+	query := url.Values{}
+	query.Set("user", walletAddress)
+
+	if opts != nil {
+		if opts.SizeThreshold != nil {
+			sizeThreshold = *opts.SizeThreshold
+		}
+		if opts.IncludeArchived { // opt in only, so GetPositions keeps returning what it always did
+			// The poly server caps the page, so archived rows can crowd out live ones.
+			query.Set("includeArchived", "true")
+		}
+		if opts.Limit != nil {
+			query.Set("limit", strconv.Itoa(*opts.Limit))
+		}
+		if opts.Offset != nil {
+			query.Set("offset", strconv.Itoa(*opts.Offset))
+		}
+	}
+	query.Set("sizeThreshold", strconv.FormatFloat(sizeThreshold, 'f', -1, 64))
+
+	fullURL := c.dataAPIBaseURL + "/positions?" + query.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get positions: build request: %w", err)
