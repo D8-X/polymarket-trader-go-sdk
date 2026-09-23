@@ -94,6 +94,7 @@ func TestGetPositionsQuery(t *testing.T) {
 		opts models.PositionsOpts
 		want string
 	}{
+		{"server default limit", models.PositionsOpts{}, "user=0xabc"},
 		{"first page", models.PositionsOpts{Limit: 100}, "limit=100&user=0xabc"},
 		{"next page keeps the anchor", models.PositionsOpts{Limit: 100, Cursor: "c1"}, "cursor=c1&limit=100&user=0xabc"},
 		{"status", models.PositionsOpts{Limit: 100, Status: models.PositionStatusRedeemableLost}, "limit=100&status=REDEEMABLE_LOST&user=0xabc"},
@@ -119,7 +120,7 @@ func TestGetPositionsQuery(t *testing.T) {
 }
 
 func TestGetPositionsRejectsBadLimit(t *testing.T) {
-	for _, limit := range []int{0, -1, MaxPositionsLimit + 1} {
+	for _, limit := range []int{-1, MaxPositionsLimit + 1} {
 		var query string
 		c := positionsServer(t, &query)
 		if _, err := c.GetPositions(context.Background(), "0xabc", models.PositionsOpts{Limit: limit}); err == nil {
