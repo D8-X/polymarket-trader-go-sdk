@@ -5,7 +5,7 @@ go 1.25.1
 require (
 	github.com/ethereum/go-ethereum v1.16.8
 	github.com/gorilla/websocket v1.5.3
-	golang.org/x/crypto v0.46.0
+	golang.org/x/crypto v0.52.0
 )
 
 require (
@@ -27,5 +27,5 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 )
