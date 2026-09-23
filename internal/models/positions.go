@@ -11,13 +11,17 @@ type PositionEntry struct {
 	InitialValue      float64 `json:"initialValue"`      // excludes fees
 	GrossInitialValue float64 `json:"grossInitialValue"` // includes fees, ~1e-4 rounding
 	EntryFeesUsdc     float64 `json:"entryFeesUsdc"`
+	Redeemable        bool    `json:"redeemable"` // market resolved
+	Mergeable         bool    `json:"mergeable"`  // both outcomes held
 }
 
 type PositionsOpts struct {
-	IncludeArchived bool     // excluded by default
-	SizeThreshold   *float64 // nil or neg means 0
-	Limit           *int     // nil, 0 or neg leaves the server default of 100, max is 500.
-	Offset          *int     // nil or neg leaves the server default of 0.
+	Limit           int     // required, 1 to 500
+	Offset          int     // 0 to 10000
+	SizeThreshold   float64 // neg means 0
+	IncludeArchived bool    // excluded by default
+	Redeemable      *bool   // nil means both, false means open positions only
+	Mergeable       *bool   // nil means both
 }
 
 type BalanceEntry struct {
