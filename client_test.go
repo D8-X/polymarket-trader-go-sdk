@@ -295,7 +295,7 @@ func TestClientWrappersHitClob(t *testing.T) {
 
 func TestClientGetPositionsRequiresDepositWallet(t *testing.T) {
 	cli := newClientForTest(t)
-	_, err := cli.GetPositions(context.Background())
+	_, err := cli.GetPositions(context.Background(), PositionsOpts{Limit: 100})
 	if !errors.Is(err, errNoDepositWallet) {
 		t.Errorf("expected errNoDepositWallet, got %v", err)
 	}
@@ -315,7 +315,7 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	presetTestDepositWallet(cli)
 	cli.clob.SetDataAPIBaseURL(srv.URL)
 
-	positions, err := cli.GetPositions(context.Background())
+	positions, err := cli.GetPositions(context.Background(), PositionsOpts{Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -342,7 +342,7 @@ func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
 	cli.clob.SetDataAPIBaseURL(srv.URL)
 
 	other := "0x000000000000000000000000000000000000beef"
-	_, err := cli.GetPositionsOf(context.Background(), other)
+	_, err := cli.GetPositionsOf(context.Background(), other, PositionsOpts{Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
