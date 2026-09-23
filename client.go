@@ -646,19 +646,28 @@ func (c *Client) GetMarketLiveActivity(ctx context.Context, conditionID string) 
 	return c.clob.GetMarketLiveActivity(ctx, conditionID)
 }
 
-// GetPositions returns one page of the deposit wallet's positions. Follow NextCursor to page.
-func (c *Client) GetPositions(ctx context.Context, opts PositionsOpts) (*PositionsPage, error) {
+// GetPositions returns one page of the deposit wallet's positions, 100 by default.
+// Follow NextCursor to page.
+func (c *Client) GetPositions(ctx context.Context, opts ...PositionsOpts) (*PositionsPage, error) {
 	c.mu.RLock()
 	dw := c.depositWalletAddress
 	c.mu.RUnlock()
 	if dw == "" {
 		return nil, errNoDepositWallet
 	}
-	return c.clob.GetPositions(ctx, dw, opts)
+	return c.GetPositionsOf(ctx, dw, opts...)
 }
 
-func (c *Client) GetPositionsOf(ctx context.Context, walletAddress string, opts PositionsOpts) (*PositionsPage, error) {
-	return c.clob.GetPositions(ctx, walletAddress, opts)
+func (c *Client) GetPositionsOf(ctx context.Context, walletAddress string, opts ...PositionsOpts) (*PositionsPage, error) {
+	var opt PositionsOpts
+	switch len(opts) {
+	case 0:
+	case 1:
+		opt = opts[0]
+	default:
+		return nil, fmt.Errorf("get positions: at most one PositionsOpts, got %d", len(opts))
+	}
+	return c.clob.GetPositions(ctx, walletAddress, opt)
 }
 
 func (c *Client) GetBalanceAllowance(ctx context.Context, assetType, tokenID string) (*BalanceAllowanceResponse, error) {

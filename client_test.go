@@ -295,7 +295,7 @@ func TestClientWrappersHitClob(t *testing.T) {
 
 func TestClientGetPositionsRequiresDepositWallet(t *testing.T) {
 	cli := newClientForTest(t)
-	_, err := cli.GetPositions(context.Background(), PositionsOpts{Limit: 100})
+	_, err := cli.GetPositions(context.Background())
 	if !errors.Is(err, errNoDepositWallet) {
 		t.Errorf("expected errNoDepositWallet, got %v", err)
 	}
@@ -315,7 +315,7 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	presetTestDepositWallet(cli)
 	cli.clob.SetDataAPIBaseURL(srv.URL)
 
-	page, err := cli.GetPositions(context.Background(), PositionsOpts{Limit: 100})
+	page, err := cli.GetPositions(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,6 +353,14 @@ func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
 	}
 	if rawQuery != "cursor=c1&limit=100&status=CLOSED&user="+other {
 		t.Errorf("opts not passed through: %s", rawQuery)
+	}
+}
+
+func TestClientGetPositionsOfRejectsSeveralOpts(t *testing.T) {
+	cli := newClientForTest(t)
+	_, err := cli.GetPositionsOf(context.Background(), "0x1", PositionsOpts{}, PositionsOpts{})
+	if err == nil || !strings.Contains(err.Error(), "at most one") {
+		t.Errorf("got %v", err)
 	}
 }
 

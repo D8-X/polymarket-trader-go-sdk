@@ -134,9 +134,13 @@ for _, c := range hist {
 ## Positions
 
 ```go
-opts := polytrade.PositionsOpts{Limit: 1000}                           // required, 1..1000
+page, _ := cli.GetPositions(ctx)                                       // first 100 of the deposit wallet
+others, _ := cli.GetPositionsOf(ctx, "0xAnyWallet")                    // for any address
+
+// Walk everything, up to 1000 per page.
+opts := polytrade.PositionsOpts{Limit: 1000}
 for {
-    page, err := cli.GetPositions(ctx, opts)                           // GetPositionsOf(ctx, "0xAnyWallet", opts) for any address
+    page, err := cli.GetPositions(ctx, opts)
     if err != nil {
         log.Fatal(err)
     }
