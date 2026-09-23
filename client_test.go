@@ -305,9 +305,9 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	var queried string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		queried = r.URL.Query().Get("user")
-		_ = json.NewEncoder(w).Encode([]PositionEntry{
+		_ = json.NewEncoder(w).Encode(PositionsPage{Positions: []PositionEntry{
 			{Asset: "tok-1", ConditionID: "0x01", Size: 5, AvgPrice: 0.20, CurPrice: 0.22, Outcome: "Yes", Title: "Test market"},
-		})
+		}})
 	}))
 	defer srv.Close()
 
@@ -315,10 +315,11 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	presetTestDepositWallet(cli)
 	cli.clob.SetDataAPIBaseURL(srv.URL)
 
-	positions, err := cli.GetPositions(context.Background(), PositionsOpts{Limit: 100})
+	page, err := cli.GetPositions(context.Background(), PositionsOpts{Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
+	positions := page.Positions
 	if !strings.EqualFold(queried, testDepositWallet) {
 		t.Errorf("queried user: got %s want %s", queried, testDepositWallet)
 	}
@@ -331,10 +332,11 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 }
 
 func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
-	var queried string
+	var queried, rawQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		queried = r.URL.Query().Get("user")
-		_, _ = w.Write([]byte("[]"))
+		rawQuery = r.URL.RawQuery
+		_, _ = w.Write([]byte(`{"data":[],"pagination":{"has_more":false}}`))
 	}))
 	defer srv.Close()
 
@@ -342,12 +344,15 @@ func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
 	cli.clob.SetDataAPIBaseURL(srv.URL)
 
 	other := "0x000000000000000000000000000000000000beef"
-	_, err := cli.GetPositionsOf(context.Background(), other, PositionsOpts{Limit: 100})
+	_, err := cli.GetPositionsOf(context.Background(), other, PositionsOpts{Limit: 100, Status: PositionStatusClosed, Cursor: "c1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.EqualFold(queried, other) {
 		t.Errorf("queried user: got %s want %s", queried, other)
+	}
+	if rawQuery != "cursor=c1&limit=100&status=CLOSED&user="+other {
+		t.Errorf("opts not passed through: %s", rawQuery)
 	}
 }
 

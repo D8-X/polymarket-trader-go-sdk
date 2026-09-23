@@ -3,6 +3,7 @@ package clob
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -162,5 +163,36 @@ func TestGetBalancesFollowsCursor(t *testing.T) {
 	}
 	if fmt.Sprint(cursors) != "[ c1 c2]" {
 		t.Fatalf("cursors = %q, want first page bare then c1, c2", cursors)
+	}
+}
+
+func TestGetBalancesStopsOnStuckCursor(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[{"token_id":"t","current_size":1}],"pagination":{"has_more":true,"next_cursor":"same"}}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClient()
+	c.SetDataAPIBaseURL(srv.URL)
+
+	if _, err := c.GetBalances(context.Background(), &models.L2Credentials{Address: "0xabc"}); err == nil {
+		t.Fatal("expected an error instead of looping on a repeated cursor")
+	}
+}
+
+func TestGetPositionsSurfacesAPIError(t *testing.T) {
+	for _, status := range []int{http.StatusBadRequest, http.StatusServiceUnavailable} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(`{"error":"nope","code":"x","retryable":false}`))
+		}))
+		c := NewClient()
+		c.SetDataAPIBaseURL(srv.URL)
+		_, err := c.GetPositions(context.Background(), "0xabc", models.PositionsOpts{Limit: 10})
+		srv.Close()
+
+		var apiErr *models.APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != status {
+			t.Fatalf("status %d: got %v, want an APIError with that status", status, err)
+		}
 	}
 }
