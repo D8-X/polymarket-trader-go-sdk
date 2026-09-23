@@ -22,35 +22,36 @@ const (
 	PositionsSortTimestamp     PositionsSort = "TIMESTAMP"
 )
 
+// PositionEntry keeps the v1 /positions JSON names so stored or relayed entries stay compatible.
 type PositionEntry struct {
-	Asset             string         `json:"token_id"`
-	ConditionID       string         `json:"condition_id"`
-	Size              float64        `json:"current_size"`
-	AvgPrice          float64        `json:"avg_price"`
-	CurPrice          float64        `json:"current_price"`
-	CurrentValue      float64        `json:"current_value"`
+	Asset             string         `json:"asset"`
+	ConditionID       string         `json:"conditionId"`
+	Size              float64        `json:"size"`
+	AvgPrice          float64        `json:"avgPrice"`
+	CurPrice          float64        `json:"curPrice"`
 	Outcome           string         `json:"outcome"`
-	OutcomeIndex      int            `json:"outcome_index"` // 999 when unlabeled
-	OppositeAsset     string         `json:"opposite_token_id"`
 	Title             string         `json:"title"`
+	InitialValue      float64        `json:"initialValue"`      // excludes fees
+	GrossInitialValue float64        `json:"grossInitialValue"` // includes fees
+	EntryFeesUsdc     float64        `json:"entryFeesUsdc"`
+	CurrentValue      float64        `json:"currentValue"`
+	RealizedPnl       float64        `json:"realizedPnl"`
+	UnrealizedPnl     float64        `json:"unrealizedPnl"`
+	OutcomeIndex      int            `json:"outcomeIndex"` // 999 when unlabeled
+	OppositeAsset     string         `json:"oppositeAsset"`
 	Slug              string         `json:"slug"`
-	EventID           string         `json:"event_id"`
-	EndDate           string         `json:"end_date"`
-	InitialValue      float64        `json:"entry_cost_usdc"` // excludes fees
-	GrossInitialValue float64        `json:"total_cost_usdc"` // includes fees
-	EntryFeesUsdc     float64        `json:"entry_fees_usdc"`
-	RealizedPnl       float64        `json:"realized_pnl"`
-	UnrealizedPnl     float64        `json:"unrealized_pnl"`
+	EventID           string         `json:"eventId"`
+	EndDate           string         `json:"endDate"`
 	Status            PositionStatus `json:"status"`
 	Redeemable        bool           `json:"redeemable"` // resolved, not necessarily won
 	Mergeable         bool           `json:"mergeable"`
-	NegativeRisk      bool           `json:"negative_risk"`
+	NegativeRisk      bool           `json:"negativeRisk"`
 	Archived          bool           `json:"archived"`
 }
 
 type PositionsOpts struct {
-	Limit           int            // up to 1000, 0 means the server default of 100
-	Cursor          string         // NextCursor of the previous page, empty for the first
+	Limit           int            // page size up to 1000, 0 means 100 for a page and 1000 for a full walk
+	Cursor          string         // NextCursor of the previous page, empty to start from the top
 	Status          PositionStatus // empty means OPEN
 	ConditionIDs    []string       // at most 20
 	Title           string         // case insensitive substring
@@ -61,13 +62,13 @@ type PositionsOpts struct {
 }
 
 type PositionsPage struct {
-	Positions  []PositionEntry     `json:"data"`
+	Positions  []PositionEntry     `json:"positions"`
 	Pagination PositionsPagination `json:"pagination"`
 }
 
 type PositionsPagination struct {
-	NextCursor string `json:"next_cursor"` // empty on the last page
-	HasMore    bool   `json:"has_more"`
+	NextCursor string `json:"nextCursor"` // empty on the last page
+	HasMore    bool   `json:"hasMore"`
 }
 
 type BalanceEntry struct {

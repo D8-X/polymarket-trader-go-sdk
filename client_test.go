@@ -305,9 +305,7 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	var queried string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		queried = r.URL.Query().Get("user")
-		_ = json.NewEncoder(w).Encode(PositionsPage{Positions: []PositionEntry{
-			{Asset: "tok-1", ConditionID: "0x01", Size: 5, AvgPrice: 0.20, CurPrice: 0.22, Outcome: "Yes", Title: "Test market"},
-		}})
+		_, _ = w.Write([]byte(`{"data":[{"token_id":"tok-1","condition_id":"0x01","current_size":5,"avg_price":0.20,"current_price":0.22,"outcome":"Yes","title":"Test market"}],"pagination":{"has_more":false}}`))
 	}))
 	defer srv.Close()
 
@@ -315,11 +313,10 @@ func TestClientGetPositionsCallsDepositWalletAddress(t *testing.T) {
 	presetTestDepositWallet(cli)
 	cli.clob.SetDataAPIBaseURL(srv.URL)
 
-	page, err := cli.GetPositions(context.Background())
+	positions, err := cli.GetPositions(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	positions := page.Positions
 	if !strings.EqualFold(queried, testDepositWallet) {
 		t.Errorf("queried user: got %s want %s", queried, testDepositWallet)
 	}
@@ -353,6 +350,60 @@ func TestClientGetPositionsOfQueriesArbitraryAddress(t *testing.T) {
 	}
 	if rawQuery != "cursor=c1&limit=100&status=CLOSED&user="+other {
 		t.Errorf("opts not passed through: %s", rawQuery)
+	}
+}
+
+func TestClientGetBalancesQueriesDepositWallet(t *testing.T) {
+	cli := newClientForTestWithCreds(t, &L2Credentials{Address: "0x000000000000000000000000000000000000e0a0", APIKey: "k", Secret: "c2VjcmV0", Passphrase: "p"})
+	if _, err := cli.GetBalances(context.Background()); !errors.Is(err, errNoDepositWallet) {
+		t.Fatalf("expected errNoDepositWallet, got %v", err)
+	}
+
+	var queried string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queried = r.URL.Query().Get("user")
+		_, _ = w.Write([]byte(`{"data":[{"token_id":"tok-1","current_size":5}],"pagination":{"has_more":false}}`))
+	}))
+	defer srv.Close()
+	presetTestDepositWallet(cli)
+	cli.clob.SetDataAPIBaseURL(srv.URL)
+
+	got, err := cli.GetBalances(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.EqualFold(queried, testDepositWallet) {
+		t.Errorf("queried %s, want the deposit wallet %s, not the signer", queried, testDepositWallet)
+	}
+	if len(got) != 1 || got[0].AssetID != "tok-1" || got[0].Balance != 5 {
+		t.Errorf("balances = %+v", got)
+	}
+}
+
+func TestClientGetPositionsPage(t *testing.T) {
+	cli := newClientForTest(t)
+	if _, err := cli.GetPositionsPage(context.Background(), PositionsOpts{}); !errors.Is(err, errNoDepositWallet) {
+		t.Errorf("expected errNoDepositWallet, got %v", err)
+	}
+
+	var rawQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawQuery = r.URL.RawQuery
+		_, _ = w.Write([]byte(`{"data":[{"token_id":"tok-1","current_size":5}],"pagination":{"has_more":true,"next_cursor":"c2"}}`))
+	}))
+	defer srv.Close()
+	presetTestDepositWallet(cli)
+	cli.clob.SetDataAPIBaseURL(srv.URL)
+
+	page, err := cli.GetPositionsPage(context.Background(), PositionsOpts{Cursor: "c1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rawQuery != "cursor=c1&user="+testDepositWallet {
+		t.Errorf("query = %s", rawQuery)
+	}
+	if len(page.Positions) != 1 || !page.Pagination.HasMore || page.Pagination.NextCursor != "c2" {
+		t.Errorf("page = %+v", page)
 	}
 }
 

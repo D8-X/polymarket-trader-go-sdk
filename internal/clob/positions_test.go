@@ -68,7 +68,7 @@ func TestGetPositionsDecodesPage(t *testing.T) {
 	var query string
 	c := positionsServer(t, &query)
 
-	page, err := c.GetPositions(context.Background(), "0xabc", models.PositionsOpts{Limit: 2})
+	page, err := c.GetPositionsPage(context.Background(), "0xabc", models.PositionsOpts{Limit: 2})
 	if err != nil {
 		t.Fatalf("get positions: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestGetPositionsQuery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var query string
 			c := positionsServer(t, &query)
-			if _, err := c.GetPositions(context.Background(), "0xabc", tc.opts); err != nil {
+			if _, err := c.GetPositionsPage(context.Background(), "0xabc", tc.opts); err != nil {
 				t.Fatalf("get positions: %v", err)
 			}
 			if query != tc.want {
@@ -123,7 +123,7 @@ func TestGetPositionsRejectsBadLimit(t *testing.T) {
 	for _, limit := range []int{-1, MaxPositionsLimit + 1} {
 		var query string
 		c := positionsServer(t, &query)
-		if _, err := c.GetPositions(context.Background(), "0xabc", models.PositionsOpts{Limit: limit}); err == nil {
+		if _, err := c.GetPositionsPage(context.Background(), "0xabc", models.PositionsOpts{Limit: limit}); err == nil {
 			t.Errorf("limit %d: expected error", limit)
 		}
 		if query != "" {
@@ -188,12 +188,86 @@ func TestGetPositionsSurfacesAPIError(t *testing.T) {
 		}))
 		c := NewClient()
 		c.SetDataAPIBaseURL(srv.URL)
-		_, err := c.GetPositions(context.Background(), "0xabc", models.PositionsOpts{Limit: 10})
+		_, err := c.GetPositionsPage(context.Background(), "0xabc", models.PositionsOpts{Limit: 10})
 		srv.Close()
 
 		var apiErr *models.APIError
 		if !errors.As(err, &apiErr) || apiErr.StatusCode != status {
 			t.Fatalf("status %d: got %v, want an APIError with that status", status, err)
 		}
+	}
+}
+
+func TestGetPositionsWalksWithFilters(t *testing.T) {
+	var queries []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.RawQuery)
+		if len(queries) == 1 {
+			_, _ = w.Write([]byte(`{"data":[{"token_id":"a","current_size":1}],"pagination":{"has_more":true,"next_cursor":"c1"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"token_id":"b","current_size":2}],"pagination":{"has_more":false}}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClient()
+	c.SetDataAPIBaseURL(srv.URL)
+
+	got, err := c.GetPositions(context.Background(), "0xabc", models.PositionsOpts{ConditionIDs: []string{"0x1"}})
+	if err != nil {
+		t.Fatalf("get positions: %v", err)
+	}
+	if len(got) != 2 || got[0].Asset != "a" || got[1].Asset != "b" {
+		t.Fatalf("got %+v", got)
+	}
+	want := []string{
+		"condition=0x1&limit=1000&user=0xabc",
+		"condition=0x1&cursor=c1&limit=1000&user=0xabc",
+	}
+	if fmt.Sprint(queries) != fmt.Sprint(want) {
+		t.Fatalf("queries = %q, want %q", queries, want)
+	}
+}
+
+func TestGetPositionsWithoutOptsWalksAtMaxLimit(t *testing.T) {
+	var query string
+	c := positionsServer(t, &query)
+	// positionsBody always reports has_more with cursor "abc", so the second page repeats it.
+	_, err := c.GetPositions(context.Background(), "0xabc")
+	if err == nil {
+		t.Fatal("expected the repeated cursor to stop the walk")
+	}
+	if query != "cursor=abc&limit=1000&user=0xabc" {
+		t.Fatalf("query = %q", query)
+	}
+}
+
+func TestGetPositionsRejectsSeveralOpts(t *testing.T) {
+	c := NewClient()
+	if _, err := c.GetPositions(context.Background(), "0xabc", models.PositionsOpts{}, models.PositionsOpts{}); err == nil {
+		t.Fatal("expected an error for two opts")
+	}
+}
+
+func TestPositionEntryKeepsV1JSONNames(t *testing.T) {
+	var query string
+	c := positionsServer(t, &query)
+	page, err := c.GetPositionsPage(context.Background(), "0xabc", models.PositionsOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(page.Positions[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	_ = json.Unmarshal(out, &m)
+	for _, k := range []string{"asset", "conditionId", "size", "avgPrice", "curPrice", "outcome", "title"} {
+		if _, ok := m[k]; !ok {
+			t.Errorf("marshalled entry lacks v1 key %q: %s", k, out)
+		}
+	}
+	var back models.PositionEntry
+	if err := json.Unmarshal(out, &back); err != nil || back != page.Positions[0] {
+		t.Fatalf("round trip changed the entry: %v", err)
 	}
 }
