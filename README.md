@@ -134,8 +134,9 @@ for _, c := range hist {
 ## Positions
 
 ```go
-positions, _ := cli.GetPositions(ctx)                                  // for the deposit wallet
-others, _ := cli.GetPositionsOf(ctx, "0xAnyWallet")                    // for any address
+page := polytrade.PositionsOpts{Limit: 500, Offset: 0}                 // limit 1..500, offset 0..10000
+positions, _ := cli.GetPositions(ctx, page)                            // for the deposit wallet
+others, _ := cli.GetPositionsOf(ctx, "0xAnyWallet", page)              // for any address
 for _, p := range positions {
     fmt.Printf("%s %s size=%g avg=%g cur=%g\n", p.Title, p.Outcome, p.Size, p.AvgPrice, p.CurPrice)
 }
