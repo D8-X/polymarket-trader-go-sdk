@@ -26,15 +26,22 @@ type SignedOrder struct {
 }
 
 type PlaceOrderResponse struct {
-	OrderID           string   `json:"orderID"`
-	Success           bool     `json:"success"`
-	ErrorMsg          string   `json:"errorMsg,omitempty"`
+	OrderID  string `json:"orderID"` // poll order status with it
+	Success  bool   `json:"success"`
+	ErrorMsg string `json:"errorMsg,omitempty"`
+
+	// Deprecated: always empty now.
+	// The CLOB stopped returning transaction hashes inline and reports
+	// TradeIDs instead. ResolveTradeHashes is added to resolve those into hashes
+	//
+	// See https://docs.polymarket.com/changelog/predictions
 	TransactionHashes []string `json:"transactionsHashes,omitempty"`
-	TradeIDs          []string `json:"tradeIDs,omitempty"`
-	Status            string   `json:"status,omitempty"`
-	TakingAmount      string   `json:"takingAmount,omitempty"`
-	MakingAmount      string   `json:"makingAmount,omitempty"`
-	RemainingSize     string   `json:"remainingSize,omitempty"`
+
+	TradeIDs      []string `json:"tradeIDs,omitempty"` // used to resolve tx hashes via ResolveTradeHashes
+	Status        string   `json:"status,omitempty"`
+	TakingAmount  string   `json:"takingAmount,omitempty"`
+	MakingAmount  string   `json:"makingAmount,omitempty"`
+	RemainingSize string   `json:"remainingSize,omitempty"`
 }
 
 type OrderStatus struct {

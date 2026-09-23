@@ -49,6 +49,9 @@ const (
 	DefaultPollInterval       = 200 * time.Millisecond
 	DefaultDelayedPollTimeout = 5 * time.Second
 	DefaultLivePollTimeout    = 60 * time.Second
+
+	DefaultTradePollInterval   = 250 * time.Millisecond
+	DefaultTradeResolveTimeout = 30 * time.Second
 )
 
 const (
@@ -74,6 +77,8 @@ const (
 	OrderStatusCanceled  = "canceled"
 	OrderStatusUnmatched = "unmatched"
 )
+
+const TradeStatusFailed = "FAILED"
 
 const (
 	AmountScale = 1e6

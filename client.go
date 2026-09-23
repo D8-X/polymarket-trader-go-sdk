@@ -435,6 +435,23 @@ func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID st
 	return c.clob.GetTrades(ctx, makerAddress, market, assetID, creds)
 }
 
+func (c *Client) GetTradeByID(ctx context.Context, tradeID string) (*Trade, error) {
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
+	}
+	return c.clob.GetTradeByID(ctx, tradeID, creds)
+}
+
+
+func (c *Client) ResolveTradeHashes(ctx context.Context, tradeIDs []string, opts *ResolveOpts) (*TradeResolution, error) {
+	creds, err := c.requireCreds()
+	if err != nil {
+		return nil, err
+	}
+	return c.clob.ResolveTradeHashes(ctx, tradeIDs, creds, opts)
+}
+
 func (c *Client) GetPreMigrationOrders(ctx context.Context) ([]OrderStatus, error) {
 	creds, err := c.requireCreds()
 	if err != nil {
