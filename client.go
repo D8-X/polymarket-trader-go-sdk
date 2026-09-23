@@ -629,8 +629,8 @@ func (c *Client) GetMarketLiveActivity(ctx context.Context, conditionID string) 
 	return c.clob.GetMarketLiveActivity(ctx, conditionID)
 }
 
-// GetPositions returns one page of the deposit wallet's positions. See PositionsOpts for paging.
-func (c *Client) GetPositions(ctx context.Context, opts PositionsOpts) ([]PositionEntry, error) {
+// GetPositions returns one page of the deposit wallet's positions. Follow NextCursor to page.
+func (c *Client) GetPositions(ctx context.Context, opts PositionsOpts) (*PositionsPage, error) {
 	c.mu.RLock()
 	dw := c.depositWalletAddress
 	c.mu.RUnlock()
@@ -640,7 +640,7 @@ func (c *Client) GetPositions(ctx context.Context, opts PositionsOpts) ([]Positi
 	return c.clob.GetPositions(ctx, dw, opts)
 }
 
-func (c *Client) GetPositionsOf(ctx context.Context, walletAddress string, opts PositionsOpts) ([]PositionEntry, error) {
+func (c *Client) GetPositionsOf(ctx context.Context, walletAddress string, opts PositionsOpts) (*PositionsPage, error) {
 	return c.clob.GetPositions(ctx, walletAddress, opts)
 }
 

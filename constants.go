@@ -1,6 +1,9 @@
 package polytrade
 
-import "github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+import (
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
+)
 
 const (
 	ClobBaseURL    = consts.ClobBaseURL
@@ -52,4 +55,22 @@ const (
 	DefaultPollInterval       = consts.DefaultPollInterval
 	DefaultDelayedPollTimeout = consts.DefaultDelayedPollTimeout
 	DefaultLivePollTimeout    = consts.DefaultLivePollTimeout
+)
+
+const (
+	PositionStatusOpen           = models.PositionStatusOpen
+	PositionStatusRedeemable     = models.PositionStatusRedeemable
+	PositionStatusRedeemableLost = models.PositionStatusRedeemableLost
+	PositionStatusMergeable      = models.PositionStatusMergeable
+	PositionStatusClosed         = models.PositionStatusClosed
+)
+
+const (
+	PositionsSortCurrentValue  = models.PositionsSortCurrentValue
+	PositionsSortPrice         = models.PositionsSortPrice
+	PositionsSortTokens        = models.PositionsSortTokens
+	PositionsSortUnrealizedPnl = models.PositionsSortUnrealizedPnl
+	PositionsSortRealizedPnl   = models.PositionsSortRealizedPnl
+	PositionsSortTotalPnl      = models.PositionsSortTotalPnl
+	PositionsSortTimestamp     = models.PositionsSortTimestamp
 )

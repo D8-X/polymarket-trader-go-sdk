@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
@@ -402,20 +403,25 @@ func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID st
 
 func (c *Client) GetBalances(ctx context.Context, creds *models.L2Credentials) ([]models.BalanceEntry, error) {
 	var balances []models.BalanceEntry
-	for offset := 0; offset <= MaxPositionsOffset; offset += MaxPositionsLimit {
-		page, err := c.GetPositions(ctx, creds.Address, models.PositionsOpts{Limit: MaxPositionsLimit, Offset: offset})
+	opts := models.PositionsOpts{Limit: MaxPositionsLimit}
+	for {
+		page, err := c.GetPositions(ctx, creds.Address, opts)
 		if err != nil {
 			return nil, fmt.Errorf("get balances: %w", err)
 		}
-		for _, p := range page {
+		for _, p := range page.Positions {
 			balances = append(balances, models.BalanceEntry{
 				AssetID: p.Asset,
 				Balance: p.Size,
 			})
 		}
-		if len(page) < MaxPositionsLimit {
+		if !page.Pagination.HasMore {
 			break
 		}
+		if next := page.Pagination.NextCursor; next == "" || next == opts.Cursor {
+			return nil, fmt.Errorf("get balances: has_more without a new cursor after %d positions", len(balances))
+		}
+		opts.Cursor = page.Pagination.NextCursor
 	}
 	return balances, nil
 }
@@ -476,54 +482,62 @@ func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType string, t
 	return nil
 }
 
-const (
-	MaxPositionsLimit  = 500
-	MaxPositionsOffset = 10000
-)
+const MaxPositionsLimit = 1000
 
-// GetPositions returns one page of positions, largest first. Past MaxPositionsOffset the
-// server repeats the same page forever, so narrow with SizeThreshold for bigger wallets.
-func (c *Client) GetPositions(ctx context.Context, walletAddress string, opts models.PositionsOpts) ([]models.PositionEntry, error) {
+// GetPositions returns one page of /v2/positions. Pass the page's NextCursor back in
+// opts.Cursor, with the other opts unchanged, until HasMore is false.
+func (c *Client) GetPositions(ctx context.Context, walletAddress string, opts models.PositionsOpts) (*models.PositionsPage, error) {
 	if opts.Limit < 1 || opts.Limit > MaxPositionsLimit {
 		return nil, fmt.Errorf("get positions: limit %d outside 1..%d", opts.Limit, MaxPositionsLimit)
 	}
-	if opts.Offset < 0 || opts.Offset > MaxPositionsOffset {
-		return nil, fmt.Errorf("get positions: offset %d outside 0..%d", opts.Offset, MaxPositionsOffset)
-	}
 
+	// This might change in the future. Their doc says that only cursor is sufficient.
+	// but user also needs to be sent each time.
 	query := url.Values{}
 	query.Set("user", walletAddress)
 	query.Set("limit", strconv.Itoa(opts.Limit))
-	query.Set("offset", strconv.Itoa(opts.Offset))
-	query.Set("sizeThreshold", strconv.FormatFloat(max(opts.SizeThreshold, 0), 'f', -1, 64))
+	if opts.Cursor != "" {
+		query.Set("cursor", opts.Cursor)
+	}
+	if opts.Status != "" {
+		query.Set("status", string(opts.Status))
+	}
+	if len(opts.ConditionIDs) > 0 {
+		query.Set("condition", strings.Join(opts.ConditionIDs, ","))
+	}
+	if opts.Title != "" {
+		query.Set("title", opts.Title)
+	}
+	if opts.MinSize > 0 {
+		query.Set("filter_type", "TOKENS")
+		query.Set("filter_amount", strconv.FormatFloat(opts.MinSize, 'f', -1, 64))
+	}
 	if opts.IncludeArchived {
-		// The server caps the page, so archived rows can crowd out live ones.
-		query.Set("includeArchived", "true")
+		query.Set("include_archived", "true")
 	}
-	if opts.Redeemable != nil {
-		query.Set("redeemable", strconv.FormatBool(*opts.Redeemable))
+	if opts.SortBy != "" {
+		query.Set("sort_by", string(opts.SortBy))
 	}
-	if opts.Mergeable != nil {
-		query.Set("mergeable", strconv.FormatBool(*opts.Mergeable))
+	if opts.Ascending {
+		query.Set("sort_direction", "ASC")
 	}
 
-	fullURL := c.dataAPIBaseURL + "/positions?" + query.Encode()
+	fullURL := c.dataAPIBaseURL + "/v2/positions?" + query.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get positions: build request: %w", err)
 	}
 
-	respBody, err := c.doRequest(req, "GET /positions")
+	respBody, err := c.doRequest(req, "GET /v2/positions")
 	if err != nil {
 		return nil, fmt.Errorf("get positions: %w", err)
 	}
 
-	var positions []models.PositionEntry
-	if err := json.Unmarshal(respBody, &positions); err != nil {
+	var page models.PositionsPage
+	if err := json.Unmarshal(respBody, &page); err != nil {
 		return nil, fmt.Errorf("get positions: unmarshal response: %w", err)
 	}
-
-	return positions, nil
+	return &page, nil
 }
 
 func (c *Client) doRequest(req *http.Request, endpoint string) ([]byte, error) {
