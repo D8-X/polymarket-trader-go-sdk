@@ -49,7 +49,7 @@ type PositionEntry struct {
 }
 
 type PositionsOpts struct {
-	Limit           int            // required, 1 to 1000
+	Limit           int            // up to 1000, 0 means the server default of 100
 	Cursor          string         // NextCursor of the previous page, empty for the first
 	Status          PositionStatus // empty means OPEN
 	ConditionIDs    []string       // at most 20

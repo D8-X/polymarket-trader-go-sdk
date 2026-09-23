@@ -487,15 +487,17 @@ const MaxPositionsLimit = 1000
 // GetPositions returns one page of /v2/positions. Pass the page's NextCursor back in
 // opts.Cursor, with the other opts unchanged, until HasMore is false.
 func (c *Client) GetPositions(ctx context.Context, walletAddress string, opts models.PositionsOpts) (*models.PositionsPage, error) {
-	if opts.Limit < 1 || opts.Limit > MaxPositionsLimit {
-		return nil, fmt.Errorf("get positions: limit %d outside 1..%d", opts.Limit, MaxPositionsLimit)
+	if opts.Limit < 0 || opts.Limit > MaxPositionsLimit {
+		return nil, fmt.Errorf("get positions: limit %d outside 0..%d", opts.Limit, MaxPositionsLimit)
 	}
 
 	// This might change in the future. Their doc says that only cursor is sufficient.
 	// but user also needs to be sent each time.
 	query := url.Values{}
 	query.Set("user", walletAddress)
-	query.Set("limit", strconv.Itoa(opts.Limit))
+	if opts.Limit > 0 {
+		query.Set("limit", strconv.Itoa(opts.Limit))
+	}
 	if opts.Cursor != "" {
 		query.Set("cursor", opts.Cursor)
 	}
