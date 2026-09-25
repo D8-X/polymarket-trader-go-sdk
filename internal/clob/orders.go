@@ -399,7 +399,11 @@ func (c *Client) GetTrades(ctx context.Context, makerAddress, market, assetID st
 }
 
 func (c *Client) GetBalances(ctx context.Context, creds *models.L2Credentials) ([]models.BalanceEntry, error) {
-	positions, err := c.GetPositions(ctx, creds.Address)
+	return c.GetBalancesOf(ctx, creds.Address)
+}
+
+func (c *Client) GetBalancesOf(ctx context.Context, walletAddress string) ([]models.BalanceEntry, error) {
+	positions, err := c.GetPositions(ctx, walletAddress)
 	if err != nil {
 		return nil, fmt.Errorf("get balances: %w", err)
 	}
@@ -467,26 +471,6 @@ func (c *Client) UpdateBalanceAllowance(ctx context.Context, assetType string, t
 	}
 
 	return nil
-}
-
-func (c *Client) GetPositions(ctx context.Context, walletAddress string) ([]models.PositionEntry, error) {
-	fullURL := fmt.Sprintf("%s/positions?user=%s&sizeThreshold=0", c.dataAPIBaseURL, walletAddress)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get positions: build request: %w", err)
-	}
-
-	respBody, err := c.doRequest(req, "GET /positions")
-	if err != nil {
-		return nil, fmt.Errorf("get positions: %w", err)
-	}
-
-	var positions []models.PositionEntry
-	if err := json.Unmarshal(respBody, &positions); err != nil {
-		return nil, fmt.Errorf("get positions: unmarshal response: %w", err)
-	}
-
-	return positions, nil
 }
 
 func (c *Client) doRequest(req *http.Request, endpoint string) ([]byte, error) {

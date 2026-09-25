@@ -134,10 +134,28 @@ for _, c := range hist {
 ## Positions
 
 ```go
-positions, _ := cli.GetPositions(ctx)                                  // for the deposit wallet
+positions, _ := cli.GetPositions(ctx)                                  // every position of the deposit wallet
 others, _ := cli.GetPositionsOf(ctx, "0xAnyWallet")                    // for any address
+market, _ := cli.GetPositions(ctx, polytrade.PositionsOpts{ConditionIDs: []string{conditionID}}) // one market only
 for _, p := range positions {
+    if p.Status != polytrade.PositionStatusOpen {
+        continue                                                       // resolved, still held until redeemed
+    }
     fmt.Printf("%s %s size=%g avg=%g cur=%g\n", p.Title, p.Outcome, p.Size, p.AvgPrice, p.CurPrice)
+}
+
+// Or page by hand, 100 per page by default and up to 1000.
+opts := polytrade.PositionsOpts{Limit: 1000}
+for {
+    page, err := cli.GetPositionsPage(ctx, opts)                       // GetPositionsPageOf for any address
+    if err != nil {
+        log.Fatal(err)
+    }
+    // use page.Positions
+    if !page.Pagination.HasMore {
+        break
+    }
+    opts.Cursor = page.Pagination.NextCursor
 }
 ```
 
