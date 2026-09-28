@@ -53,8 +53,13 @@ func TestGetRoundConfig(t *testing.T) {
 		{"0.01", roundConfig{price: 2, size: 2, amount: 4}},
 		{"0.001", roundConfig{price: 3, size: 2, amount: 5}},
 		{"0.0001", roundConfig{price: 4, size: 2, amount: 6}},
+		{"0.005", roundConfig{price: 3, size: 2, amount: 5}},
+		{"0.0025", roundConfig{price: 4, size: 2, amount: 6}},
+		{"0.010", roundConfig{price: 2, size: 2, amount: 4}},
 		{"", roundConfig{price: 2, size: 2, amount: 4}},
 		{"unknown", roundConfig{price: 2, size: 2, amount: 4}},
+		{"1", roundConfig{price: 2, size: 2, amount: 4}},
+		{"0.00001", roundConfig{price: 2, size: 2, amount: 4}},
 	}
 	for _, tc := range cases {
 		t.Run("tick="+tc.tick, func(t *testing.T) {
@@ -84,6 +89,10 @@ func TestPrepareAndSignAmounts(t *testing.T) {
 		{"buy GTC tick 0.001", consts.BUY, consts.OrderTypeGTC, "0.001", "0.555", "10", "5550000", "10000000"},
 		{"buy GTC tick 0.0001", consts.BUY, consts.OrderTypeGTC, "0.0001", "0.5555", "10", "5555000", "10000000"},
 		{"buy GTC tick 0.1", consts.BUY, consts.OrderTypeGTC, "0.1", "0.5", "5", "2500000", "5000000"},
+		{"buy GTC tick 0.005", consts.BUY, consts.OrderTypeGTC, "0.005", "0.555", "10", "5550000", "10000000"},
+		{"sell GTC tick 0.0025", consts.SELL, consts.OrderTypeGTC, "0.0025", "0.5025", "10", "10000000", "5025000"},
+		{"buy GTC tick 0.0025 fractional", consts.BUY, consts.OrderTypeGTC, "0.0025", "0.5025", "3.33", "1673325", "3330000"},
+		{"buy FAK tick 0.0025 rounds maker up to 2dp", consts.BUY, consts.OrderTypeFAK, "0.0025", "0.5025", "3.33", "1680000", "3330000"},
 		{"buy GTC fractional keeps 4dp maker", consts.BUY, consts.OrderTypeGTC, "0.01", "0.07", "14.28", "999600", "14280000"},
 		{"buy FAK fractional rounds maker up to 2dp", consts.BUY, consts.OrderTypeFAK, "0.01", "0.07", "14.28", "1000000", "14280000"},
 		{"buy FOK fractional rounds maker up to 2dp", consts.BUY, consts.OrderTypeFOK, "0.01", "0.07", "14.28", "1000000", "14280000"},
