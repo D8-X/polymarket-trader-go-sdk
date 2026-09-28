@@ -40,16 +40,14 @@ type roundConfig struct {
 }
 
 func getRoundConfig(tickSize string) roundConfig {
-	switch tickSize {
-	case "0.1":
-		return roundConfig{price: 1, size: 2, amount: 3}
-	case "0.001":
-		return roundConfig{price: 3, size: 2, amount: 5}
-	case "0.0001":
-		return roundConfig{price: 4, size: 2, amount: 6}
-	default:
-		return roundConfig{price: 2, size: 2, amount: 4}
+	price := 2
+	if strings.Contains(tickSize, ".") {
+		tickSize = strings.TrimRight(tickSize, "0")
 	}
+	if tick, dp, err := parseDecimal(tickSize, "tick size", 4); err == nil && dp >= 1 && tick.Cmp(big.NewRat(1, 1)) < 0 {
+		price = dp
+	}
+	return roundConfig{price: price, size: 2, amount: price + 2}
 }
 
 func decimalPlaces(s string) int {
