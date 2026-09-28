@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 )
@@ -188,6 +189,7 @@ func TestGetPositionsSurfacesAPIError(t *testing.T) {
 		}))
 		c := NewClient()
 		c.SetDataAPIBaseURL(srv.URL)
+		c.retry.backoff = time.Millisecond
 		_, err := c.GetPositionsPage(context.Background(), "0xabc", models.PositionsOpts{Limit: 10})
 		srv.Close()
 

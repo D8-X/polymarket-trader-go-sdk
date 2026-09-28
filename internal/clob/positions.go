@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -86,12 +85,7 @@ func (c *Client) GetPositionsPage(ctx context.Context, walletAddress string, opt
 	}
 
 	fullURL := c.dataAPIBaseURL + "/v2/positions?" + query.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get positions: build request: %w", err)
-	}
-
-	respBody, err := c.doRequest(req, "GET /v2/positions")
+	respBody, err := c.getWithRetry(ctx, fullURL, "GET /v2/positions")
 	if err != nil {
 		return nil, fmt.Errorf("get positions: %w", err)
 	}

@@ -1,11 +1,15 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type APIError struct {
 	StatusCode int
 	Endpoint   string
 	Body       string
+	RetryAfter time.Duration 
 }
 
 func (e *APIError) Error() string {

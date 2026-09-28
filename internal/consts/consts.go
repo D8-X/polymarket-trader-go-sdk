@@ -52,6 +52,10 @@ const (
 
 	DefaultTradePollInterval   = 250 * time.Millisecond
 	DefaultTradeResolveTimeout = 30 * time.Second
+
+	DataAPIRetryAttempts = 4
+	DataAPIRetryBackoff  = 500 * time.Millisecond
+	DataAPIRetryMaxWait  = 10 * time.Second
 )
 
 const (
