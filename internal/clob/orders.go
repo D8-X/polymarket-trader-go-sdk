@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
@@ -17,6 +19,7 @@ type Client struct {
 	baseURL        string
 	dataAPIBaseURL string
 	client         *http.Client
+	retry          retryPolicy
 }
 
 func NewClient() *Client {
@@ -24,6 +27,11 @@ func NewClient() *Client {
 		baseURL:        consts.ClobBaseURL,
 		dataAPIBaseURL: consts.DataAPIBaseURL,
 		client:         &http.Client{Timeout: consts.CLOBTimeout},
+		retry: retryPolicy{
+			attempts: consts.DataAPIRetryAttempts,
+			backoff:  consts.DataAPIRetryBackoff,
+			maxWait:  consts.DataAPIRetryMaxWait,
+		},
 	}
 }
 
@@ -490,8 +498,28 @@ func (c *Client) doRequest(req *http.Request, endpoint string) ([]byte, error) {
 			StatusCode: resp.StatusCode,
 			Endpoint:   endpoint,
 			Body:       string(body),
+			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After")),
 		}
 	}
 
 	return body, nil
+}
+
+// parseRetryAfter reads delay seconds or an HTTP date. Anything else counts as absent.
+func parseRetryAfter(v string) time.Duration {
+	if v == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(v); err == nil {
+		if secs < 0 {
+			return 0
+		}
+		return time.Duration(secs) * time.Second
+	}
+	if at, err := http.ParseTime(v); err == nil {
+		if d := time.Until(at); d > 0 {
+			return d
+		}
+	}
+	return 0
 }
