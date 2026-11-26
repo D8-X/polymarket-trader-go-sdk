@@ -3,6 +3,7 @@ package clob
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -246,12 +247,15 @@ func autoTimeout(responses []models.PlaceOrderResponse, pending []int) time.Dura
 	return consts.DefaultDelayedPollTimeout
 }
 
+// isTerminalStatus accepts the lower case placement statuses and the upper case
+// ones GET /data/order reports, including INVALID and every CANCELED_* reason.
 func isTerminalStatus(status string) bool {
-	switch status {
-	case consts.OrderStatusMatched, consts.OrderStatusCanceled, consts.OrderStatusUnmatched:
+	s := strings.ToLower(status)
+	switch s {
+	case consts.OrderStatusMatched, consts.OrderStatusUnmatched, consts.OrderStatusInvalid:
 		return true
 	}
-	return false
+	return s == consts.OrderStatusCanceled || strings.HasPrefix(s, consts.OrderStatusCanceled+"_")
 }
 
 func placementFilled(r models.PlaceOrderResponse) bool {

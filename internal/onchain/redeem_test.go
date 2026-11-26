@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
@@ -49,5 +50,32 @@ func TestPayoutFromRedeemReceiptZeroWhenNoMatch(t *testing.T) {
 	}
 	if got.Sign() != 0 {
 		t.Errorf("expected 0 payout from empty receipt, got %v", got)
+	}
+}
+
+func TestPayoutFromRedeemReceiptFallsBackToPUSDTransfers(t *testing.T) {
+	redeemer := common.HexToAddress("0xF7d4a87A96C1D4B2BB05b2750ed6A6f9c7eb5E62")
+	module := common.HexToAddress("0x1000008dD9001B968442c1000017eaE6E0dA00Ba")
+	pusd := common.HexToAddress(consts.PUSDAddress)
+	mkTransfer := func(token, from, to common.Address, amount int64) *ethtypes.Log {
+		data := make([]byte, 32)
+		big.NewInt(amount).FillBytes(data)
+		return &ethtypes.Log{
+			Address: token,
+			Topics:  []common.Hash{erc20TransferTopic, common.BytesToHash(from.Bytes()), common.BytesToHash(to.Bytes())},
+			Data:    data,
+		}
+	}
+	rcpt := &ethtypes.Receipt{Logs: []*ethtypes.Log{
+		mkTransfer(pusd, module, redeemer, 3_000_000),
+		mkTransfer(pusd, redeemer, module, 7),
+		mkTransfer(common.HexToAddress(consts.USDCAddress), module, redeemer, 9),
+	}}
+	got, err := PayoutFromRedeemReceipt(context.Background(), stubReceiptFetcher{receipt: rcpt}, "0xabc", redeemer.Hex())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Cmp(big.NewInt(3_000_000)) != 0 {
+		t.Errorf("payout: got %v want 3000000", got)
 	}
 }

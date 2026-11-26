@@ -29,6 +29,9 @@ func GetOutcomeTokenBalance(ctx context.Context, eth ContractCaller, ownerAddres
 	data = append(data, ethutil.PadTo32(common.HexToAddress(ownerAddress).Bytes())...)
 	data = append(data, ethutil.PadTo32(tokenIDBig.Bytes())...)
 	addr := common.HexToAddress(consts.ConditionalTokens)
+	if ethutil.IsV2PositionID(tokenID) {
+		addr = common.HexToAddress(consts.PositionManager)
+	}
 	msg := ethereum.CallMsg{To: &addr, Data: data}
 	result, err := eth.CallContract(ctx, msg, nil)
 	if err != nil {

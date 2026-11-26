@@ -56,6 +56,40 @@ func TestResolveTradeHashesPollsUntilHash(t *testing.T) {
 	}
 }
 
+func TestResolveTradeHashesWaitsForConfirmation(t *testing.T) {
+	var calls int32
+	c := tradesServer(t, func(id string) []models.Trade {
+		if atomic.AddInt32(&calls, 1) < 3 {
+			return []models.Trade{{ID: id, Status: "MINED", TransactionHash: "0xreplaced"}}
+		}
+		return []models.Trade{{ID: id, Status: "TRADE_STATUS_CONFIRMED", TransactionHash: "0xfinal"}}
+	})
+
+	res, err := c.ResolveTradeHashes(context.Background(), []string{"t1"}, testCreds(),
+		&models.ResolveOpts{Interval: time.Millisecond, Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(res.Hashes) != 1 || res.Hashes[0] != "0xfinal" {
+		t.Fatalf("hashes = %v, want [0xfinal]", res.Hashes)
+	}
+}
+
+func TestResolveTradeHashesPrefixedFailedStatus(t *testing.T) {
+	c := tradesServer(t, func(id string) []models.Trade {
+		return []models.Trade{{ID: id, Status: "TRADE_STATUS_FAILED"}}
+	})
+
+	res, err := c.ResolveTradeHashes(context.Background(), []string{"t1"}, testCreds(),
+		&models.ResolveOpts{Interval: time.Millisecond, Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(res.Failed) != 1 {
+		t.Fatalf("failed = %v, want [t1]", res.Failed)
+	}
+}
+
 func TestResolveTradeHashesFailedTrade(t *testing.T) {
 	c := tradesServer(t, func(id string) []models.Trade {
 		return []models.Trade{{ID: id, Status: consts.TradeStatusFailed}}

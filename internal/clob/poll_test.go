@@ -17,6 +17,13 @@ func TestIsTerminalStatus(t *testing.T) {
 		consts.OrderStatusLive:      false,
 		consts.OrderStatusDelayed:   false,
 		"":                          false,
+		"MATCHED":                   true,
+		"CANCELED":                  true,
+		"CANCELED_MARKET_RESOLVED":  true,
+		"CANCELED_EXPIRED_ORDER":    true,
+		"INVALID":                   true,
+		"LIVE":                      false,
+		"CANCELEDX":                 false,
 	}
 	for status, want := range cases {
 		if got := isTerminalStatus(status); got != want {

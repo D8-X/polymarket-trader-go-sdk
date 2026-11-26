@@ -8,6 +8,7 @@ import (
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/auth"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/clob"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/onchain"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/order"
@@ -89,8 +90,22 @@ type ContractCaller = onchain.ContractCaller
 type ReceiptFetcher = wallet.ReceiptFetcher
 type CodeReader = onchain.CodeReader
 
+var ErrOrderNotFound = models.ErrOrderNotFound
+
+// DeriveDepositWallet returns the address the factory deploys for eoaHex today.
+// Wallets deployed before the factory moved to beacon proxies live at
+// DeriveLegacyDepositWallet instead. LookupDepositWallet checks both.
 func DeriveDepositWallet(eoaHex string) string {
 	return onchain.DeriveDepositWallet(common.HexToAddress(eoaHex)).Hex()
+}
+
+func DeriveLegacyDepositWallet(eoaHex string) string {
+	return onchain.DeriveLegacyDepositWallet(common.HexToAddress(eoaHex)).Hex()
+}
+
+// IsV2PositionID reports whether a token ID belongs to a Protocol V2 market.
+func IsV2PositionID(tokenID string) bool {
+	return ethutil.IsV2PositionID(tokenID)
 }
 
 func LookupDepositWallet(ctx context.Context, eth CodeReader, eoaHex string) (depositWallet string, deployed bool, err error) {

@@ -1,6 +1,7 @@
 package onchain
 
 import (
+	"encoding/hex"
 	"math/big"
 	"testing"
 
@@ -60,5 +61,24 @@ func TestEncodeApproveCalldataAmountGolden(t *testing.T) {
 	const want = "0x095ea7b3000000000000000000000000e111180000d2663c0091e4f400237545b87b996bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	if got != want {
 		t.Errorf("approve calldata mismatch:\n  got:  %s\n  want: %s", got, want)
+	}
+}
+
+func TestEncodeRouterCalldataGolden(t *testing.T) {
+	word := common.FromHex("0x019496073df9798fff1e7dafc6a51806d9000000000000000000000000000000")
+	cond := "019496073df9798fff1e7dafc6a51806d9000000000000000000000000000000"
+	amt := "00000000000000000000000000000000000000000000000000000000000f4240"
+	cases := map[string]struct {
+		got  []byte
+		want string
+	}{
+		"split":  {EncodeRouterSplitCalldata(word, big.NewInt(1_000_000)), "82d3b9f1" + cond + amt},
+		"merge":  {EncodeRouterMergeCalldata(word, big.NewInt(1_000_000)), "5b63685e" + cond + amt},
+		"redeem": {EncodeRouterRedeemCalldata(word, 1, big.NewInt(1_000_000)), "d217a3cc" + cond + "0000000000000000000000000000000000000000000000000000000000000001" + amt},
+	}
+	for name, c := range cases {
+		if got := hex.EncodeToString(c.got); got != c.want {
+			t.Errorf("%s:\n got  %s\n want %s", name, got, c.want)
+		}
 	}
 }

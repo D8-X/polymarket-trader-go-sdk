@@ -43,7 +43,7 @@ func TestGetOutcomeTokenBalanceDecodesUint256(t *testing.T) {
 
 func TestGetOutcomeTokenBalanceCalldata(t *testing.T) {
 	mc := &mockCaller{result: ethutil.PadTo32(big.NewInt(0).Bytes())}
-	_, err := GetOutcomeTokenBalance(context.Background(), mc, testCallerDepositWallet, "777")
+	_, err := GetOutcomeTokenBalance(context.Background(), mc, testCallerDepositWallet, "32338220190071351435772801779725302244575775216413325951443816017994629993401")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +57,17 @@ func TestGetOutcomeTokenBalanceCalldata(t *testing.T) {
 	}
 	if len(mc.lastData) != 4+32+32 {
 		t.Errorf("calldata length: got %d want 68", len(mc.lastData))
+	}
+}
+
+func TestGetOutcomeTokenBalanceV2ReadsPositionManager(t *testing.T) {
+	mc := &mockCaller{result: ethutil.PadTo32(big.NewInt(0).Bytes())}
+	_, err := GetOutcomeTokenBalance(context.Background(), mc, testCallerDepositWallet, "714841671368790317633885189985615663717485908384619261899520210089206087680")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.EqualFold(mc.lastTo, consts.PositionManager) {
+		t.Errorf("called to: got %s want %s", mc.lastTo, consts.PositionManager)
 	}
 }
 

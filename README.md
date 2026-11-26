@@ -6,7 +6,7 @@ The SDK targets Polymarket V2 deposit-wallet accounts (`SignatureTypePoly1271`, 
 
 ## Compared to the official clients
 
-Covers the standard auth, order, and market-data operations the official [py-clob-client-v2](https://github.com/Polymarket/py-clob-client-v2) and [clob-client-v2](https://github.com/Polymarket/clob-client-v2) provide. Adds bot-focused extras on top such as deposit-wallet onboarding through the Polymarket relayer (gasless), pre-trade sweep estimation with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp wrap/unwrap helpers. Pre-migration orders, rewards, order-scoring, WebSocket streams, market discovery, CTF split/merge/redeem, and RFQ are not yet implemented.
+Covers the standard auth, order, and market-data operations the official [ts-sdk](https://github.com/Polymarket/ts-sdk) and [py-sdk](https://github.com/Polymarket/py-sdk) provide. Adds bot-focused extras on top such as deposit-wallet onboarding through the Polymarket relayer (gasless), pre-trade sweep estimation with slippage control, async polling for FOK/FAK delayed states, and Collateral Onramp wrap/unwrap helpers. RFQ and session keys are not yet implemented.
 
 ## Installation
 
@@ -75,6 +75,17 @@ resp, _ := cli.PlaceOrder(ctx, signed)
 // Close a position (auto-fetches held quantity on-chain). price is a decimal string.
 closed, _ := cli.ClosePosition(ctx, tokenID, "0.50", negRisk, polytrade.ClosePositionOpts{})
 ```
+
+## Protocol V2 markets
+
+Polymarket is moving markets to Protocol V2, starting with some crypto and weather markets, while most markets including sports still trade on the CTF exchanges. The SDK handles both.
+
+* `PrepareAndSign` and `ClosePosition` sign V2 position IDs against `ExchangeV3` whatever the neg risk flag says, and `IsV2PositionID` tells the two kinds apart.
+* `Bootstrap` and `EnsureApprovals` also approve `ExchangeV3` for pUSD and on the `PositionManager`. A wallet approved by an older release reports `IsReady` false until `EnsureApprovals` runs once more.
+* `SplitPosition`, `MergePositions` and `RedeemPositions` send V2 markets through the Router. `GetMarket` reports them with `Version == polytrade.MarketVersionV2`.
+* Use `AssetTypeConditionalV2` with `GetBalanceAllowance` for V2 positions.
+
+New deposit wallets are beacon proxies at `DeriveDepositWallet`. Wallets deployed before that switch live at `DeriveLegacyDepositWallet`, and `NewClient` finds either one.
 
 ## Collateral
 
@@ -304,7 +315,7 @@ for result := range ch {
 
 ## Heartbeat
 
-For long-running market makers, Polymarket auto-cancels all open orders if no heartbeat is received within ~15 seconds. Send one explicitly or run a background loop. The server rotates the `heartbeat_id` per call; the helpers track it for you.
+Once you start sending heartbeats, Polymarket cancels all your open orders when none is accepted for about 10 seconds, so send one every 5 seconds or run a background loop. The server rotates the `heartbeat_id` per call, and the helpers track it and resend at once when the server asks for a different one.
 
 ```go
 ctx, cancel := context.WithCancel(context.Background())
@@ -340,7 +351,7 @@ fmt.Println("redeemed pUSD (6-decimal):", payout)
 bal, _ := polytrade.GetOutcomeTokenBalance(ctx, eth, cli.DepositWallet(), tokenID)
 ```
 
-Split / Merge / Redeem auto-detect whether a market is neg-risk via `GetMarket` and route through `CollateralAdapter` or `NegRiskCollateralAdapter` accordingly. Binary markets only.
+Split / Merge / Redeem look the market up via `GetMarket`. CTF markets go through `CollateralAdapter` or `NegRiskCollateralAdapter` depending on neg risk, and Protocol V2 markets go through the Router. Binary markets only.
 
 ## Replace an order
 

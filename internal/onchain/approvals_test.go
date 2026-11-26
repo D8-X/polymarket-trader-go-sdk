@@ -34,11 +34,13 @@ func makeApprovedStub(allowanceVal *big.Int, isApprovedTrue bool) stubCaller {
 	}
 	pusd := common.HexToAddress(consts.PUSDAddress)
 	ct := common.HexToAddress(consts.ConditionalTokens)
+	pm := common.HexToAddress(consts.PositionManager)
 	allowanceSel := string([]byte{0xdd, 0x62, 0xed, 0x3e})
 	isApprovedSel := string([]byte{0xe9, 0x85, 0xe9, 0xc5})
 	return stubCaller{responses: map[string][]byte{
 		pusd.Hex() + ":" + allowanceSel: pad(allowanceVal),
 		ct.Hex() + ":" + isApprovedSel:  flag,
+		pm.Hex() + ":" + isApprovedSel:  flag,
 	}}
 }
 
@@ -74,5 +76,17 @@ func TestIsFullyApproved_IsApprovedForAllFalse(t *testing.T) {
 	}
 	if ok {
 		t.Error("expected false when ConditionalTokens isApprovedForAll is false")
+	}
+}
+
+func TestIsFullyApproved_PositionManagerMissing(t *testing.T) {
+	caller := makeApprovedStub(new(big.Int).Lsh(big.NewInt(1), 200), true)
+	delete(caller.responses, common.HexToAddress(consts.PositionManager).Hex()+":"+string([]byte{0xe9, 0x85, 0xe9, 0xc5}))
+	ok, err := IsFullyApproved(context.Background(), caller, common.HexToAddress("0xf7d4a87a96c1d4b2bb05b2750ed6a6f9c7eb5e62"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Error("expected false when ExchangeV3 is not a PositionManager operator")
 	}
 }

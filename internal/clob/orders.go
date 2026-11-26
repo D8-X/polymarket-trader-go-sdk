@@ -129,6 +129,9 @@ func (c *Client) GetOrder(ctx context.Context, orderID string, creds *models.L2C
 	if err != nil {
 		return nil, fmt.Errorf("get order: %w", err)
 	}
+	if string(bytes.TrimSpace(respBody)) == "null" {
+		return nil, fmt.Errorf("get order %s: %w", orderID, models.ErrOrderNotFound)
+	}
 
 	var status models.OrderStatus
 	if err := json.Unmarshal(respBody, &status); err != nil {
@@ -170,7 +173,26 @@ func (c *Client) CancelOrder(ctx context.Context, orderID string, creds *models.
 	return &result, nil
 }
 
+// CancelOrders cancels orderIDs in batches of at most MaxCancelOrderIDs and merges the results.
 func (c *Client) CancelOrders(ctx context.Context, orderIDs []string, creds *models.L2Credentials) (*models.CancelResponse, error) {
+	if len(orderIDs) <= consts.MaxCancelOrderIDs {
+		return c.cancelOrderBatch(ctx, orderIDs, creds)
+	}
+	merged := &models.CancelResponse{NotCanceled: map[string]string{}}
+	for start := 0; start < len(orderIDs); start += consts.MaxCancelOrderIDs {
+		batch, err := c.cancelOrderBatch(ctx, orderIDs[start:min(start+consts.MaxCancelOrderIDs, len(orderIDs))], creds)
+		if err != nil {
+			return merged, err
+		}
+		merged.Canceled = append(merged.Canceled, batch.Canceled...)
+		for id, reason := range batch.NotCanceled {
+			merged.NotCanceled[id] = reason
+		}
+	}
+	return merged, nil
+}
+
+func (c *Client) cancelOrderBatch(ctx context.Context, orderIDs []string, creds *models.L2Credentials) (*models.CancelResponse, error) {
 	body, err := json.Marshal(orderIDs)
 	if err != nil {
 		return nil, fmt.Errorf("cancel orders: marshal: %w", err)
@@ -260,7 +282,17 @@ func (c *Client) CancelMarketOrders(ctx context.Context, market, assetID string,
 	return &result, nil
 }
 
+// GetOpenOrders lists open orders, optionally filtered. The CLOB rejects an
+// asset filter without its market, so a missing market is looked up first.
 func (c *Client) GetOpenOrders(ctx context.Context, market, assetID string, creds *models.L2Credentials) ([]models.OrderStatus, error) {
+	if assetID != "" && market == "" {
+		info, err := c.GetMarketByToken(ctx, assetID)
+		if err != nil {
+			return nil, fmt.Errorf("get open orders: resolve market of %s: %w", assetID, err)
+		}
+		market = info.ConditionID
+	}
+
 	var all []models.OrderStatus
 	cursor := ""
 

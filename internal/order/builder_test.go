@@ -1,9 +1,15 @@
 package order
 
 import (
+	"encoding/hex"
+	"math/big"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -125,5 +131,60 @@ func TestBuilderSetsSignerToFunder(t *testing.T) {
 	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
 	if ob.SignerAddress() != testDepositWallet {
 		t.Errorf("signerAddress: got %s want %s", ob.SignerAddress(), testDepositWallet)
+	}
+}
+
+func domainSeparator(exchange, version string) string {
+	return hex.EncodeToString(ethutil.Keccak256(ethutil.Concat(
+		ethutil.Keccak256([]byte(consts.EIP712DomainType)),
+		ethutil.Keccak256([]byte(consts.EIP712OrderDomainName)),
+		ethutil.Keccak256([]byte(version)),
+		ethutil.PadTo32(big.NewInt(consts.PolygonChainID).Bytes()),
+		ethutil.PadTo32(common.HexToAddress(exchange).Bytes()),
+	)))
+}
+
+func signedDomain(t *testing.T, tokenID string, negRisk bool) string {
+	t.Helper()
+	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
+	signed, err := ob.PrepareAndSign(tokenID, consts.BUY, consts.OrderTypeGTC, "0.5", "10", "k", negRisk, Opts{TickSize: "0.01"})
+	if err != nil {
+		t.Fatalf("prepare: %v", err)
+	}
+	sig := strings.TrimPrefix(signed.Order.Signature, "0x")
+	return sig[130 : 130+64]
+}
+
+func TestPrepareAndSignPicksExchangeDomain(t *testing.T) {
+	const ctfToken = "32338220190071351435772801779725302244575775216413325951443816017994629993401"
+	const v2Token = "714841671368790317633885189985615663717485908384619261899520210089206087680"
+	cases := []struct {
+		name     string
+		token    string
+		negRisk  bool
+		exchange string
+		version  string
+	}{
+		{"ctf", ctfToken, false, consts.CTFExchange, "2"},
+		{"ctf neg risk", ctfToken, true, consts.NegRiskCTFExchange, "2"},
+		{"v2", v2Token, false, consts.ExchangeV3, "3"},
+		{"v2 ignores neg risk", v2Token, true, consts.ExchangeV3, "3"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, want := signedDomain(t, tc.token, tc.negRisk), domainSeparator(tc.exchange, tc.version); got != want {
+				t.Errorf("domain separator: got %s want %s", got, want)
+			}
+		})
+	}
+}
+
+func TestPrepareAndSignRejectsShortGTD(t *testing.T) {
+	ob := NewBuilder(testDepositWallet, testCTFExchange, testPrivateKey)
+	if _, err := ob.PrepareAndSign("100", consts.BUY, consts.OrderTypeGTD, "0.5", "10", "k", false, Opts{TickSize: "0.01", Expiration: time.Minute}); err == nil {
+		t.Fatal("expected an error for a GTD expiration under the minimum")
+	}
+	if _, err := ob.PrepareAndSign("100", consts.BUY, consts.OrderTypeGTD, "0.5", "10", "k", false, Opts{TickSize: "0.01", Expiration: 2 * time.Minute}); err != nil {
+		t.Fatalf("2m should be accepted: %v", err)
 	}
 }

@@ -105,6 +105,28 @@ func EncodeRedeemPositionsCalldata(collateral, conditionID string, indexSets []i
 	return data
 }
 
+func EncodeRouterSplitCalldata(conditionWord []byte, amount *big.Int) []byte {
+	return encodeRouterCall("split(bytes31,uint256)", conditionWord, amount)
+}
+
+func EncodeRouterMergeCalldata(conditionWord []byte, amount *big.Int) []byte {
+	return encodeRouterCall("merge(bytes31,uint256)", conditionWord, amount)
+}
+
+func EncodeRouterRedeemCalldata(conditionWord []byte, outcomeIndex int64, amount *big.Int) []byte {
+	return encodeRouterCall("redeem(bytes31,uint256,uint256)", conditionWord, big.NewInt(outcomeIndex), amount)
+}
+
+func encodeRouterCall(signature string, conditionWord []byte, args ...*big.Int) []byte {
+	data := make([]byte, 0, 4+32+32*len(args))
+	data = append(data, ethutil.Keccak256([]byte(signature))[:4]...)
+	data = append(data, conditionWord...)
+	for _, a := range args {
+		data = append(data, ethutil.PadTo32(a.Bytes())...)
+	}
+	return data
+}
+
 func ParseBytes32Hex(s string) []byte {
 	stripped := ethutil.StripHexPrefix(s)
 	b := common.FromHex("0x" + stripped)

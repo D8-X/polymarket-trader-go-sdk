@@ -86,6 +86,37 @@ func TestPostHeartbeatReturnsServerIdOn400(t *testing.T) {
 	}
 }
 
+func TestPostHeartbeatRetriesWithExpectedID(t *testing.T) {
+	var sent []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]string
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		sent = append(sent, body["heartbeat_id"])
+		if body["heartbeat_id"] != "expected" {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"heartbeat_id": "expected", "error_msg": "Invalid Heartbeat ID"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"heartbeat_id": "next"})
+	}))
+	defer srv.Close()
+
+	clob := NewClient()
+	clob.SetBaseURL(srv.URL)
+	creds := &models.L2Credentials{Address: "0x0", APIKey: "k", Secret: "AAAA", Passphrase: "p"}
+
+	id, err := clob.PostHeartbeat(context.Background(), "stale", creds)
+	if err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if id != "next" {
+		t.Errorf("id: got %q want next", id)
+	}
+	if len(sent) != 2 || sent[0] != "stale" || sent[1] != "expected" {
+		t.Errorf("sent ids: got %v want [stale expected]", sent)
+	}
+}
+
 func TestRunHeartbeatStopsOnContextCancel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"heartbeat_id": "tick"})
