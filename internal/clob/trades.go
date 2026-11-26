@@ -54,17 +54,27 @@ func (c *Client) GetTradeByID(ctx context.Context, tradeID string, creds *models
 	return nil, nil
 }
 
+// tradeStatusIs accepts both the plain and the TRADE_STATUS_ prefixed spelling.
+func tradeStatusIs(t *models.Trade, want string) bool {
+	if t == nil {
+		return false
+	}
+	s := strings.ToUpper(t.Status)
+	return s == want || s == "TRADE_STATUS_"+want
+}
+
+// tradeResolved waits for CONFIRMED because a hash seen earlier can still be replaced by a retry.
 func tradeResolved(t *models.Trade) bool {
-	return t != nil && (t.TransactionHash != "" || tradeFailed(t))
+	return (tradeStatusIs(t, consts.TradeStatusConfirmed) && t.TransactionHash != "") || tradeFailed(t)
 }
 
 func tradeFailed(t *models.Trade) bool {
-	return t != nil && strings.EqualFold(t.Status, consts.TradeStatusFailed)
+	return tradeStatusIs(t, consts.TradeStatusFailed)
 }
 
-// ResolveTradeHashes polls /data/trades for each trade ID until every trade
-// carries a transaction hash or reports FAILED, or the timeout expires. It
-// never returns an error for an unresolved trade, those IDs come back in
+// ResolveTradeHashes polls /data/trades for each trade ID until every trade is
+// CONFIRMED with a transaction hash or reports FAILED, or the timeout expires.
+// It never returns an error for an unresolved trade, those IDs come back in
 // Pending so the caller can decide what to do.
 func (c *Client) ResolveTradeHashes(ctx context.Context, tradeIDs []string, creds *models.L2Credentials, opts *models.ResolveOpts) (*models.TradeResolution, error) {
 	res := &models.TradeResolution{}

@@ -47,6 +47,7 @@ type PositionEntry struct {
 	Mergeable         bool           `json:"mergeable"`
 	NegativeRisk      bool           `json:"negativeRisk"`
 	Archived          bool           `json:"archived"`
+	FirstEntryAt      int64          `json:"firstEntryAt"` // unix seconds, 0 when unknown
 }
 
 type PositionsOpts struct {

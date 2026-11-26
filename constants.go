@@ -31,11 +31,22 @@ const (
 )
 
 const (
+	AssetTypeCollateral    = consts.AssetTypeCollateral
+	AssetTypeConditional   = consts.AssetTypeConditional
+	AssetTypeConditionalV2 = consts.AssetTypeConditionalV2
+)
+
+const MarketVersionV2 = consts.MarketVersionV2
+
+const (
 	USDCAddress        = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
 	PUSDAddress        = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB"
 	CTFExchange        = "0xE111180000d2663C0091e4f400237545B87B996B"
 	NegRiskCTFExchange = "0xe2222d279d744050d28e00520010520000310F59"
 	NegRiskAdapter     = "0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296"
+	ExchangeV3         = consts.ExchangeV3
+	PositionManager    = consts.PositionManager
+	ProtocolV2Router   = consts.ProtocolV2Router
 )
 
 const (
@@ -49,6 +60,7 @@ const (
 	OrderStatusDelayed   = consts.OrderStatusDelayed
 	OrderStatusCanceled  = consts.OrderStatusCanceled
 	OrderStatusUnmatched = consts.OrderStatusUnmatched
+	OrderStatusInvalid   = consts.OrderStatusInvalid
 )
 
 const (

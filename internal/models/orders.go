@@ -58,7 +58,7 @@ type OrderStatus struct {
 	MakerAddress     string   `json:"maker_address,omitempty"`
 	Owner            string   `json:"owner,omitempty"`
 	Expiration       string   `json:"expiration,omitempty"`
-	AssociatedTrades []string `json:"associate_trades,omitempty"`
+	AssociatedTrades []string `json:"associate_trades,omitempty"` // deprecated by the CLOB and may be empty after fills, use SizeMatched
 	CreatedAt        int64    `json:"created_at,omitempty"`
 }
 
@@ -104,6 +104,8 @@ type MakerOrder struct {
 	AssetID       string `json:"asset_id"`
 	Outcome       string `json:"outcome"`
 	Side          string `json:"side"`
+	BuilderFee    string `json:"builder_fee,omitempty"`
+	BuilderCode   string `json:"builder_code,omitempty"`
 }
 
 type ClosePositionOpts struct {

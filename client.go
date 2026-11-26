@@ -327,8 +327,9 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 // against, because that address is baked into the EIP-712 signature as the
 // verifyingContract:
 //
-//   - negRisk == true  -> NegRiskCTFExchange 
-//   - negRisk == false -> the standard CTFExchange 
+//   - Protocol V2 position IDs -> ExchangeV3, whatever negRisk says
+//   - negRisk == true  -> NegRiskCTFExchange
+//   - negRisk == false -> the standard CTFExchange
 //
 // price and size are decimal strings (e.g. "0.55", "10"). orderType is one of
 // the OrderType* constants. An optional OrderOpts may be supplied. When its
@@ -442,7 +443,6 @@ func (c *Client) GetTradeByID(ctx context.Context, tradeID string) (*Trade, erro
 	}
 	return c.clob.GetTradeByID(ctx, tradeID, creds)
 }
-
 
 func (c *Client) ResolveTradeHashes(ctx context.Context, tradeIDs []string, opts *ResolveOpts) (*TradeResolution, error) {
 	creds, err := c.requireCreds()
@@ -817,11 +817,14 @@ func (c *Client) SplitPosition(ctx context.Context, conditionID string, amount *
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("client: split position: amount must be positive")
 	}
-	negRisk, err := c.resolveNegRisk(ctx, conditionID)
+	mkt, err := c.resolveMarket(ctx, conditionID)
 	if err != nil {
 		return nil, err
 	}
-	return wallet.SplitPosition(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, negRisk, c.relayerCreds)
+	if mkt.Version == MarketVersionV2 {
+		return wallet.SplitPositionV2(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, c.relayerCreds)
+	}
+	return wallet.SplitPosition(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, mkt.NegRisk, c.relayerCreds)
 }
 
 func (c *Client) MergePositions(ctx context.Context, conditionID string, amount *big.Int) (*RelayerResponse, error) {
@@ -832,23 +835,45 @@ func (c *Client) MergePositions(ctx context.Context, conditionID string, amount 
 	if amount == nil || amount.Sign() <= 0 {
 		return nil, fmt.Errorf("client: merge positions: amount must be positive")
 	}
-	negRisk, err := c.resolveNegRisk(ctx, conditionID)
+	mkt, err := c.resolveMarket(ctx, conditionID)
 	if err != nil {
 		return nil, err
 	}
-	return wallet.MergePositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, negRisk, c.relayerCreds)
+	if mkt.Version == MarketVersionV2 {
+		return wallet.MergePositionsV2(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, c.relayerCreds)
+	}
+	return wallet.MergePositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, amount, mkt.NegRisk, c.relayerCreds)
 }
 
+// RedeemPositions redeems a resolved market. Protocol V2 markets redeem each
+// outcome's exact balance, so they need an EthClient to read it.
 func (c *Client) RedeemPositions(ctx context.Context, conditionID string) (*RelayerResponse, error) {
 	dw, err := c.requireDepositWalletOps()
 	if err != nil {
 		return nil, err
 	}
-	negRisk, err := c.resolveNegRisk(ctx, conditionID)
+	mkt, err := c.resolveMarket(ctx, conditionID)
 	if err != nil {
 		return nil, err
 	}
-	return wallet.RedeemPositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, negRisk, c.relayerCreds)
+	if mkt.Version != MarketVersionV2 {
+		return wallet.RedeemPositions(ctx, c.eoa, c.privateKeyHex, dw, conditionID, mkt.NegRisk, c.relayerCreds)
+	}
+	if c.eth == nil {
+		return nil, errNoEth
+	}
+	word, err := ethutil.V2ConditionWord(conditionID)
+	if err != nil {
+		return nil, fmt.Errorf("client: redeem positions: %w", err)
+	}
+	var balances [2]*big.Int
+	for i := range balances {
+		balances[i], err = onchain.GetOutcomeTokenBalance(ctx, c.eth, dw, ethutil.V2PositionID(word, i))
+		if err != nil {
+			return nil, fmt.Errorf("client: redeem positions: %w", err)
+		}
+	}
+	return wallet.RedeemPositionsV2(ctx, c.eoa, c.privateKeyHex, dw, conditionID, balances, c.relayerCreds)
 }
 
 func (c *Client) RedeemPayout(ctx context.Context, txHash string) (*big.Int, error) {
@@ -862,12 +887,12 @@ func (c *Client) RedeemPayout(ctx context.Context, txHash string) (*big.Int, err
 	return onchain.PayoutFromRedeemReceipt(ctx, c.eth, txHash, dw)
 }
 
-func (c *Client) resolveNegRisk(ctx context.Context, conditionID string) (bool, error) {
+func (c *Client) resolveMarket(ctx context.Context, conditionID string) (*MarketInfo, error) {
 	mkt, err := c.GetMarket(ctx, conditionID)
 	if err != nil {
-		return false, fmt.Errorf("client: resolve neg risk: %w", err)
+		return nil, fmt.Errorf("client: resolve market: %w", err)
 	}
-	return mkt.NegRisk, nil
+	return mkt, nil
 }
 
 func (c *Client) requireDepositWalletOps() (string, error) {

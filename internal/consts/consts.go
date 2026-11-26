@@ -25,13 +25,16 @@ const (
 	CollateralOfframp = "0x2957922Eb93258b93368531d39fAcCA3B4dC5854"
 
 	DepositWalletFactory = "0x00000000000Fb5C9ADea0298D729A0CB3823Cc07"
-	// DepositWalletImplementation feeds the CREATE2 derivation in
-	// onchain.DeriveDepositWallet. Must stay in sync with the implementation
-	// Polymarket actually points its factory at. if they upgrade it ... , derived
-	// addresses for newly deployed wallets will be wrong until we fix this
+	// The factory deploys beacon proxies now. Wallets it deployed before the
+	// switch are UUPS proxies whose address is derived from this implementation.
+	DepositWalletBeacon         = "0x7A18EDfe055488A3128f01F563e5B479D92ffc3a"
 	DepositWalletImplementation = "0x58ca52ebe0dadfdf531cde7062e76746de4db1eb"
 
 	ConditionalTokens = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
+
+	ExchangeV3       = "0xe3333700cA9d93003F00f0F71f8515005F6c00Aa"
+	PositionManager  = "0x006F54F7f9A22e0000CC2AB60031000000ae9fEF"
+	ProtocolV2Router = "0x12121212006e4CD160D18e3f00711DA5c3372600"
 )
 
 const (
@@ -45,6 +48,7 @@ const (
 	CLOBTimeout          = 15 * time.Second
 	GTDExpiration        = 5 * time.Minute
 	GTDSecurityThreshold = 60 * time.Second
+	GTDMinExpiration     = 3 * time.Minute
 
 	DefaultPollInterval       = 200 * time.Millisecond
 	DefaultDelayedPollTimeout = 5 * time.Second
@@ -70,6 +74,16 @@ const (
 	OrderTypeFAK = "FAK"
 )
 
+const (
+	AssetTypeCollateral    = "COLLATERAL"
+	AssetTypeConditional   = "CONDITIONAL"
+	AssetTypeConditionalV2 = "CONDITIONAL-V2"
+)
+
+const MarketVersionV2 = "v2"
+
+const MaxCancelOrderIDs = 1000
+
 const SignatureTypePoly1271 = 3
 
 const SaltUpperBound = 1 << 62
@@ -80,9 +94,13 @@ const (
 	OrderStatusDelayed   = "delayed"
 	OrderStatusCanceled  = "canceled"
 	OrderStatusUnmatched = "unmatched"
+	OrderStatusInvalid   = "invalid"
 )
 
-const TradeStatusFailed = "FAILED"
+const (
+	TradeStatusConfirmed = "CONFIRMED"
+	TradeStatusFailed    = "FAILED"
+)
 
 const (
 	AmountScale = 1e6
@@ -109,6 +127,7 @@ const (
 	EIP712AuthDomainName  = "ClobAuthDomain"
 	EIP712OrderDomainName = "Polymarket CTF Exchange"
 	EIP712OrderVersion    = "2"
+	EIP712OrderVersionV3  = "3"
 	EIP712AuthVersion     = "1"
 	EIP712AuthMessage     = "This message attests that I control the given wallet"
 )

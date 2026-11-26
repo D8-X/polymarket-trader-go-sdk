@@ -37,12 +37,14 @@ func isApprovedForAll(ctx context.Context, eth ContractCaller, token, owner, ope
 func IsFullyApproved(ctx context.Context, eth ContractCaller, depositWallet common.Address) (bool, error) {
 	pusd := common.HexToAddress(consts.PUSDAddress)
 	ct := common.HexToAddress(consts.ConditionalTokens)
+	pm := common.HexToAddress(consts.PositionManager)
 	ctf := common.HexToAddress(consts.CTFExchange)
 	negRiskExchange := common.HexToAddress(consts.NegRiskCTFExchange)
+	v3 := common.HexToAddress(consts.ExchangeV3)
 
 	threshold := new(big.Int).Lsh(big.NewInt(1), 128)
 
-	for _, spender := range []common.Address{ctf, negRiskExchange} {
+	for _, spender := range []common.Address{ctf, negRiskExchange, v3} {
 		a, err := allowance(ctx, eth, pusd, depositWallet, spender)
 		if err != nil {
 			return false, err
@@ -51,8 +53,13 @@ func IsFullyApproved(ctx context.Context, eth ContractCaller, depositWallet comm
 			return false, nil
 		}
 	}
-	for _, operator := range []common.Address{ctf, negRiskExchange} {
-		ok, err := isApprovedForAll(ctx, eth, ct, depositWallet, operator)
+	operators := []struct{ token, operator common.Address }{
+		{ct, ctf},
+		{ct, negRiskExchange},
+		{pm, v3},
+	}
+	for _, o := range operators {
+		ok, err := isApprovedForAll(ctx, eth, o.token, depositWallet, o.operator)
 		if err != nil {
 			return false, err
 		}

@@ -1,15 +1,18 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
+
+var ErrOrderNotFound = errors.New("order not found")
 
 type APIError struct {
 	StatusCode int
 	Endpoint   string
 	Body       string
-	RetryAfter time.Duration 
+	RetryAfter time.Duration
 }
 
 func (e *APIError) Error() string {

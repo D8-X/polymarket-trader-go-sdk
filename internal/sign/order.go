@@ -3,6 +3,7 @@ package sign
 import (
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
@@ -18,7 +19,7 @@ func Order(privateKeyHex, ctfExchangeAddress string, order models.OrderFields) (
 
 	domainTypeHash := ethutil.Keccak256([]byte(consts.EIP712DomainType))
 	nameHash := ethutil.Keccak256([]byte(consts.EIP712OrderDomainName))
-	versionHash := ethutil.Keccak256([]byte(consts.EIP712OrderVersion))
+	versionHash := ethutil.Keccak256([]byte(OrderDomainVersion(ctfExchangeAddress)))
 	chainID := ethutil.PadTo32(big.NewInt(consts.PolygonChainID).Bytes())
 
 	ctfAddr := new(big.Int)
@@ -52,4 +53,11 @@ func Order(privateKeyHex, ctfExchangeAddress string, order models.OrderFields) (
 	))
 
 	return WrapPoly1271Signature(pk, order.Signer, domainSep, structHash)
+}
+
+func OrderDomainVersion(exchange string) string {
+	if strings.EqualFold(exchange, consts.ExchangeV3) {
+		return consts.EIP712OrderVersionV3
+	}
+	return consts.EIP712OrderVersion
 }

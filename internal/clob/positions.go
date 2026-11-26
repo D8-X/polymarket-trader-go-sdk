@@ -137,6 +137,7 @@ type positionV2 struct {
 	Mergeable       bool                  `json:"mergeable"`
 	NegativeRisk    bool                  `json:"negative_risk"`
 	Archived        bool                  `json:"archived"`
+	FirstEntryAt    int64                 `json:"first_entry_at"`
 }
 
 func (r positionV2) entry() models.PositionEntry {
@@ -164,5 +165,6 @@ func (r positionV2) entry() models.PositionEntry {
 		Mergeable:         r.Mergeable,
 		NegativeRisk:      r.NegativeRisk,
 		Archived:          r.Archived,
+		FirstEntryAt:      r.FirstEntryAt,
 	}
 }

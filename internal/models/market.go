@@ -16,6 +16,7 @@ type OrderBook struct {
 	TickSize       string           `json:"tick_size"`
 	NegRisk        bool             `json:"neg_risk"`
 	LastTradePrice string           `json:"last_trade_price"`
+	Version        string           `json:"version,omitempty"` // "v2" on Protocol V2 markets, empty otherwise
 }
 
 // BestBid returns the highest bid price and its size.
@@ -106,11 +107,15 @@ type OrderBookLevel struct {
 }
 
 type ClobMarketInfo struct {
-	MinTickSize  json.Number           `json:"mts"`
-	MinOrderSize json.Number           `json:"mos"`
-	FeeDetails   ClobMarketFeeDetails  `json:"fd"`
-	Tokens       []ClobMarketInfoToken `json:"t"`
-	RFQEnabled   bool                  `json:"rfqe"`
+	ConditionID     string                `json:"c"`
+	MinTickSize     json.Number           `json:"mts"`
+	MinOrderSize    json.Number           `json:"mos"`
+	FeeDetails      ClobMarketFeeDetails  `json:"fd"`
+	Tokens          []ClobMarketInfoToken `json:"t"`
+	RFQEnabled      bool                  `json:"rfqe"`
+	NegRisk         bool                  `json:"nr"`
+	AcceptingOrders bool                  `json:"ao"`
+	Version         string                `json:"v"` // "v1" for CTF markets, "v2" for Protocol V2
 }
 
 type ClobMarketFeeDetails struct {
@@ -172,6 +177,7 @@ type MarketInfo struct {
 	Is5050Outcome           bool          `json:"is_50_50_outcome"`
 	Tokens                  []MarketToken `json:"tokens"`
 	Tags                    []string      `json:"tags,omitempty"`
+	Version                 string        `json:"version,omitempty"` // "v1" for CTF markets, "v2" for Protocol V2
 }
 
 type SimplifiedMarketInfo struct {

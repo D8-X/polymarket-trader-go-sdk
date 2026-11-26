@@ -18,7 +18,18 @@ type heartbeatResponse struct {
 	ErrorMsg    string `json:"error_msg,omitempty"`
 }
 
+// PostHeartbeat sends one heartbeat. When the CLOB rejects the ID and names the
+// one it expects, it resends once right away, since a rejected send does not
+// push back the cancel deadline.
 func (c *Client) PostHeartbeat(ctx context.Context, heartbeatID string, creds *models.L2Credentials) (string, error) {
+	id, err := c.postHeartbeatOnce(ctx, heartbeatID, creds)
+	if err != nil && id != "" && id != heartbeatID && ctx.Err() == nil {
+		return c.postHeartbeatOnce(ctx, id, creds)
+	}
+	return id, err
+}
+
+func (c *Client) postHeartbeatOnce(ctx context.Context, heartbeatID string, creds *models.L2Credentials) (string, error) {
 	body, err := json.Marshal(map[string]string{"heartbeat_id": heartbeatID})
 	if err != nil {
 		return "", fmt.Errorf("post heartbeat: marshal: %w", err)

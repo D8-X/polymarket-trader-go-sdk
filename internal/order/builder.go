@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/consts"
+	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/ethutil"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/models"
 	"github.com/D8-X/polymarket-trader-go-sdk/v2/internal/sign"
 )
@@ -185,6 +186,9 @@ func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey 
 		if opt.Expiration > 0 {
 			dur = opt.Expiration
 		}
+		if consts.GTDSecurityThreshold+dur < consts.GTDMinExpiration {
+			return nil, fmt.Errorf("prepare order: GTD expiration %s is below the %s minimum", dur, consts.GTDMinExpiration-consts.GTDSecurityThreshold)
+		}
 		expiration = time.Now().Add(consts.GTDSecurityThreshold + dur).Unix()
 	}
 
@@ -218,7 +222,10 @@ func (ob *Builder) PrepareAndSign(tokenID, side, orderType, price, size, apiKey 
 	}
 
 	ctfExchange := ob.ctfExchangeAddress
-	if negRisk {
+	switch {
+	case ethutil.IsV2PositionID(tokenID):
+		ctfExchange = consts.ExchangeV3
+	case negRisk:
 		ctfExchange = consts.NegRiskCTFExchange
 	}
 	sig, err := sign.Order(ob.privateKeyHex, ctfExchange, o)
